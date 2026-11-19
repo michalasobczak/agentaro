@@ -18,6 +18,12 @@ Implementation principles for Agentaro. Based on the 24 engineering essentials o
 - **Storage:** SQLite only, so a fresh clone runs as is. Database files are never committed.
 - **No Docker for now:** agents run on subscriptions signed in on the host (Claude Code, Codex CLI); a container would need extra work to reach those logins. Revisit later (Rondo E18).
 - **No encrypted Rails credentials** in the repository: secrets come from environment variables.
+- **HTTPS (owner, 2026-11-19):** provided by a TLS-terminating proxy in front of the app, e.g. `tailscale serve`; the app listens only on localhost and does not depend on the proxy vendor. Allowed hostnames come from the environment, never from the repository. No separate specification.
+- **Authentication (spec 002):** Rails 8 built-in authentication (`has_secure_password`, database sessions), no Devise; TOTP with `rotp`, QR codes with `rqrcode`. No outgoing mail: password recovery through admin-generated one-time links; admins only on the command line.
+- **Audit (specs 003, 004):** own Rack middleware and model concern, no audit gems; separate SQLite database; hash chains; writes that skip callbacks (`update_all`, `update_columns`, …) are forbidden in application code — a test enforces it.
+- **Running (spec 005):** real use is production mode via `bin/start` (generic error pages, `AGENTARO_HTTPS_PROXY=1`, allowed hostnames from `AGENTARO_HOSTS`); `bin/dev` only for development on localhost. Tests run in proxy mode (set in `config/environments/test.rb`).
+- **Failed sign-ins (spec 005, F4):** counted per typed username, never per account, so failures cost the same for known and unknown names.
+- **Machine-local secrets:** generated on first boot into `storage/secrets.yml` (mode 0600, ignored by git); environment variables override.
 - **Local CI:** `bin/ci` (Rails 8.1) is the pipeline; failures are never bypassed.
 
 ## To be determined

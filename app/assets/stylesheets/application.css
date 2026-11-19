@@ -1,10 +1,33 @@
-/*
- * This is a manifest file that'll be compiled into application.css.
- *
- * With Propshaft, assets are served efficiently without preprocessing steps. You can still include
- * application-wide styles in this file, but keep in mind that CSS precedence will follow the standard
- * cascading order, meaning styles declared later in the document or manifest will override earlier ones,
- * depending on specificity.
- *
- * Consider organizing styles into separate files for maintainability.
- */
+/* Agentaro — plain, readable, no external assets. */
+:root { --fg: #1d1d1f; --muted: #6e6e73; --line: #d2d2d7; --bg: #fff; --accent: #0b57d0; --bad: #b3261e; --ok: #1e7e34; }
+@media (prefers-color-scheme: dark) { :root { --fg: #f5f5f7; --muted: #a1a1a6; --line: #3a3a3c; --bg: #1c1c1e; --accent: #8ab4f8; --bad: #f28b82; --ok: #81c995; } }
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.5 system-ui, -apple-system, sans-serif; color: var(--fg); background: var(--bg); }
+.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--line); }
+.top nav { display: flex; gap: 14px; flex: 1; }
+.brand { margin-right: 8px; }
+.who { color: var(--muted); }
+main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+a { color: var(--accent); }
+h1 { font-size: 22px; margin: 4px 0 16px; }
+form.stack { display: grid; gap: 12px; max-width: 380px; }
+label { display: grid; gap: 4px; font-weight: 500; }
+input[type=text], input[type=password], input:not([type]), select { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+button, input[type=submit] { font: inherit; padding: 8px 14px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
+button.link { background: none; border: 0; color: var(--accent); padding: 0; }
+button.secondary { background: none; color: var(--accent); }
+button.danger { border-color: var(--bad); background: var(--bad); }
+.flash { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); }
+.flash.alert { border-color: var(--bad); color: var(--bad); }
+.flash.notice { border-color: var(--ok); color: var(--ok); }
+.errors { color: var(--bad); }
+.muted { color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+td.wrap { overflow-wrap: anywhere; max-width: 360px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 12px; }
+.qr svg { width: 220px; height: 220px; background: #fff; padding: 8px; border-radius: 6px; }
+code.secret { font-size: 16px; letter-spacing: 1px; }
+.link-box { padding: 12px; border: 1px dashed var(--line); border-radius: 6px; overflow-wrap: anywhere; }

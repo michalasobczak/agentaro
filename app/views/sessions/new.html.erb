@@ -1,0 +1,8 @@
+<% content_for :title, "Sign in · Agentaro" %>
+<h1>Sign in</h1>
+<%= form_with url: session_path, class: "stack" do |f| %>
+  <label>Username <%= f.text_field :username, required: true, autofocus: true, autocomplete: "username", autocapitalize: "none" %></label>
+  <label>Password <%= f.password_field :password, required: true, autocomplete: "current-password" %></label>
+  <%= f.submit "Sign in" %>
+<% end %>
+<p class="muted">Forgot your password? Ask an admin for a password-change link.</p>

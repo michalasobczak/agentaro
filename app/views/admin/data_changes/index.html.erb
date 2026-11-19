@@ -1,0 +1,24 @@
+<h1>Data changes</h1>
+<p class="muted">Every create, update and delete, kept for 3 months. Sensitive values show as [FILTERED].</p>
+<%= form_with url: admin_data_changes_path, method: :get, class: "filters" do |f| %>
+  <label>Type <%= f.text_field :record_type, value: params[:record_type], size: 10 %></label>
+  <label>ID <%= f.text_field :record_id, value: params[:record_id], size: 5 %></label>
+  <label>Actor <%= f.text_field :actor, value: params[:actor] %></label>
+  <%= f.submit "Filter", name: nil %>
+<% end %>
+<table>
+  <tr><th>Time</th><th>Actor</th><th>Record</th><th>Action</th><th>Changes</th><th>Request</th></tr>
+  <% @changes.each do |c| %>
+    <tr>
+      <td><%= l c.occurred_at, format: :short %></td>
+      <td><%= c.actor %></td>
+      <td><%= link_to "#{c.record_type} ##{c.record_id}", admin_data_changes_path(record_type: c.record_type, record_id: c.record_id) %></td>
+      <td><%= c.action %></td>
+      <td class="wrap"><% c.changes_hash.each do |field, (before, after)| %><div><strong><%= field %></strong>: <%= before.inspect %> → <%= after.inspect %></div><% end %></td>
+      <td><%= c.request_id ? link_to("request", admin_audit_events_path(request_id: c.request_id)) : "—" %></td>
+    </tr>
+  <% end %>
+</table>
+<% if @changes.size == Admin::DataChangesController::PAGE %>
+  <p><%= link_to "Older", admin_data_changes_path(request.query_parameters.merge(before: @changes.last.id)) %></p>
+<% end %>

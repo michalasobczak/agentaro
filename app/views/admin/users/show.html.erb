@@ -1,0 +1,29 @@
+<h1><%= @user.username %></h1>
+<table>
+  <tr><th>Role</th><td><%= @user.role %></td></tr>
+  <tr><th>Status</th><td><%= @user.active? ? (@user.locked? ? "locked (too many failed sign-ins)" : "active") : "deactivated" %></td></tr>
+  <tr><th>TOTP</th><td><%= @user.otp_required? ? (@user.otp_enrolled? ? "on" : "required, not set up yet") : "off" %></td></tr>
+  <tr><th>Password changed</th><td><%= @user.password_changed_at ? l(@user.password_changed_at, format: :short) : "not set" %></td></tr>
+  <tr><th>Active sessions</th><td><%= @user.sessions.current.count %></td></tr>
+</table>
+
+<%= form_with model: @user, url: admin_user_path(@user), method: :patch, class: "stack" do |f| %>
+  <label>Role <%= f.select :role, User::ROLES %></label>
+  <% unless @user.admin? %>
+    <label><span><%= f.check_box :otp_required %> Require a verification code (TOTP)</span></label>
+  <% end %>
+  <label><span><%= f.check_box :active %> Account active</span></label>
+  <%= f.submit "Save" %>
+<% end %>
+
+<div class="actions">
+  <% unless @user.admin? %>
+    <%= button_to "Generate password-change link", admin_user_password_links_path(@user), class: "secondary" %>
+  <% end %>
+  <% if @user.otp_enrolled? %>
+    <%= button_to "Reset authenticator", reset_totp_admin_user_path(@user), class: "secondary" %>
+  <% end %>
+  <%= button_to "Revoke all sessions", revoke_sessions_admin_user_path(@user), class: "secondary" %>
+  <%= link_to "Change history", admin_data_changes_path(record_type: "User", record_id: @user.id) %>
+</div>
+<% if @user.admin? %><p class="muted">Admin passwords and authenticators change on the command line: <code>bin/rails agentaro:admin:password</code>, <code>agentaro:admin:reset_totp</code>.</p><% end %>

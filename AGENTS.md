@@ -30,4 +30,9 @@ Ruby 4.0.10 must be on `PATH` (on the owner's Mac: `export PATH="/opt/homebrew/o
 - `bin/setup --skip-server` — install gems, prepare SQLite databases
 - `bin/rails test` — tests (must pass before every commit)
 - `bin/ci` — local CI (setup, tests, seeds)
-- `bin/dev` — run the app on http://localhost:3000
+- `bin/dev` — development server on http://localhost:3000 (this machine only)
+- `bin/start` — real use: production mode behind an HTTPS proxy; needs `AGENTARO_HOSTS` (in `storage/settings.env`)
+- `bin/rails agentaro:admin:create` — first admin (interactive: password, QR code); prefix `RAILS_ENV=production` for production data
+- `bin/rails agentaro:audit:verify` / `agentaro:audit:prune` — audit chains
+
+Security tools used in the analysis (not in the Gemfile): `gem install bundler-audit brakeman`, then `bundle-audit check --update` and `brakeman -q`.

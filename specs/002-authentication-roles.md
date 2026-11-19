@@ -1,6 +1,6 @@
 # 002 — Authentication, roles and TOTP
 
-Status: **draft** — items marked *(proposal)* wait for the owner's acceptance
+Status: **implemented** 2026-11-19 (closed by owner: "specs 2 - 4 accept, go" — all proposals accepted). Security findings: spec 005.
 Date: 2026-11-19
 Depends on: [001](001-initial-structure.md)
 
@@ -25,12 +25,12 @@ Only people with an account created by an admin can use Agentaro. They sign in w
 ## 3. Objective
 
 **Goals**
-- G1. Users with a username, a password and a role: `admin` or `user`. *(proposal: username instead of e-mail — there is no mail to verify an address)*
+- G1. Users with a username, a password and a role: `admin` or `user`. *(accepted: username instead of e-mail — there is no mail to verify an address)*
 - G2. Sign-in with password; then a 6-digit TOTP code when the account has TOTP. Works with Google Authenticator (RFC 6238, SHA-1, 30 s, 6 digits).
-- G3. Sessions stored in the database; each lasts at most **7 days from sign-in** *(proposal: fixed, not sliding)*. Users see and revoke their own sessions; admins revoke any user's sessions.
+- G3. Sessions stored in the database; each lasts at most **7 days from sign-in** *(accepted: fixed, not sliding)*. Users see and revoke their own sessions; admins revoke any user's sessions.
 - G4. Authorization: every page requires a signed-in user; admin pages require the `admin` role.
 - G5. Admin area: list, create, deactivate and reactivate users; change role; require or drop TOTP per regular user; reset a user's TOTP; generate a password-change link; revoke sessions.
-- G6. Password-change link: one-time, valid for **24 hours** *(proposal)*, shown once to the admin. Also used for new accounts — the admin creates a user and hands over the link; nobody else knows the first password.
+- G6. Password-change link: one-time, valid for **24 hours**, shown once to the admin. Also used for new accounts — the admin creates a user and hands over the link; nobody else knows the first password.
 - G7. Command line (run on the server): `bin/rails agentaro:admin:create`, `agentaro:admin:password`, `agentaro:admin:reset_totp`. Creating an admin enrols TOTP immediately — the terminal shows the QR code.
 - G8. Regular users can change their own password (current password required). Admins cannot change any admin password in the web interface.
 
@@ -58,7 +58,7 @@ Only people with an account created by an admin can use Agentaro. They sign in w
 | System | Rails 8 authentication generator (`has_secure_password`, `Authentication` concern) without its mailer and password-reset parts | to create |
 | System | Sign-in, TOTP, password-change, own sessions, admin users pages | to create |
 | System | Rake tasks `agentaro:admin:*` | to create |
-| System | Gems: `bcrypt` (required by `has_secure_password`), `rotp` (TOTP), `rqrcode` (QR code) *(proposal)* | to create |
+| System | Gems: `bcrypt` (required by `has_secure_password`), `rotp` (TOTP), `rqrcode` (QR code) | to create |
 | System | Active Record encryption keys for `otp_secret` — from environment variables, generated locally by `bin/setup` into an ignored file | to create |
 | Organization | MANIFESTO (authentication decisions), README, AGENTS | to change |
 
@@ -68,8 +68,8 @@ Only people with an account created by an admin can use Agentaro. They sign in w
 
 **Rules**
 - R1. Usernames: 3–32 characters, lowercase letters, digits, `.`, `_`, `-`; unique, case-insensitive.
-- R2. Passwords: at least 12 characters, at most 72 bytes (bcrypt limit); no composition rules; rejected if on a bundled list of common passwords or equal to the username (NIST 800-63B). *(proposal)*
-- R3. Sign-in failures: Rails `rate_limit` per IP (10 attempts / 3 min); after 10 consecutive failures the account is locked for 15 minutes. Same message for unknown user, wrong password, locked or inactive account. *(proposal)*
+- R2. Passwords: at least 12 characters, at most 72 bytes (bcrypt limit); no composition rules; rejected if on a bundled list of common passwords or equal to the username (NIST 800-63B).
+- R3. Sign-in failures: Rails `rate_limit` per IP (10 attempts / 3 min); after 10 consecutive failures the account is locked for 15 minutes. Same message for unknown user, wrong password, locked or inactive account.
 - R4. TOTP: a code is accepted once (replay of the last used time-step is rejected); ±1 time-step of drift allowed. Secrets are stored encrypted. Enrolment shows a QR code and asks for one valid code before it takes effect.
 - R5. A regular user with `otp_required` but no secret must enrol TOTP right after the password step; until then the session gives no access.
 - R6. Admins always have `otp_required`; it cannot be switched off in the web interface. At least one active admin must exist — the last admin cannot be deactivated or demoted.
@@ -107,8 +107,8 @@ Rails authentication generator (trimmed) → users with roles and rules R1–R3 
 - **Technical debt:** no HTTPS in development; on the local network credentials travel in clear text until TLS is added. [TO BE DETERMINED: TLS for LAN access]
 - **External dependencies:** none at runtime.
 - **Questions:**
-  - Q1. Gems `bcrypt`, `rotp`, `rqrcode` — accepted? *(proposal: yes)*
-  - Q2. Session lifetime fixed at 7 days from sign-in (not 7 days of inactivity)? *(proposal: fixed)*
-  - Q3. Interface language English? *(proposal: yes)*
-  - Q4. Username instead of e-mail? *(proposal: yes)*
-  - Q5. Link validity 24 hours? *(proposal: yes)*
+  - Q1. Gems `bcrypt`, `rotp`, `rqrcode` — accepted? *(accepted: yes)*
+  - Q2. Session lifetime fixed at 7 days from sign-in (not 7 days of inactivity)? *(accepted: fixed)*
+  - Q3. Interface language English? *(accepted: yes)*
+  - Q4. Username instead of e-mail? *(accepted: yes)*
+  - Q5. Link validity 24 hours? *(accepted: yes)*

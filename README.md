@@ -29,17 +29,55 @@ cd agentaro
 bin/setup        # installs gems, creates the SQLite databases, starts the server
 ```
 
-Open http://localhost:3000 (health check: http://localhost:3000/up).
+Create the first admin (asks for a password and shows a QR code for Google Authenticator):
+
+```bash
+bin/rails agentaro:admin:create
+```
+
+Open http://localhost:3000 and sign in. The admin creates further users in the web interface and gives each one a one-time link to set their password — there is no e-mail.
 
 ```bash
 bin/rails test   # tests
 bin/ci           # local CI: setup, tests, seeds
 bin/dev          # start the server again later
+bin/rails agentaro:admin:password     # change an admin password (command line only)
+bin/rails agentaro:admin:reset_totp   # replace an admin's authenticator
+bin/rails agentaro:audit:verify       # check the audit log and changelog for tampering
+bin/rails agentaro:audit:prune        # remove audit rows older than 3 months (also runs daily by itself)
 ```
+
+### Running for real use (HTTPS, other devices)
+
+`bin/dev` is for development on this machine only. For real use, run production mode behind a TLS-terminating proxy — for example [Tailscale](https://tailscale.com) with HTTPS certificates enabled. Agentaro listens only on localhost; the proxy is the only way in.
+
+1. Put the hostname you open in the browser into `storage/settings.env` (not in git):
+   ```
+   AGENTARO_HOSTS=<host>.<tailnet>.ts.net
+   ```
+2. Create the first admin for production data:
+   ```bash
+   RAILS_ENV=production bin/rails agentaro:admin:create
+   ```
+3. Start the app and publish it:
+   ```bash
+   bin/start
+   tailscale serve --bg 3000
+   ```
+
+Open `https://<host>.<tailnet>.ts.net` on any device in your tailnet. `bin/start` sets `AGENTARO_HTTPS_PROXY=1` (Secure cookies, HSTS), shows generic error pages, answers only to `AGENTARO_HOSTS`, and prunes audit data older than 3 months once a day. Any other HTTPS proxy works the same way; Agentaro does not depend on Tailscale.
+
+### Backups
+
+Everything lives in `storage/`: the databases (development and production), the audit databases, `settings.env` and `secrets.yml` (encryption keys for TOTP secrets — without it every authenticator has to be set up again). Back up the whole folder.
 
 ## Functional architecture
 
-Ruby on Rails 8.1 application with SQLite (`storage/*.sqlite3`, not committed). No domain features yet — the only endpoint is the health check `/up`.
+Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No JavaScript, no external resources.
+
+- **Accounts (spec 002):** roles `admin` and `user`; passwords (bcrypt, 12+ characters, common-password list); TOTP (Google Authenticator) — mandatory for admins, switchable per user by an admin; sessions in the database, revoked 7 days after sign-in; one-time password-change links instead of e-mail; admins managed on the command line.
+- **Audit log (spec 003):** every HTTP request in `storage/*_audit.sqlite3`, sensitive values filtered, hash-chained, 3-month retention, admin view.
+- **Data changelog (spec 004):** every create/update/delete with before/after values, actor and request id, same database and guarantees.
 
 ## Critical path
 
@@ -49,16 +87,19 @@ Ruby on Rails 8.1 application with SQLite (`storage/*.sqlite3`, not committed). 
 
 - 2026-11-19: repository set up with CDD artifacts.
 - 2026-11-19: blank Rails application (spec 001): Ruby 4.0.10, Rails 8.1.4.1, SQLite, minimal components, no Docker. Tests: 1 (health check). Security analysis: clean.
-- Next: close specs 002–004 (authentication, audit log, data changelog), then implement them in order. Later: task calendar and provider adapters (Claude Code, Codex).
+- 2026-11-19: specs 002–004 implemented — authentication, roles and TOTP; HTTP audit log; data changelog. Tests: 58. Security analysis: spec 005 (2 medium, 3 low findings, fixes proposed).
+- 2026-11-19: spec 005 implemented — Secure cookies and HSTS behind the proxy, production mode via `bin/start`, automatic daily audit pruning, equal work on every failed sign-in. Tests: 64. Security round 1 closed.
+- Next: task calendar and provider adapters (Claude Code, Codex).
 
 ## Specifications
 
 | No. | Title | Status |
 |---|---|---|
 | 001 | [Initial project structure](specs/001-initial-structure.md) | implemented |
-| 002 | [Authentication, roles and TOTP](specs/002-authentication-roles.md) | draft — open questions |
-| 003 | [HTTP audit log](specs/003-http-audit-log.md) | draft — open questions |
-| 004 | [Data changelog](specs/004-data-changelog.md) | draft — open questions |
+| 002 | [Authentication, roles and TOTP](specs/002-authentication-roles.md) | implemented |
+| 003 | [HTTP audit log](specs/003-http-audit-log.md) | implemented |
+| 004 | [Data changelog](specs/004-data-changelog.md) | implemented |
+| 005 | [Security analysis, round 1](specs/005-security-round-1.md) | implemented |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 

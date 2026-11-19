@@ -1,6 +1,6 @@
 # 004 — Data changelog
 
-Status: **draft** — items marked *(proposal)* wait for the owner's acceptance
+Status: **implemented** 2026-11-19 (closed by owner: "specs 2 - 4 accept, go" — all proposals accepted). Security findings: spec 005.
 Date: 2026-11-19
 Depends on: [002](002-authentication-roles.md), [003](003-http-audit-log.md)
 
@@ -24,7 +24,7 @@ Every change to application data is recorded as a delta: which record, which fie
 - G1. For every create, update and delete of an Active Record model: model, record id, action, changed fields with before/after values, time, actor, and the request id that links to the audit log (spec 003).
 - G2. Actor: the signed-in user for web requests; `cli:<operating-system user>` for command-line tasks and the console; `system` otherwise.
 - G3. Sensitive fields (password digest, TOTP secret, token digests and any field matching the parameter filter) are recorded as changed, with values replaced by `[FILTERED]`.
-- G4. Same hash chain, verification and 3-month pruning as spec 003, in the same audit database *(proposal)*.
+- G4. Same hash chain, verification and 3-month pruning as spec 003, in the same audit database.
 - G5. Admins can see the history of a record and browse all changes (read-only).
 
 **Out of scope**
@@ -54,7 +54,7 @@ Every change to application data is recorded as a delta: which record, which fie
 
 **Rules**
 - R1. Rows are written after the transaction commits, so rolled-back changes are not recorded.
-- R2. Bulk operations that skip callbacks (`update_all`, `delete_all`, `insert_all`) are not allowed in application code; a test fails if they appear outside migrations. *(proposal)*
+- R2. Bulk operations that skip callbacks (`update_all`, `delete_all`, `insert_all`) are not allowed in application code; a test fails if they appear outside migrations.
 - R3. Changelog rows are never edited or deleted by the application, except pruning.
 
 **Resilience:** if writing the changelog fails after commit, the error goes to the Rails log and the audit log; the data change stays. [TO BE DETERMINED: accept this gap or write changes in the same database transaction?]
@@ -85,6 +85,6 @@ Actor and request id in `Current` → concern recording deltas after commit → 
 - **Rejected alternatives:** PaperTrail / audited gems — they work, but add dependencies for something a small concern does (Rondo E04).
 - **Technical debt:** see spec 003 — a hash chain detects but does not prevent rewriting by someone with file access.
 - **Questions:**
-  - Q1. Same audit database as spec 003? *(proposal: yes)*
-  - Q2. Forbid bulk operations that skip callbacks (R2)? *(proposal: yes)*
-  - Q3. Changelog written after commit, accepting a rare lost row on failure? *(proposal: yes)*
+  - Q1. Same audit database as spec 003? *(accepted: yes)*
+  - Q2. Forbid bulk operations that skip callbacks (R2)? *(accepted: yes)*
+  - Q3. Changelog written after commit, accepting a rare lost row on failure? *(accepted: yes)*

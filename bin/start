@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Runs Agentaro for real use (spec 005, F2): production mode, so errors show a generic page instead of
+# debug details, listening on localhost behind a TLS-terminating proxy (e.g. `tailscale serve --bg 3000`).
+#
+# Local settings (not in git) can live in storage/settings.env, for example:
+#   AGENTARO_HOSTS=<host>.<tailnet>.ts.net
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ -f storage/settings.env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . storage/settings.env
+  set +a
+fi
+
+export RAILS_ENV=production
+export AGENTARO_HTTPS_PROXY="${AGENTARO_HTTPS_PROXY:-1}"
+
+if [ -z "${AGENTARO_HOSTS:-}" ]; then
+  echo "Set AGENTARO_HOSTS (e.g. in storage/settings.env) to the hostname you open in the browser." >&2
+  exit 1
+fi
+
+bundle check >/dev/null || bundle install
+bin/rails db:prepare
+bin/rails assets:precompile
+exec bin/rails server -b 127.0.0.1 -p "${PORT:-3000}"

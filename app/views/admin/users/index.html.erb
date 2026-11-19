@@ -1,0 +1,16 @@
+<h1>Users</h1>
+<div class="actions"><%= link_to "New user", new_admin_user_path %></div>
+<table>
+  <tr><th>Username</th><th>Role</th><th>Status</th><th>TOTP</th><th>Sessions</th><th>Password changed</th></tr>
+  <% @users.each do |u| %>
+    <tr>
+      <td><%= link_to u.username, admin_user_path(u) %></td>
+      <td><%= u.role %></td>
+      <td><%= u.active? ? (u.locked? ? "locked" : "active") : "deactivated" %></td>
+      <td><%= u.otp_required? ? (u.otp_enrolled? ? "on" : "required, not set up") : "off" %></td>
+      <td><%= u.sessions.current.count %></td>
+      <td><%= u.password_changed_at ? l(u.password_changed_at, format: :short) : "not set" %></td>
+    </tr>
+  <% end %>
+</table>
+<p class="muted">Admins are created on the command line: <code>bin/rails agentaro:admin:create</code>.</p>

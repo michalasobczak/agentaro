@@ -16,3 +16,8 @@ group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 end
+
+# Spec 002: passwords (has_secure_password), TOTP (Google Authenticator), QR codes for enrolment
+gem "bcrypt", "~> 3.1"
+gem "rotp", "~> 6.3"
+gem "rqrcode", "~> 3.1"

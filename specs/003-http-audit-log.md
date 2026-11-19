@@ -1,6 +1,6 @@
 # 003 — HTTP audit log
 
-Status: **draft** — items marked *(proposal)* wait for the owner's acceptance
+Status: **implemented** 2026-11-19 (closed by owner: "specs 2 - 4 accept, go" — all proposals accepted). Security findings: spec 005.
 Date: 2026-11-19
 Depends on: [002](002-authentication-roles.md)
 
@@ -22,11 +22,11 @@ Every HTTP request to Agentaro is recorded: who, when, from where, what was aske
 
 **Goals**
 - G1. One row per HTTP request: time, request id, user (if signed in), session id, IP, user agent, method, path, query string, filtered body, response status, duration.
-- G2. Bodies are filtered with the same rules as Rails parameter filtering, extended with `password`, `otp`, `code`, `token`, `secret`; the stored body is capped at 10 KB *(proposal)*.
+- G2. Bodies are filtered with the same rules as Rails parameter filtering, extended with `password`, `otp`, `code`, `token`, `secret`; the stored body is capped at 10 KB.
 - G3. Hash chain: each row stores `SHA-256(previous hash + canonical row content)`. A command verifies the chain: `bin/rails agentaro:audit:verify`.
 - G4. Retention: rows older than 3 months are removed by `bin/rails agentaro:audit:prune`; the hash of the oldest remaining row is kept as the new chain anchor.
 - G5. Admins can browse and filter the log in the web interface (read-only).
-- G6. The log lives in a separate SQLite database `storage/audit.sqlite3` *(proposal)*, so heavy logging does not slow the main database and the log can be backed up on its own.
+- G6. The log lives in a separate SQLite database `storage/audit.sqlite3`, so heavy logging does not slow the main database and the log can be backed up on its own.
 
 **Out of scope**
 - Shipping logs to an external system (SIEM).
@@ -57,10 +57,10 @@ Every HTTP request to Agentaro is recorded: who, when, from where, what was aske
 **Rules**
 - R1. Logging must not change the response; if writing the row fails, the request still completes and the failure goes to the Rails log.
 - R2. Rows are written in order; concurrent requests are serialized when the hash chain is extended (SQLite write lock).
-- R3. Static assets are logged like any other request *(proposal: yes — "all traffic")*.
+- R3. Static assets are logged like any other request *(accepted: yes — "all traffic")*.
 - R4. The user is resolved from the session. A failed sign-in stores the username as typed, never whether that account exists, so the log does not become an enumeration aid.
 
-**Resilience:** if `audit.sqlite3` is unavailable, requests are served and errors logged. [TO BE DETERMINED: should the app refuse requests instead (fail closed)?] *(proposal: fail open, report in the Rails log)*
+**Resilience:** if `audit.sqlite3` is unavailable, requests are served and errors logged. [TO BE DETERMINED: should the app refuse requests instead (fail closed)?] *(accepted: fail open, report in the Rails log)*
 
 **Data:** separate database, own migrations; size grows with traffic — 3-month pruning bounds it.
 
@@ -88,6 +88,6 @@ Second database configured → middleware writing rows with filtered body → ha
 - **Rejected alternatives:** parsing the Rails text log (not structured, no user); a gem such as `audited` (covers model changes, not HTTP traffic).
 - **Technical debt:** the hash chain detects tampering but cannot prevent someone with file access from rewriting the whole chain; protection against that needs an external copy. [TO BE DETERMINED]
 - **Questions:**
-  - Q1. Separate database `storage/audit.sqlite3`? *(proposal: yes)*
-  - Q2. Fail open (serve requests, report logging errors) or fail closed? *(proposal: fail open)*
-  - Q3. Body cap 10 KB? *(proposal: yes)*
+  - Q1. Separate database `storage/audit.sqlite3`? *(accepted: yes)*
+  - Q2. Fail open (serve requests, report logging errors) or fail closed? *(accepted: fail open)*
+  - Q3. Body cap 10 KB? *(accepted: yes)*

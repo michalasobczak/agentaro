@@ -1,0 +1,10 @@
+<% content_for :title, "Set up authenticator · Agentaro" %>
+<h1>Set up your authenticator</h1>
+<p>Your account requires a verification code at sign-in. Scan this QR code with Google Authenticator (or any TOTP app), then enter the code it shows.</p>
+<div class="qr"><%= raw @qr_svg %></div>
+<p class="muted">Can't scan? Enter this key manually: <code class="secret"><%= @secret.scan(/.{1,4}/).join(" ") %></code></p>
+<%= form_with url: two_factor_enrollment_path, class: "stack" do |f| %>
+  <label>Code <%= f.text_field :code, required: true, autofocus: true, inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]{6,7}" %></label>
+  <%= f.submit "Confirm" %>
+<% end %>
+<%= button_to "Cancel and sign out", session_path, method: :delete, class: "link" %>

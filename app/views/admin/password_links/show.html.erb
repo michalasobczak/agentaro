@@ -1,0 +1,5 @@
+<h1>Password-change link for <%= @link.user.username %></h1>
+<p>Give this link to <strong><%= @link.user.username %></strong> in person or over a channel you trust. It works once and expires <%= l @link.expires_at, format: :short %>.</p>
+<p class="link-box"><%= password_reset_url(token: @link.token) %></p>
+<p class="muted">The link is shown only now. If it gets lost, generate a new one — older links stop working.</p>
+<p><%= link_to "Back to #{@link.user.username}", admin_user_path(@link.user) %></p>

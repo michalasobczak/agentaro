@@ -1,0 +1,9 @@
+<h1>Change password</h1>
+<% if @errors.present? %><ul class="errors"><% @errors.each do |e| %><li><%= e %></li><% end %></ul><% end %>
+<%= form_with url: account_password_path, method: :patch, class: "stack" do |f| %>
+  <label>Current password <%= f.password_field :current_password, required: true, autocomplete: "current-password" %></label>
+  <label>New password <%= f.password_field :password, required: true, autocomplete: "new-password", minlength: User::PASSWORD_MIN %></label>
+  <label>Repeat new password <%= f.password_field :password_confirmation, required: true, autocomplete: "new-password" %></label>
+  <%= f.submit "Change password" %>
+<% end %>
+<p class="muted">Changing your password signs you out on every device.</p>

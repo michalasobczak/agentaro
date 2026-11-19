@@ -4,6 +4,14 @@
 # and recreated between test runs. Don't rely on the data there!
 
 Rails.application.configure do
+  # Audit pruning runs in a background thread in real use; tests trigger it explicitly (spec 005, F3).
+  config.x.audit_auto_prune = false
+
+  # Tests run the way Agentaro runs for real: behind an HTTPS proxy (spec 005, F1). Set here rather than
+  # through AGENTARO_HTTPS_PROXY, because `bin/rails test` boots the app before test_helper.rb runs.
+  config.assume_ssl = true
+  config.force_ssl = true
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # While tests run files are not watched, reloading is not necessary.
