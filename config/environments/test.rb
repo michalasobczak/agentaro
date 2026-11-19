@@ -10,6 +10,8 @@ Rails.application.configure do
 
   # Audit pruning runs in a background thread in real use; tests trigger it explicitly (spec 005, F3).
   config.x.audit_auto_prune = false
+  config.x.task_scheduler = false # tests run the scheduler and runner explicitly
+  config.x.runs_dir = Rails.root.join("tmp/test-runs").to_s
 
   # Tests run the way Agentaro runs for real: behind an HTTPS proxy (spec 005, F1). Set here rather than
   # through AGENTARO_HTTPS_PROXY, because `bin/rails test` boots the app before test_helper.rb runs.

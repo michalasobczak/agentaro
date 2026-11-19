@@ -17,7 +17,8 @@ module CalendarHelper
     def placement_classes
       count = [ lanes, MAX_LANES ].min
       width = SUB_COLUMNS / count
-      size = span <= 3 ? "tiny" : (span <= 6 ? "short" : nil) # under 15 / 30 minutes: one line
+      # Up to 15 / 30 minutes: one line; up to 1 hour: two lines (title, then time · place · agent).
+      size = if span <= 3 then "tiny" elsif span <= 6 then "short" elsif span <= 12 then "compact" end
       [ "r#{row} h#{span} c#{(lane % count) * width + 1} w#{width}", size ].compact.join(" ")
     end
   end
@@ -80,7 +81,22 @@ module CalendarHelper
 
   def task_classes(occurrence, *extra)
     task = occurrence.task
-    [ "task", "t-#{task.calendar}", ("is-recurring" if task.recurring?), ("is-readonly" unless task.editable_by?(current_user)), *extra ].compact.join(" ")
+    [ "task", "t-#{task.calendar}", ("is-recurring" if task.recurring?), ("is-readonly" unless task.editable_by?(current_user)), run_class(occurrence), *extra ].compact.join(" ")
+  end
+
+  # Spec 010, G6/G9: latest run of the occurrence, or "missed" when it should have run and did not.
+  def run_class(occurrence)
+    task = occurrence.task
+    state = @run_states&.dig(task.id, occurrence.original_start.to_i)
+    return "run-#{state.tr("_", "-")}" if state
+    return unless task.agent && task.agent_assigned_at && occurrence.original_start >= task.agent_assigned_at
+
+    "run-missed" if occurrence.starts_at < Agentaro::TaskScheduler::GRACE.seconds.ago
+  end
+
+  def run_badge(run)
+    kind = { "succeeded" => "ok", "failed" => "bad", "timed_out" => "bad", "running" => "accent", "skipped" => "warn" }[run.state]
+    badge(run.state_label, kind)
   end
 
   private

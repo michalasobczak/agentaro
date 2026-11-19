@@ -11,7 +11,16 @@ class CalendarController < ApplicationController
     to = Time.zone.local(@days.last.year, @days.last.month, @days.last.day) + 1.day
     range = from...to
     @occurrences = Task.occurrences_for(current_user, range)
+    # Spec 010, G6: latest run state per occurrence, for the marks on the calendar.
+    @run_states = TaskRun.where(task_id: @occurrences.map { |o| o.task.id }.uniq, occurrence_start: (range.begin - Task::MAX_DURATION)...range.end)
+                         .order(:id).pluck(:task_id, :occurrence_start, :state)
+                         .each_with_object(Hash.new { |h, k| h[k] = {} }) { |(id, start, state), h| h[id][start.to_i] = state }
     @previous, @next = step(@view, @date, -1), step(@view, @date, 1)
+  end
+
+  # Auto refresh: the calendar asks every 20 seconds whether anything it shows has changed.
+  def stamp
+    render json: { stamp: ChangeStamp.calendar(current_user) }
   end
 
   private

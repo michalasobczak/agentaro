@@ -69,13 +69,14 @@ Open `https://<host>.<tailnet>.ts.net` on any device in your tailnet. After upda
 
 ### Backups
 
-Everything lives in `storage/`: the databases (development and production), the audit databases, `settings.env` and `secrets.yml` (encryption keys for TOTP secrets — without it every authenticator has to be set up again). Back up the whole folder.
+Run folders (files agents wrote) live in `var/runs/`. Everything else lives in `storage/`: the databases (development and production), the audit databases, `settings.env` and `secrets.yml` (encryption keys for TOTP secrets — without it every authenticator has to be set up again). Back up the whole folder.
 
 ## Functional architecture
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
-- **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent; nothing runs yet.
+- **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
+- **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
 - **Executors (spec 008):** the AI tools Agentaro can use, managed by admins from built-in presets — command-line tools logged in on this computer (Claude Code, Codex, Gemini CLI, Grok CLI, Ollama, LM Studio) and local APIs that need no key (Ollama, LM Studio, OpenAI-compatible servers). On-demand check: version of the program, or list of models. Users see the list read-only. No keys or tokens are stored; subscriptions are used by logging in on the host (`claude login`, `codex login`).
 - **Calendar (spec 007):** day, 4-day, week and month views; one-time and recurring tasks (daily, weekly on chosen days, monthly; at most 3 months per series) from 1 minute to 4 days, all-day tasks; new tasks in a popup over the calendar; drag & drop, resize, cut, copy, paste, duplicate. Private tasks per user and a system-wide calendar that admins maintain. Europe/Warsaw time.
 - **Interface (spec 006):** responsive — sidebar layout on desktop and tablet (≥ 640 px), compact top bar on phones; light and dark mode; plain CSS and inline SVG icons. Phones get sign-in, home, own sessions and password; admin tools are for desktop and tablet.
@@ -98,7 +99,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-19: spec 007 implemented — calendar of tasks; owner correction: adding a task opens in a popup. Tests: 98.
 - 2026-11-19: spec 008 implemented — executors (CLI and local API presets, check, read-only list for users). Tests: 117. Security analysis: F9, F10 fixed.
 - 2026-11-19: spec 009 implemented — agents (private and shared) with a master prompt and an executor, assignable to calendar tasks. Tests: 137. Security analysis: F11 fixed.
-- Next: spec 010 running a task on its agent's executor; then 011 memory and context (draft), 012 self-improvement.
+- 2026-11-19: spec 010 implemented — tasks run on their agents' executors at their time (Claude Code, Codex verified on the host). Tests: 156. Security analysis: F13 fixed, F12 (agents can read files outside their folder) deferred by the owner — until it is decided, give agents on Claude Code or Codex only to people you trust with your Mac account's files.
+- Next: 011 memory and context (draft), 012 self-improvement; F12 still to be decided.
 
 ## Specifications
 
@@ -113,7 +115,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 007 | [Calendar of tasks](specs/007-calendar.md) | implemented |
 | 008 | [Executors](specs/008-executors.md) | implemented |
 | 009 | [Agents and task assignment](specs/009-agents.md) | implemented |
-| 010 | Running tasks on executors | not written |
+| 010 | [Running tasks on agents](specs/010-task-execution.md) | implemented (F12 deferred) |
 | 011 | [Agent memory and context](specs/011-agent-memory.md) | draft |
 | 012 | Self-improvement | not written |
 

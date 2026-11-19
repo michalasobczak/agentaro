@@ -70,6 +70,10 @@
 .task.short { flex-direction: row; align-items: center; gap: 0.4rem; padding-top: 0; padding-bottom: 0; font-size: 0.74rem; line-height: 1.1; }
 .task.short .task-loc, .task.short .task-agent { display: none; }
 .task .task-agent { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task.compact { flex-direction: row; flex-wrap: wrap; align-content: flex-start; column-gap: 0.45rem; row-gap: 0; padding-top: 0.1rem; padding-bottom: 0.1rem; font-size: 0.76rem; line-height: 1.2; }
+.task.compact .task-title { flex: 0 0 100%; }
+.task.compact .task-time, .task.compact .task-loc, .task.compact .task-agent { flex: 0 1 auto; min-width: 0; }
+.task.compact .task-loc::before, .task.compact .task-agent::before { content: "· "; }
 .task.tiny { min-height: 0.95rem; font-size: 0.7rem; line-height: 1; padding: 0 0.35rem; }
 .task.tiny { flex-direction: row; align-items: center; }
 .task.tiny .task-time, .task.tiny .task-loc, .task.tiny .task-agent { display: none; }
@@ -157,3 +161,26 @@ legend { padding: 0 0.4rem; font-weight: 650; }
   .cal-grid.days-1 .task { cursor: pointer; }
   .cal-legend .desktop-only { display: none; }
 }
+
+/* Runs (spec 010): a dot in the task's corner shows how its run went; missed runs are outlined. */
+.side-col { display: grid; gap: 1.25rem; min-width: 0; }
+.side-col .card + .card { margin-top: 0; }
+.task-runs form.button_to, .task-runs form.button_to button { width: 100%; }
+.run-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.run-list a { display: flex; align-items: center; gap: 0.5rem; color: inherit; }
+.run-text { margin: 0; max-height: 32rem; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 0.85rem; line-height: 1.5; }
+details.card > summary { cursor: pointer; }
+details.card[open] > summary { margin-bottom: 0.75rem; }
+.task.run-succeeded::after, .task.run-failed::after, .task.run-timed-out::after, .task.run-running::after,
+.task.run-queued::after, .task.run-skipped::after, .task.run-missed::after {
+  content: ""; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
+}
+.task.run-failed::after, .task.run-timed-out::after { background: var(--bad); }
+.task.run-running::after, .task.run-queued::after { background: var(--accent); }
+.task.run-skipped::after { background: var(--warn); }
+.task.run-missed::after { background: transparent; border: 1.5px solid var(--muted); }
+.legend.run-ok, .legend.run-bad, .legend.run-missed { width: 0.6rem; height: 0.6rem; border-left: 0; margin-left: 0.6rem; }
+.legend.run-ok { background: var(--ok); border-radius: 50%; }
+.legend.run-bad { background: var(--bad); border-radius: 50%; }
+.legend.run-missed { border: 1.5px solid var(--muted); border-radius: 50%; background: transparent; }
+

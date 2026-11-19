@@ -29,6 +29,7 @@ Implementation principles for Agentaro. Based on the 24 engineering essentials o
 - **Machine-local secrets:** generated on first boot into `storage/secrets.yml` (mode 0600, ignored by git); environment variables override.
 - **Executors (spec 008, owner):** AI tools are reached as CLIs logged in on the host or as local APIs without a key; Agentaro stores no API keys or tokens. What may run is fixed in code (`Executor::PRESETS`), never typed in the web; programs start without a shell and without Agentaro's environment.
 - **Agent identity (specs 009, 011, owner):** the master prompt is written by people only; what an agent learns lives in Agentaro's own memory (SQLite), never in a vendor tool's memory, so it survives a change of executor.
+- **Running agents (spec 010):** the scheduler is a thread in the app, not a job system; runs never start late; each run gets its own folder outside `storage/`, and tools are confined by the vendor's own sandbox (Claude Code sandbox settings, Codex `workspace-write`).
 - **Local CI:** `bin/ci` (Rails 8.1) is the pipeline; failures are never bypassed.
 
 ## To be determined

@@ -1,0 +1,24 @@
+<% unless @run.finished? %><% content_for :head, tag.meta("http-equiv": "refresh", content: "5") %><% end %>
+<%= page_header "Run of #{@task.title}", "#{l @run.occurrence_start.in_time_zone, format: :long} · #{@run.trigger}" do %>
+  <%= link_to "Back to task", (@task.editable_by?(current_user) ? edit_task_path(@task, occurrence: (@run.occurrence_start.iso8601 if @task.recurring?)) : task_path(@task, occurrence: (@run.occurrence_start.iso8601 if @task.recurring?))), class: "button secondary" %>
+<% end %>
+<div class="card">
+  <dl class="facts">
+    <dt>State</dt><dd><%= run_badge(@run) %><% unless @run.finished? %> <span class="muted small">This page refreshes by itself.</span><% end %></dd>
+    <% if @run.agent_name %><dt>Agent</dt><dd><%= @run.agent_name %></dd><% end %>
+    <% if @run.executor_name %><dt>Executor</dt><dd><%= [ @run.executor_name, @run.model ].compact.join(" · ") %></dd><% end %>
+    <dt>Queued</dt><dd><%= l @run.created_at, format: :long %><% if @run.requested_by %> <span class="muted small">by <%= @run.requested_by %></span><% end %></dd>
+    <% if @run.started_at %><dt>Started</dt><dd><%= l @run.started_at, format: :long %></dd><% end %>
+    <% if @run.duration %><dt>Took</dt><dd><%= distance_of_time_in_words(@run.duration) %> (<%= @run.duration.round %> s)</dd><% end %>
+    <% if @run.exit_status %><dt>Exit status</dt><dd><%= @run.exit_status %></dd><% end %>
+  </dl>
+</div>
+<% if @run.output %>
+  <div class="card"><div class="card-header"><h2>Answer</h2></div><pre class="run-text"><%= @run.output %></pre></div>
+<% end %>
+<% if @run.error %>
+  <div class="card"><div class="card-header"><h2><%= @run.ok? ? "Messages" : "Error" %></h2></div><pre class="run-text"><%= @run.error %></pre></div>
+<% end %>
+<% if @run.prompt %>
+  <details class="card"><summary><strong>Prompt sent to the agent</strong></summary><pre class="run-text"><%= @run.prompt %></pre></details>
+<% end %>

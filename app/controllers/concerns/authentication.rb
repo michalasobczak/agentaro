@@ -63,7 +63,8 @@ module Authentication
   end
 
   def request_authentication
-    session[:return_to_after_authenticating] = request.url if request.get?
+    # Only pages are remembered, not background requests such as the auto-refresh check.
+    session[:return_to_after_authenticating] = request.url if request.get? && request.format.html?
     redirect_to new_session_path
   end
 

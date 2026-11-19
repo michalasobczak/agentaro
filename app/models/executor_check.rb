@@ -10,7 +10,6 @@ class ExecutorCheck
   MAX_OUTPUT = 2048 # bytes kept
   MAX_BODY = 1.megabyte # largest models list read from an API
   SEARCH_DIRS = [ "~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "~/.lmstudio/bin" ].freeze
-  ENV_KEPT = %w[PATH HOME USER LANG TMPDIR].freeze
   MODELS_PATH = { "ollama" => "/api/tags", "openai" => "/models" }.freeze
 
   Result = Data.define(:ok, :output)
@@ -35,6 +34,14 @@ class ExecutorCheck
     dirs.uniq.lazy.map { |dir| File.join(dir, program) }.find { |file| File.file?(file) && File.executable?(file) }
   end
 
+  # Removes escape codes and control characters (keeps line breaks and tabs); no length limit.
+  def self.clean_text(text)
+    text.to_s.dup.force_encoding(Encoding::UTF_8).scrub("?")
+        .gsub(/\e\[[0-9;?]*[ -\/]*[@-~]/, "")
+        .gsub(/[^\P{Cc}\n\t]/, "")
+        .strip
+  end
+
   def self.clean(text)
     text.to_s.dup.force_encoding(Encoding::UTF_8).scrub("?")
         .gsub(/\e\[[0-9;?]*[ -\/]*[@-~]/, "") # ANSI escape sequences
@@ -48,46 +55,13 @@ class ExecutorCheck
     program = self.class.locate(preset.program)
     return Result.new(false, "#{preset.program} was not found on this computer.") unless program
 
-    env = ENV.to_h.slice(*ENV_KEPT)
-    reader, writer = IO.pipe
-    pid = Process.spawn(env, program, *preset.version_args, unsetenv_others: true, chdir: Dir.tmpdir, pgroup: true,
-                        in: File::NULL, out: writer, err: writer, close_others: true)
-    writer.close
-    output = +""
-    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @timeout
-    loop do
-      remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      break if remaining <= 0
-      next unless reader.wait_readable(remaining)
+    result = HostProcess.run(program, preset.version_args, timeout: @timeout, max_output: MAX_OUTPUT * 4)
+    return Result.new(false, "No answer within #{@timeout} seconds; stopped.") if result.timed_out
 
-      chunk = reader.read_nonblock(4096, exception: false)
-      break if chunk.nil? # EOF: the program closed its output
-      output << chunk if chunk.is_a?(String) && output.bytesize < MAX_OUTPUT * 4
-    end
-
-    status = wait_or_kill(pid, deadline)
-    return Result.new(false, "No answer within #{@timeout} seconds; stopped.") unless status
-
-    text = self.class.clean(output)
-    status.success? ? Result.new(true, text.presence || "OK") : Result.new(false, "Exited with status #{status.exitstatus}. #{text}".strip)
+    text = self.class.clean([ result.stdout, result.stderr ].reject(&:empty?).join("\n"))
+    result.success? ? Result.new(true, text.presence || "OK") : Result.new(false, "Exited with status #{result.exit_status}. #{text}".strip)
   rescue SystemCallError => e
     Result.new(false, "Could not start #{preset.program}: #{e.message}")
-  ensure
-    reader&.close
-    writer&.close unless writer&.closed?
-  end
-
-  def wait_or_kill(pid, deadline)
-    loop do
-      _, status = Process.wait2(pid, Process::WNOHANG)
-      return status if status
-      break if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-
-      sleep 0.05
-    end
-    Process.kill("KILL", -pid) rescue Errno::ESRCH
-    Process.wait(pid) rescue Errno::ECHILD
-    nil
   end
 
   def run_api(preset)

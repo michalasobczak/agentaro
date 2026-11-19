@@ -3,8 +3,11 @@ Rails.application.routes.draw do
 
   # Spec 007: calendar of tasks
   get "calendar" => "calendar#show", as: :calendar
+  get "calendar/stamp" => "calendar#stamp", as: :calendar_stamp # auto refresh
   resources :tasks, only: %i[new create show edit update destroy] do
+    resources :runs, only: :create, controller: "task_runs" # spec 010: Run now
     member do
+      get :stamp # auto refresh
       patch :move
       post :copy
       post :duplicate
@@ -12,6 +15,7 @@ Rails.application.routes.draw do
   end
 
   resources :agents # spec 009
+  resources :task_runs, only: :show, path: "runs" # spec 010
   resources :executors, only: :index # spec 008 (read-only for everyone, Q4)
 
   # Spec 002: sign-in, TOTP, password-change links

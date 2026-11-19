@@ -22,6 +22,7 @@ Bundler.require(*Rails.groups)
 require_relative "../lib/agentaro/local_secrets"
 require_relative "../lib/agentaro/audit_middleware"
 require_relative "../lib/agentaro/audit_retention"
+require_relative "../lib/agentaro/task_scheduler"
 
 module Agentaro
   class Application < Rails::Application
@@ -70,6 +71,13 @@ module Agentaro
 
     # Audit retention is enforced automatically (spec 005, F3); tests call it explicitly instead.
     config.x.audit_auto_prune = true
+
+    # Running tasks on agents (spec 010): a scheduler thread in the server process, 2 runs at a time,
+    # each in its own folder under var/runs (outside storage/, which agents may not read).
+    config.x.task_scheduler = true
+    config.x.run_workers = 2
+    config.x.run_timeout = 15 * 60 # seconds
+    config.x.runs_dir = File.expand_path("../var/runs", __dir__)
 
     # Command-line sessions are recorded as "cli:<user>" in the data changelog (spec 004).
     console { Current.actor = "cli:#{ENV.fetch("USER", "unknown")}" }

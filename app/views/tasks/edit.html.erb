@@ -1,8 +1,11 @@
+<div hidden data-refresh-url="<%= stamp_task_path(@task) %>" data-refresh-stamp="<%= ChangeStamp.task(@task) %>"></div>
+<p class="flash notice" hidden data-refresh-notice><span>This task has changed or has new runs. <a href="<%= request.fullpath %>">Reload</a> to see them (unsaved changes in the form are lost).</span></p>
 <%= page_header @task.title, (@task.recurring? ? "Repeating task" : nil) %>
 <div class="task-layout">
   <div class="card task-card">
     <%= render "form", task: @task, url: task_path(@task), method: :patch, occurrence: @occurrence, return_to: @return_to, errors: @errors %>
   </div>
+  <div class="side-col">
   <div class="card task-side">
     <h2>Actions</h2>
     <div class="stack">
@@ -15,5 +18,7 @@
       <% end %>
     </div>
     <p class="hint spaced"><%= @task.system? ? "System-wide task — every user sees it." : "Private task — only you see it." %></p>
+  </div>
+  <%= render "runs", task: @task, occurrence: @occurrence %>
   </div>
 </div>

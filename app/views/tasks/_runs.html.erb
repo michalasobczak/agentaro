@@ -1,0 +1,16 @@
+<% runs = task.runs.recent.limit(10) %>
+<div class="card task-runs">
+  <div class="card-header"><h2>Runs</h2><% if task.agent %><span class="muted small"><%= icon(:agent, css: "icon tiny") %> <%= agent_label(task) %></span><% end %></div>
+  <% if task.agent && task.editable_by?(current_user) %>
+    <%= button_to task_runs_path(task), params: { occurrence: occurrence&.original_start&.iso8601 }.compact, class: "secondary" do %><%= icon(:play) %> Run now<% end %>
+  <% end %>
+  <% if runs.empty? %>
+    <p class="muted small spaced"><%= task.agent ? "No runs yet. The agent runs this task at its start time." : "Assign an agent to run this task." %></p>
+  <% else %>
+    <ul class="run-list spaced">
+      <% runs.each do |run| %>
+        <li><%= link_to task_run_path(run) do %><%= run_badge(run) %> <span class="small"><%= l run.occurrence_start.in_time_zone, format: :short %></span><% if run.trigger == "manual" %> <span class="muted small">by hand</span><% end %><% end %></li>
+      <% end %>
+    </ul>
+  <% end %>
+</div>

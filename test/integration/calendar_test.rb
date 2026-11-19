@@ -45,6 +45,51 @@ class CalendarTest < ActionDispatch::IntegrationTest
     assert_select ".month-day[data-date='2026-11-20'] a.task", text: /Dentist/
   end
 
+  test "tasks up to 1 hour are compact; 15 and 30 minutes one line (owner fix)" do
+    { "Ten" => 10, "Quarter" => 20, "Half" => 45, "Hour" => 60, "Long" => 75 }.each_with_index do |(title, minutes), i|
+      start = t("2026-11-20 #{8 + 2 * i}:00")
+      make(title: title, starts_at: start, ends_at: start + minutes.minutes)
+    end
+    get calendar_path(view: "day", date: "2026-11-20")
+    assert_select "a.task.tiny", text: /Ten/
+    assert_select "a.task.short", text: /Quarter/
+    assert_select "a.task.compact", text: /Half/
+    assert_select "a.task.compact", text: /Hour/
+    assert_select "a.task:not(.compact):not(.short):not(.tiny)", text: /Long/
+  end
+
+  test "auto refresh: the calendar fingerprint changes when tasks or runs change" do
+    task = make
+    get calendar_path(view: "week", date: "2026-11-20")
+    first = css_select(".calendar").first["data-refresh-stamp"]
+    get calendar_stamp_path, headers: { "Accept" => "application/json" }
+    assert_equal first, JSON.parse(response.body)["stamp"], "unchanged"
+    TaskRun.create!(task: task, occurrence_start: task.starts_at, trigger: "manual")
+    get calendar_stamp_path, headers: { "Accept" => "application/json" }
+    second = JSON.parse(response.body)["stamp"]
+    assert_not_equal first, second, "a new run"
+    task.runs.last.update!(state: "succeeded")
+    get calendar_stamp_path, headers: { "Accept" => "application/json" }
+    assert_not_equal second, JSON.parse(response.body)["stamp"], "a run changed state"
+
+    get stamp_task_path(task), headers: { "Accept" => "application/json" }
+    assert_response :success
+    get edit_task_path(task)
+    assert_select "[data-refresh-url='#{stamp_task_path(task)}']"
+    assert_select "[data-refresh-notice][hidden]"
+  end
+
+  test "auto refresh: other users' tasks stay hidden; a background check is not remembered for after sign-in" do
+    theirs = Task.create!(user: create_user(username: "bob"), title: "Secret", starts_at: t("2026-11-20 09:00"), ends_at: t("2026-11-20 10:00"))
+    get stamp_task_path(theirs), headers: { "Accept" => "application/json" }
+    assert_response :not_found
+    delete session_path
+    get calendar_stamp_path, headers: { "Accept" => "application/json" }
+    assert_redirected_to new_session_path
+    post session_path, params: { username: @user.username, password: PASSWORD }
+    assert_redirected_to root_url
+  end
+
   test "overlapping tasks are placed side by side" do
     make
     make(title: "Call", starts_at: t("2026-11-20 09:30"), ends_at: t("2026-11-20 10:30"))
@@ -175,6 +220,14 @@ class CalendarTest < ActionDispatch::IntegrationTest
     assert_select "dialog#task-dialog input[name='task[title]']"
     assert_select "dialog#task-dialog [data-errors][hidden]"
     assert_select "a[data-new-task][href^='#{new_task_path}']", 1, "the page form stays as a fallback"
+  end
+
+  test "hidden elements stay hidden: the empty clipboard bar is not shown (owner fix)" do
+    get calendar_path(view: "week", date: "2026-11-20")
+    assert_select "#cal-clipboard[hidden]"
+    css = Rails.root.join("app/assets/stylesheets/application.css").read
+    assert_match(/\[hidden\] \{ display: none !important; \}/, css)
+    assert_match(/\.cal-clipboard \{[^}]*display: flex/, Rails.root.join("app/assets/stylesheets/calendar.css").read, "the class that used to override it")
   end
 
   test "the popup creates tasks as JSON and gets validation errors back" do

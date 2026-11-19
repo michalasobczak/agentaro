@@ -9,7 +9,7 @@ class TasksController < ApplicationController
       format.any { head :not_found }
     end
   end
-  before_action :require_editable, except: %i[new create show]
+  before_action :require_editable, except: %i[new create show stamp]
 
   def new
     start = parse_time(params[:starts_at]) || (Time.zone.now + 1.hour).beginning_of_hour
@@ -70,6 +70,11 @@ class TasksController < ApplicationController
   def destroy
     result = editor.destroy(scope: params[:scope])
     respond(result, notice: "Task deleted.")
+  end
+
+  # Auto refresh of the task page: changes to the task or its runs.
+  def stamp
+    render json: { stamp: ChangeStamp.task(@task) }
   end
 
   # JSON from the calendar script: drag & drop and resize.

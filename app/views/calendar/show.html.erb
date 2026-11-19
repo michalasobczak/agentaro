@@ -4,7 +4,7 @@
 <% here = request.fullpath %>
 <% hours = (0..23).to_a %>
 
-<div class="calendar view-<%= @view %>" data-view="<%= @view %>" data-move-url="<%= tasks_path %>" data-new-url="<%= new_task_path %>" data-return-to="<%= here %>">
+<div class="calendar view-<%= @view %>" data-view="<%= @view %>" data-move-url="<%= tasks_path %>" data-new-url="<%= new_task_path %>" data-return-to="<%= here %>" data-refresh-url="<%= calendar_stamp_path %>" data-refresh-stamp="<%= ChangeStamp.calendar(current_user) %>">
   <div class="cal-toolbar">
     <div class="cal-nav">
       <%= link_to calendar_path(view: @view, date: @previous), class: "button secondary icon-only", "aria-label": "Previous" do %><%= icon(:chevron_left) %><% end %>
@@ -97,6 +97,7 @@
 
   <p class="cal-legend small muted">
     <span class="legend t-private"></span> Private <span class="legend t-system"></span> System-wide
+    <span class="legend run-ok"></span> Ran <span class="legend run-bad"></span> Failed <span class="legend run-missed"></span> Missed
     <span class="desktop-only">· Click a task to edit it, drag to move, drag its edges to resize. Right-click or hover + ⌘/Ctrl C, X, V, D for copy, cut, paste, duplicate.</span>
   </p>
 

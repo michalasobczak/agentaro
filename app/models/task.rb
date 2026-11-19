@@ -23,6 +23,7 @@ class Task < ApplicationRecord
   belongs_to :agent, optional: true # spec 009
   attr_accessor :agent_refused # set by the form when the chosen agent may not be assigned (R3)
   has_many :exceptions, class_name: "TaskException", dependent: :destroy
+  has_many :runs, class_name: "TaskRun", dependent: :destroy # spec 010
 
   normalizes :title, :location, with: ->(value) { value.to_s.strip.presence }
 
@@ -37,6 +38,9 @@ class Task < ApplicationRecord
   validate :duration_within_limits
   validate :recurrence_within_limits
   validate :agent_consistent
+
+  # Spec 010, R1: runs start only for occurrences after the agent was assigned.
+  before_save { self.agent_assigned_at = (agent_id ? Time.current : nil) if agent_id_changed? }
 
   scope :visible_to, ->(user) { where(calendar: "system").or(where(calendar: "private", user_id: user.id)) }
 

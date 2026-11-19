@@ -7,6 +7,8 @@ class Executor < ApplicationRecord
   Preset = Data.define(:key, :label, :kind, :program, :version_args, :protocol, :default_url) do
     def cli? = kind == "cli"
     def api? = kind == "api"
+    # Spec 010, Q3: tools not installed on the owner's host cannot be tested, so they do not run yet.
+    def runnable? = !%w[gemini_cli grok_cli].include?(key)
   end
 
   PRESETS = [

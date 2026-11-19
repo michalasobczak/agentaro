@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_220000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -84,6 +84,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_220000) do
     t.index ["task_id"], name: "index_task_exceptions_on_task_id"
   end
 
+  create_table "task_runs", force: :cascade do |t|
+    t.integer "task_id", null: false
+    t.datetime "occurrence_start", null: false
+    t.string "trigger", null: false
+    t.string "state", default: "queued", null: false
+    t.string "requested_by"
+    t.string "agent_name"
+    t.string "executor_name"
+    t.string "preset"
+    t.string "model"
+    t.text "prompt"
+    t.text "output"
+    t.text "error"
+    t.integer "exit_status"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["state", "created_at"], name: "index_task_runs_on_state_and_created_at"
+    t.index ["task_id", "occurrence_start"], name: "index_task_runs_one_scheduled_per_occurrence", unique: true, where: "\"trigger\" = 'scheduled'"
+    t.index ["task_id"], name: "index_task_runs_on_task_id"
+  end
+
   create_table "tasks", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "calendar", default: "private", null: false
@@ -101,6 +124,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_220000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "agent_id"
+    t.datetime "agent_assigned_at"
     t.index ["agent_id"], name: "index_tasks_on_agent_id"
     t.index ["calendar", "starts_at"], name: "index_tasks_on_calendar_and_starts_at"
     t.index ["user_id", "starts_at"], name: "index_tasks_on_user_id_and_starts_at"
@@ -127,6 +151,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_220000) do
   add_foreign_key "password_links", "users", column: "created_by_id"
   add_foreign_key "sessions", "users"
   add_foreign_key "task_exceptions", "tasks"
+  add_foreign_key "task_runs", "tasks"
   add_foreign_key "tasks", "agents"
   add_foreign_key "tasks", "users"
 end

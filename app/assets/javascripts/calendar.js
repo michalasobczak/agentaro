@@ -35,6 +35,8 @@
     sessionStorage.removeItem(scrollKey);
   }
   const reload = () => { if (body) sessionStorage.setItem(scrollKey, String(body.scrollTop)); location.reload(); };
+  // Auto refresh (app.js) reloads through here, so the scroll position is kept.
+  document.addEventListener("agentaro:refresh", (event) => { event.preventDefault(); reload(); });
 
   // ---------- Server calls ----------
   async function send(method, url, data) {
