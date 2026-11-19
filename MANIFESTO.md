@@ -12,11 +12,14 @@ Implementation principles for Agentaro. Based on the 24 engineering essentials o
 - **Tests are mandatory;** fixes address causes and come with a regression test.
 - **Security analysis after every implemented specification** (Rondo B20).
 - **Commits:** coherent and descriptive, signed with the GitHub noreply address.
+- **Stack (spec 001):** latest stable Ruby (4.0.10) and Ruby on Rails (8.1.4.1), generated with `--minimal`. New gems or Rails components need a reason in a specification.
+- **Storage:** SQLite only, so a fresh clone runs as is. Database files are never committed.
+- **No Docker for now:** agents run on subscriptions signed in on the host (Claude Code, Codex CLI); a container would need extra work to reach those logins. Revisit later (Rondo E18).
+- **No encrypted Rails credentials** in the repository: secrets come from environment variables.
+- **Local CI:** `bin/ci` (Rails 8.1) is the pipeline; failures are never bypassed.
 
 ## To be determined
 
-- Language, runtime and package manager. [TO BE DETERMINED]
-- Storage (e.g. SQLite or files). [TO BE DETERMINED]
-- Container stack — the essentials prefer Docker Compose; note that subscription logins on macOS live in the Keychain, which a Linux container cannot read. [TO BE DETERMINED]
+- Container stack — postponed (see "No Docker for now"); on macOS the Claude login lives in the Keychain, which a Linux container cannot read. [TO BE DETERMINED]
 - Interface (web panel, CLI) and its authentication. [TO BE DETERMINED]
 - License. [TO BE DETERMINED]

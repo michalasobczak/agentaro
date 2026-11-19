@@ -13,9 +13,27 @@ Built in public: every prompt used to build it is posted on X. The project follo
 - **Vendor-agnostic:** providers are interchangeable; switching one should not require changing the rest of the system.
 - Everything else — teams of agents, task calendar, interface — is decided in specification sessions.
 
+## Getting started
+
+Requirements: Ruby 4.0.10 (see `.ruby-version`; e.g. `brew install ruby`, rbenv or mise). Nothing else — SQLite is bundled with the `sqlite3` gem and no Docker is needed.
+
+```bash
+git clone https://github.com/michalasobczak/agentaro.git
+cd agentaro
+bin/setup        # installs gems, creates the SQLite databases, starts the server
+```
+
+Open http://localhost:3000 (health check: http://localhost:3000/up).
+
+```bash
+bin/rails test   # tests
+bin/ci           # local CI: setup, tests, seeds
+bin/dev          # start the server again later
+```
+
 ## Functional architecture
 
-[TO BE DETERMINED] — described after the first specification is closed.
+Ruby on Rails 8.1 application with SQLite (`storage/*.sqlite3`, not committed). No domain features yet — the only endpoint is the health check `/up`.
 
 ## Critical path
 
@@ -23,14 +41,15 @@ Built in public: every prompt used to build it is posted on X. The project follo
 
 ## State (here and now)
 
-- 2026-11-19: repository set up with CDD artifacts. No code yet.
-- Next: first specification session. Direction proposed by the owner: a task calendar and provider adapters (Claude Code, Codex).
+- 2026-11-19: repository set up with CDD artifacts.
+- 2026-11-19: blank Rails application (spec 001): Ruby 4.0.10, Rails 8.1.4.1, SQLite, minimal components, no Docker. Tests: 1 (health check). Security analysis: clean.
+- Next: specification session for the first feature. Direction proposed by the owner: a task calendar and provider adapters (Claude Code, Codex).
 
 ## Specifications
 
 | No. | Title | Status |
 |---|---|---|
-| — | — | none yet |
+| 001 | [Initial project structure](specs/001-initial-structure.md) | implemented |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 

@@ -25,4 +25,9 @@ This project follows the Rondo methodology and Context-Driven Development (CDD):
 
 ## Commands
 
-[TO BE DETERMINED] — test and run commands are added with the first implemented specification.
+Ruby 4.0.10 must be on `PATH` (on the owner's Mac: `export PATH="/opt/homebrew/opt/ruby/bin:$PATH"`).
+
+- `bin/setup --skip-server` — install gems, prepare SQLite databases
+- `bin/rails test` — tests (must pass before every commit)
+- `bin/ci` — local CI (setup, tests, seeds)
+- `bin/dev` — run the app on http://localhost:3000

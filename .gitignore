@@ -1,7 +1,28 @@
-.DS_Store
+# Secrets — never commit (public repository)
 .env
 .env.*
 *.key
 *.pem
+/config/*.key
+/config/credentials.yml.enc
+/config/credentials/
+
+# SQLite databases and local data (created by bin/setup)
+/storage/*
+!/storage/.keep
+/db/*.sqlite3*
 var/
+
+# Rails runtime files
+/.bundle
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+/tmp/pids/*
+/tmp/storage/*
+/public/assets
+
+# Editors and OS
+.DS_Store
 .claude/settings.local.json
