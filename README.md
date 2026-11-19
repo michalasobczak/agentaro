@@ -6,6 +6,12 @@ A private agent system that runs on-prem and works across multiple AI providers 
 
 Built in public: every prompt used to build it is posted on X. The project follows [Rondo and Context-Driven Development](https://workwithrondo.com/x).
 
+## Intended use
+
+Agentaro is meant for **personal, family or small-business use** with a limited number of users. It is **not** built for enterprise use, and it is **not** meant to run publicly on the internet — only in secured local environments (a home or office network, or a private network between your own devices). Security decisions are sized for that scope.
+
+Agentaro is **not sold** — it is not a commercial product or service. The source is public so others can use it on their own.
+
 ## Domain picture
 
 - **Agents** do the work. Each one runs on an AI provider: a subscription-based tool (e.g. Claude Code, Codex CLI) or an API.
@@ -43,13 +49,16 @@ Ruby on Rails 8.1 application with SQLite (`storage/*.sqlite3`, not committed). 
 
 - 2026-11-19: repository set up with CDD artifacts.
 - 2026-11-19: blank Rails application (spec 001): Ruby 4.0.10, Rails 8.1.4.1, SQLite, minimal components, no Docker. Tests: 1 (health check). Security analysis: clean.
-- Next: specification session for the first feature. Direction proposed by the owner: a task calendar and provider adapters (Claude Code, Codex).
+- Next: close specs 002–004 (authentication, audit log, data changelog), then implement them in order. Later: task calendar and provider adapters (Claude Code, Codex).
 
 ## Specifications
 
 | No. | Title | Status |
 |---|---|---|
 | 001 | [Initial project structure](specs/001-initial-structure.md) | implemented |
+| 002 | [Authentication, roles and TOTP](specs/002-authentication-roles.md) | draft — open questions |
+| 003 | [HTTP audit log](specs/003-http-audit-log.md) | draft — open questions |
+| 004 | [Data changelog](specs/004-data-changelog.md) | draft — open questions |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 

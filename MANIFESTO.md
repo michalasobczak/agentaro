@@ -4,6 +4,8 @@ Implementation principles for Agentaro. Based on the 24 engineering essentials o
 
 ## Decided
 
+- **Intended use (owner, 2026-11-19):** personal, family or small-business use with few users; no enterprise use for now; never a public internet runtime — only secured local environments. Every security decision is sized for this scope; changing it requires a new specification.
+- **Not sold (owner, 2026-11-19):** Agentaro is not a commercial product or service.
 - **On-prem:** the system and its data run on the owner's machines. No cloud orchestrators or hosted memory services.
 - **Vendor-agnostic:** provider-specific code lives only behind a provider adapter. The rest of the system does not depend on any single vendor.
 - **Subscriptions are first-class:** agents can run on subscription plans (e.g. Claude Code, Codex CLI signed in on the host), not only on API keys.
