@@ -61,6 +61,15 @@ class DataChangelogTest < ActionDispatch::IntegrationTest
     assert_equal "password-link:#{user.id}:alice", change.actor
   end
 
+  test "the last-seen update of a session is attributed to its user" do
+    user = create_user
+    sign_in(user)
+    get root_path
+    change = DataChange.where(record_type: "Session", action: "update").last
+    assert change.changes_hash.key?("last_seen_at")
+    assert_equal "user:#{user.id}:alice", change.actor
+  end
+
   test "fields such as otp_required stay readable; secrets do not" do
     user = create_user
     user.update!(otp_required: true)

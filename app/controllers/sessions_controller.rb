@@ -1,5 +1,6 @@
 # Spec 002: sign-in (password step) and sign-out.
 class SessionsController < ApplicationController
+  layout "auth" # spec 006: centered sign-in card, no navigation
   INVALID = "Invalid username or password." # same message for every failure (S6)
 
   allow_unauthenticated_access only: %i[new create]

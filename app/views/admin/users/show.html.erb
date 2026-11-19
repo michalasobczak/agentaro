@@ -1,29 +1,44 @@
-<h1><%= @user.username %></h1>
-<table>
-  <tr><th>Role</th><td><%= @user.role %></td></tr>
-  <tr><th>Status</th><td><%= @user.active? ? (@user.locked? ? "locked (too many failed sign-ins)" : "active") : "deactivated" %></td></tr>
-  <tr><th>TOTP</th><td><%= @user.otp_required? ? (@user.otp_enrolled? ? "on" : "required, not set up yet") : "off" %></td></tr>
-  <tr><th>Password changed</th><td><%= @user.password_changed_at ? l(@user.password_changed_at, format: :short) : "not set" %></td></tr>
-  <tr><th>Active sessions</th><td><%= @user.sessions.current.count %></td></tr>
-</table>
-
-<%= form_with model: @user, url: admin_user_path(@user), method: :patch, class: "stack" do |f| %>
-  <label>Role <%= f.select :role, User::ROLES %></label>
-  <% unless @user.admin? %>
-    <label><span><%= f.check_box :otp_required %> Require a verification code (TOTP)</span></label>
-  <% end %>
-  <label><span><%= f.check_box :active %> Account active</span></label>
-  <%= f.submit "Save" %>
+<%= page_header @user.username, "Account details and security settings." do %>
+  <%= link_to admin_data_changes_path(record_type: "User", record_id: @user.id), class: "button secondary desktop-only" do %><%= icon(:history) %> Change history<% end %>
 <% end %>
+<%= desktop_only_note %>
+<div class="grid grid-2 desktop-only">
+  <div class="card">
+    <div class="card-header"><h2>Overview</h2><%= role_badge(@user) %></div>
+    <dl class="facts">
+      <dt>Status</dt><dd><%= account_badge(@user) %></dd>
+      <dt>Verification code</dt><dd><%= totp_badge(@user) %></dd>
+      <dt>Password changed</dt><dd><%= @user.password_changed_at ? l(@user.password_changed_at, format: :long) : badge("not set", "warn") %></dd>
+      <dt>Active sessions</dt><dd><%= @user.sessions.current.count %></dd>
+      <dt>Created</dt><dd><%= l @user.created_at, format: :long %></dd>
+    </dl>
+  </div>
 
-<div class="actions">
-  <% unless @user.admin? %>
-    <%= button_to "Generate password-change link", admin_user_password_links_path(@user), class: "secondary" %>
-  <% end %>
-  <% if @user.otp_enrolled? %>
-    <%= button_to "Reset authenticator", reset_totp_admin_user_path(@user), class: "secondary" %>
-  <% end %>
-  <%= button_to "Revoke all sessions", revoke_sessions_admin_user_path(@user), class: "secondary" %>
-  <%= link_to "Change history", admin_data_changes_path(record_type: "User", record_id: @user.id) %>
+  <div class="card">
+    <div class="card-header"><h2>Settings</h2></div>
+    <%= form_with model: @user, url: admin_user_path(@user), method: :patch, class: "form" do |f| %>
+      <div class="field"><%= f.label :role %><%= f.select :role, User::ROLES %></div>
+      <% unless @user.admin? %>
+        <label class="check"><%= f.check_box :otp_required %><span>Require a verification code (TOTP)</span></label>
+      <% end %>
+      <label class="check"><%= f.check_box :active %><span>Account active<br><span class="hint">Deactivated users cannot sign in; their history stays.</span></span></label>
+      <div><%= f.submit "Save changes" %></div>
+    <% end %>
+  </div>
 </div>
-<% if @user.admin? %><p class="muted">Admin passwords and authenticators change on the command line: <code>bin/rails agentaro:admin:password</code>, <code>agentaro:admin:reset_totp</code>.</p><% end %>
+
+<div class="card desktop-only">
+  <div class="card-header"><h2>Security actions</h2></div>
+  <div class="actions">
+    <% unless @user.admin? %>
+      <%= button_to admin_user_password_links_path(@user), class: "secondary" do %><%= icon(:link) %> Generate password-change link<% end %>
+    <% end %>
+    <% if @user.otp_enrolled? %>
+      <%= button_to reset_totp_admin_user_path(@user), class: "secondary" do %><%= icon(:shield) %> Reset authenticator<% end %>
+    <% end %>
+    <%= button_to revoke_sessions_admin_user_path(@user), class: "danger" do %><%= icon(:logout) %> Revoke all sessions<% end %>
+  </div>
+  <% if @user.admin? %>
+    <p class="muted small spaced">Admin passwords and authenticators change only on the server: <code>bin/rails agentaro:admin:password</code>, <code>agentaro:admin:reset_totp</code>.</p>
+  <% end %>
+</div>

@@ -1,16 +1,23 @@
-<h1>My sessions</h1>
-<p class="muted">Each session ends <%= Session::LIFETIME.inspect %> after sign-in.</p>
-<table>
-  <tr><th>Signed in</th><th>Expires</th><th>Last seen</th><th>Address</th><th>Browser</th><th></th></tr>
-  <% @sessions.each do |s| %>
-    <tr>
-      <td><%= l s.created_at, format: :short %><%= " (this one)" if s == Current.session %></td>
-      <td><%= l s.expires_at, format: :short %></td>
-      <td><%= s.last_seen_at ? l(s.last_seen_at, format: :short) : "—" %></td>
-      <td><%= s.ip_address %></td>
-      <td class="wrap"><%= s.user_agent.to_s.truncate(80) %></td>
-      <td><%= button_to (s == Current.session ? "Sign out" : "Revoke"), account_session_path(s), method: :delete, class: "link" %></td>
-    </tr>
-  <% end %>
-</table>
-<div class="actions"><%= button_to "Sign out everywhere else", others_account_sessions_path, method: :delete, class: "secondary" %></div>
+<%= page_header "My sessions", "Each sign-in lasts #{Session::LIFETIME.inspect}. Revoke anything you don't recognise." do %>
+  <%= button_to "Sign out everywhere else", others_account_sessions_path, method: :delete, class: "secondary" %>
+<% end %>
+
+<div class="card card-flush">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Device</th><th>Signed in</th><th>Ends</th><th class="desktop-only">Last seen</th><th class="desktop-only">Address</th><th></th></tr></thead>
+      <tbody>
+        <% @sessions.each do |s| %>
+          <tr>
+            <td class="wrap"><%= s.user_agent.to_s.truncate(70).presence || "Unknown" %><% if s == Current.session %> <%= badge("this device", "accent") %><% end %></td>
+            <td class="nowrap"><%= l s.created_at, format: :short %></td>
+            <td class="nowrap"><%= s.expired? ? badge("expired", "bad") : l(s.expires_at, format: :short) %></td>
+            <td class="nowrap desktop-only"><%= s.last_seen_at ? l(s.last_seen_at, format: :short) : "—" %></td>
+            <td class="mono desktop-only"><%= s.ip_address %></td>
+            <td class="nowrap"><%= button_to (s == Current.session ? "Sign out" : "Revoke"), account_session_path(s), method: :delete, class: "link" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

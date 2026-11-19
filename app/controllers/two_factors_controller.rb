@@ -1,5 +1,6 @@
 # Spec 002, G2: the TOTP step after the password, for accounts with an enrolled authenticator.
 class TwoFactorsController < ApplicationController
+  layout "auth" # spec 006: centered sign-in card, no navigation
   skip_before_action :require_authentication
   before_action :require_password_step
   before_action -> { redirect_to new_two_factor_enrollment_path unless current_user.otp_enrolled? }

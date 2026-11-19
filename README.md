@@ -65,7 +65,7 @@ bin/rails agentaro:audit:prune        # remove audit rows older than 3 months (a
    tailscale serve --bg 3000
    ```
 
-Open `https://<host>.<tailnet>.ts.net` on any device in your tailnet. `bin/start` sets `AGENTARO_HTTPS_PROXY=1` (Secure cookies, HSTS), shows generic error pages, answers only to `AGENTARO_HOSTS`, and prunes audit data older than 3 months once a day. Any other HTTPS proxy works the same way; Agentaro does not depend on Tailscale.
+Open `https://<host>.<tailnet>.ts.net` on any device in your tailnet. After updating the code, stop `bin/start` and run it again — it recompiles the stylesheet. `bin/start` sets `AGENTARO_HTTPS_PROXY=1` (Secure cookies, HSTS), shows generic error pages, answers only to `AGENTARO_HOSTS`, and prunes audit data older than 3 months once a day. Any other HTTPS proxy works the same way; Agentaro does not depend on Tailscale.
 
 ### Backups
 
@@ -74,6 +74,8 @@ Everything lives in `storage/`: the databases (development and production), the 
 ## Functional architecture
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No JavaScript, no external resources.
+
+- **Interface (spec 006):** responsive — sidebar layout on desktop and tablet (≥ 640 px), compact top bar on phones; light and dark mode; plain CSS and inline SVG icons. Phones get sign-in, home, own sessions and password; admin tools are for desktop and tablet.
 
 - **Accounts (spec 002):** roles `admin` and `user`; passwords (bcrypt, 12+ characters, common-password list); TOTP (Google Authenticator) — mandatory for admins, switchable per user by an admin; sessions in the database, revoked 7 days after sign-in; one-time password-change links instead of e-mail; admins managed on the command line.
 - **Audit log (spec 003):** every HTTP request in `storage/*_audit.sqlite3`, sensitive values filtered, hash-chained, 3-month retention, admin view.
@@ -89,6 +91,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No JavaSc
 - 2026-11-19: blank Rails application (spec 001): Ruby 4.0.10, Rails 8.1.4.1, SQLite, minimal components, no Docker. Tests: 1 (health check). Security analysis: clean.
 - 2026-11-19: specs 002–004 implemented — authentication, roles and TOTP; HTTP audit log; data changelog. Tests: 58. Security analysis: spec 005 (2 medium, 3 low findings, fixes proposed).
 - 2026-11-19: spec 005 implemented — Secure cookies and HSTS behind the proxy, production mode via `bin/start`, automatic daily audit pruning, equal work on every failed sign-in. Tests: 64. Security round 1 closed.
+- 2026-11-19: spec 006 implemented — responsive, designed interface (desktop, tablet, phone). Tests: 69.
 - Next: task calendar and provider adapters (Claude Code, Codex).
 
 ## Specifications
@@ -100,6 +103,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No JavaSc
 | 003 | [HTTP audit log](specs/003-http-audit-log.md) | implemented |
 | 004 | [Data changelog](specs/004-data-changelog.md) | implemented |
 | 005 | [Security analysis, round 1](specs/005-security-round-1.md) | implemented |
+| 006 | [Responsive layout and visual design](specs/006-responsive-ui.md) | implemented |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 

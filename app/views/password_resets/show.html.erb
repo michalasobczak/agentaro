@@ -1,10 +1,16 @@
 <% content_for :title, "Set password · Agentaro" %>
 <h1>Set your password</h1>
-<p>Account: <strong><%= @link.user.username %></strong>. Use at least <%= User::PASSWORD_MIN %> characters — a few unrelated words work well.</p>
+<p class="lead">Account <strong><%= @link.user.username %></strong>. Use at least <%= User::PASSWORD_MIN %> characters — a few unrelated words work well.</p>
 <% if @errors.present? %><ul class="errors"><% @errors.each do |e| %><li><%= e %></li><% end %></ul><% end %>
-<%= form_with url: password_reset_path, method: :patch, class: "stack" do |f| %>
+<%= form_with url: password_reset_path, method: :patch, class: "form" do |f| %>
   <%= hidden_field_tag :token, @token %>
-  <label>New password <%= f.password_field :password, required: true, autocomplete: "new-password", minlength: User::PASSWORD_MIN %></label>
-  <label>Repeat password <%= f.password_field :password_confirmation, required: true, autocomplete: "new-password" %></label>
+  <div class="field">
+    <%= f.label :password, "New password" %>
+    <%= f.password_field :password, required: true, autocomplete: "new-password", minlength: User::PASSWORD_MIN %>
+  </div>
+  <div class="field">
+    <%= f.label :password_confirmation, "Repeat password" %>
+    <%= f.password_field :password_confirmation, required: true, autocomplete: "new-password" %>
+  </div>
   <%= f.submit "Set password" %>
 <% end %>

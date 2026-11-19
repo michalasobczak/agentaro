@@ -1,5 +1,7 @@
-<h1>Password-change link for <%= @link.user.username %></h1>
-<p>Give this link to <strong><%= @link.user.username %></strong> in person or over a channel you trust. It works once and expires <%= l @link.expires_at, format: :short %>.</p>
-<p class="link-box"><%= password_reset_url(token: @link.token) %></p>
-<p class="muted">The link is shown only now. If it gets lost, generate a new one — older links stop working.</p>
-<p><%= link_to "Back to #{@link.user.username}", admin_user_path(@link.user) %></p>
+<%= page_header "Password-change link", "For #{@link.user.username}. It works once and expires #{l @link.expires_at, format: :short}." %>
+<%= desktop_only_note %>
+<div class="card desktop-only">
+  <div class="callout"><%= icon(:info) %><div>Give this link to <strong><%= @link.user.username %></strong> in person or over a channel you trust. It is shown only now — if it gets lost, generate a new one (older links stop working).</div></div>
+  <p class="spaced"><span class="link-box"><%= password_reset_url(token: @link.token) %></span></p>
+  <%= link_to "Back to #{@link.user.username}", admin_user_path(@link.user), class: "button secondary" %>
+</div>

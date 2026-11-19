@@ -1,4 +1,4 @@
 <% content_for :title, "Link not valid · Agentaro" %>
 <h1>This link is not valid</h1>
-<p>It may have been used already or expired (links are valid for 24 hours). Ask an admin for a new one.</p>
-<p><%= link_to "Sign in", new_session_path %></p>
+<p class="lead">It may have been used already or expired — links work once and for 24 hours. Ask an admin for a new one.</p>
+<%= link_to "Go to sign in", new_session_path, class: "button" %>

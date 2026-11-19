@@ -1,25 +1,33 @@
-<h1>Audit log</h1>
-<p class="muted">Every HTTP request, kept for 3 months. Sensitive values are filtered. Verify integrity with <code>bin/rails agentaro:audit:verify</code>.</p>
-<%= form_with url: admin_audit_events_path, method: :get, class: "filters" do |f| %>
-  <label>User <%= f.text_field :username, value: params[:username] %></label>
-  <label>Path contains <%= f.text_field :path, value: params[:path] %></label>
-  <label>Status <%= f.text_field :status, value: params[:status], size: 4 %></label>
-  <%= f.submit "Filter", name: nil %>
-<% end %>
-<table>
-  <tr><th>Time</th><th>User</th><th>Request</th><th>Status</th><th>ms</th><th>From</th><th>Body</th></tr>
-  <% @events.each do |e| %>
-    <tr>
-      <td><%= l e.occurred_at, format: :short %></td>
-      <td><%= e.username || "—" %></td>
-      <td class="wrap"><%= e.http_method %> <%= e.path %><%= "?#{e.query}" if e.query.present? %></td>
-      <td><%= e.status %></td>
-      <td><%= e.duration_ms&.round %></td>
-      <td><%= e.forwarded_for.presence || e.remote_addr %></td>
-      <td class="wrap"><%= e.body.to_s.truncate(200) %> <%= link_to "changes", admin_data_changes_path(request_id: e.request_id) %></td>
-    </tr>
+<%= page_header "Audit log", "Every HTTP request, kept for 3 months. Sensitive values are filtered." %>
+<%= desktop_only_note %>
+<div class="card card-flush desktop-only">
+  <%= form_with url: admin_audit_events_path, method: :get, class: "filters" do |f| %>
+    <div class="field"><%= f.label :username, "User" %><%= f.text_field :username, value: params[:username] %></div>
+    <div class="field"><%= f.label :path, "Path contains" %><%= f.text_field :path, value: params[:path] %></div>
+    <div class="field"><%= f.label :status %><%= f.text_field :status, value: params[:status], inputmode: "numeric" %></div>
+    <div class="actions"><%= f.submit "Filter", name: nil %><%= link_to "Clear", admin_audit_events_path, class: "button secondary" %></div>
   <% end %>
-</table>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Time</th><th>User</th><th>Request</th><th>Status</th><th>ms</th><th>From</th><th>Body</th></tr></thead>
+      <tbody>
+        <% @events.each do |e| %>
+          <tr>
+            <td class="nowrap"><%= l e.occurred_at, format: :short %></td>
+            <td><%= e.username || "—" %></td>
+            <td class="wrap mono"><strong><%= e.http_method %></strong> <%= e.path %><%= "?#{e.query}" if e.query.present? %></td>
+            <td class="<%= status_class(e.status) %>"><%= e.status %></td>
+            <td><%= e.duration_ms&.round %></td>
+            <td class="mono nowrap"><%= e.forwarded_for.presence || e.remote_addr %></td>
+            <td class="wrap mono"><%= e.body.to_s.truncate(160) %> <%= link_to "changes", admin_data_changes_path(request_id: e.request_id), class: "small" %></td>
+          </tr>
+        <% end %>
+        <% if @events.empty? %><tr><td colspan="7" class="empty">No requests match.</td></tr><% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
 <% if @events.size == Admin::AuditEventsController::PAGE %>
-  <p><%= link_to "Older", admin_audit_events_path(request.query_parameters.merge(before: @events.last.id)) %></p>
+  <p class="desktop-only spaced"><%= link_to "Older requests →", admin_audit_events_path(request.query_parameters.merge(before: @events.last.id)), class: "button secondary" %></p>
 <% end %>
+<p class="muted small desktop-only">Check integrity: <code>bin/rails agentaro:audit:verify</code></p>

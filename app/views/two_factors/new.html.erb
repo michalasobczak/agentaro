@@ -1,8 +1,11 @@
 <% content_for :title, "Verification code · Agentaro" %>
 <h1>Verification code</h1>
-<p>Enter the 6-digit code from your authenticator app.</p>
-<%= form_with url: two_factor_path, class: "stack" do |f| %>
-  <label>Code <%= f.text_field :code, required: true, autofocus: true, inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]{6,7}" %></label>
+<p class="lead">Open your authenticator app and enter the 6-digit code for Agentaro.</p>
+<%= form_with url: two_factor_path, class: "form" do |f| %>
+  <div class="field">
+    <%= f.label :code %>
+    <%= f.text_field :code, class: "code", required: true, autofocus: true, inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]{6,7}", maxlength: 7, placeholder: "000000" %>
+  </div>
   <%= f.submit "Verify" %>
 <% end %>
-<%= button_to "Cancel and sign out", session_path, method: :delete, class: "link" %>
+<div class="auth-footer"><%= button_to "Cancel and sign out", session_path, method: :delete, class: "link" %></div>

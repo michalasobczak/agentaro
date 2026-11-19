@@ -1,6 +1,7 @@
 # Spec 002, R4/R5: setting up an authenticator (Google Authenticator) when the account requires TOTP.
 # The secret is kept in the encrypted Rails session until one valid code confirms it.
 class TwoFactorEnrollmentsController < ApplicationController
+  layout "auth" # spec 006: centered sign-in card, no navigation
   skip_before_action :require_authentication
   before_action :require_password_step
   before_action -> { redirect_to new_two_factor_path if current_user.otp_enrolled? }

@@ -57,6 +57,7 @@ module Authentication
       return nil
     end
     remember_for_audit(record)
+    Current.session = record # so the last-seen update below is attributed to the user (spec 004)
     record.update!(last_seen_at: Time.current) if record.last_seen_at.nil? || record.last_seen_at < LAST_SEEN_INTERVAL.ago
     record
   end

@@ -1,16 +1,24 @@
-<h1>Users</h1>
-<div class="actions"><%= link_to "New user", new_admin_user_path %></div>
-<table>
-  <tr><th>Username</th><th>Role</th><th>Status</th><th>TOTP</th><th>Sessions</th><th>Password changed</th></tr>
-  <% @users.each do |u| %>
-    <tr>
-      <td><%= link_to u.username, admin_user_path(u) %></td>
-      <td><%= u.role %></td>
-      <td><%= u.active? ? (u.locked? ? "locked" : "active") : "deactivated" %></td>
-      <td><%= u.otp_required? ? (u.otp_enrolled? ? "on" : "required, not set up") : "off" %></td>
-      <td><%= u.sessions.current.count %></td>
-      <td><%= u.password_changed_at ? l(u.password_changed_at, format: :short) : "not set" %></td>
-    </tr>
-  <% end %>
-</table>
-<p class="muted">Admins are created on the command line: <code>bin/rails agentaro:admin:create</code>.</p>
+<%= page_header "Users", "People who can sign in. Admins are created on the command line." do %>
+  <%= link_to new_admin_user_path, class: "button desktop-only" do %><%= icon(:plus) %> New user<% end %>
+<% end %>
+<%= desktop_only_note %>
+<div class="card card-flush desktop-only">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Username</th><th>Role</th><th>Status</th><th>TOTP</th><th>Sessions</th><th>Password changed</th></tr></thead>
+      <tbody>
+        <% @users.each do |u| %>
+          <tr>
+            <td><strong><%= link_to u.username, admin_user_path(u) %></strong></td>
+            <td><%= role_badge(u) %></td>
+            <td><%= account_badge(u) %></td>
+            <td><%= totp_badge(u) %></td>
+            <td><%= u.sessions.current.count %></td>
+            <td class="nowrap"><%= u.password_changed_at ? l(u.password_changed_at, format: :short) : badge("not set", "warn") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="muted small desktop-only">New admin: <code>bin/rails agentaro:admin:create</code> on the server.</p>

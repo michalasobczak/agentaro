@@ -4,6 +4,7 @@
     <title><%= content_for(:title) || "Agentaro" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="application-name" content="Agentaro">
+    <meta name="color-scheme" content="light dark">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <%= yield :head %>
@@ -13,29 +14,52 @@
   </head>
 
   <body>
-    <header class="top">
-      <strong class="brand">Agentaro</strong>
+    <div class="app">
       <% if signed_in? %>
-        <nav>
-          <%= link_to "Home", root_path %>
-          <%= link_to "My sessions", account_sessions_path %>
-          <% unless current_user.admin? %><%= link_to "Password", edit_account_password_path %><% end %>
-          <% if current_user.admin? %>
-            <%= link_to "Users", admin_users_path %>
-            <%= link_to "Audit log", admin_audit_events_path %>
-            <%= link_to "Data changes", admin_data_changes_path %>
-          <% end %>
-        </nav>
-        <span class="who"><%= current_user.username %> (<%= current_user.role %>)</span>
-        <%= button_to "Sign out", session_path, method: :delete, class: "link" %>
-      <% end %>
-    </header>
+        <% admin_nav = capture do %>
+          <div class="nav-label desktop-only">Admin</div>
+          <%= nav_link "Users", admin_users_path, :users, active: controller_path == "admin/users" || controller_path == "admin/password_links", css: "desktop-only" %>
+          <%= nav_link "Audit log", admin_audit_events_path, :log, css: "desktop-only" %>
+          <%= nav_link "Data changes", admin_data_changes_path, :history, css: "desktop-only" %>
+        <% end %>
+        <% main_nav = capture do %>
+          <%= nav_link "Home", root_path, :home %>
+          <%= nav_link "My sessions", account_sessions_path, :sessions %>
+          <% unless current_user.admin? %><%= nav_link "Password", edit_account_password_path, :key %><% end %>
+          <%= admin_nav if current_user.admin? %>
+        <% end %>
 
-    <main>
-      <% flash.each do |type, message| %>
-        <p class="flash <%= type %>"><%= message %></p>
+        <aside class="sidebar">
+          <%= link_to root_path, class: "brand" do %><span class="brand-mark">A</span>Agentaro<% end %>
+          <nav class="nav" aria-label="Main"><%= main_nav %></nav>
+          <div class="sidebar-footer">
+            <span class="avatar"><%= initials(current_user) %></span>
+            <div class="who"><strong><%= current_user.username %></strong><span><%= current_user.role %></span></div>
+            <%= button_to session_path, method: :delete, class: "icon-button", title: "Sign out", "aria-label": "Sign out" do %><%= icon(:logout) %><% end %>
+          </div>
+        </aside>
+
+        <header class="topbar">
+          <%= link_to root_path, class: "brand" do %><span class="brand-mark">A</span>Agentaro<% end %>
+          <details>
+            <summary aria-label="Menu"><%= icon(:menu) %></summary>
+            <div class="menu">
+              <div class="who"><strong><%= current_user.username %></strong><span><%= current_user.role %></span></div>
+              <nav class="nav" aria-label="Main"><%= main_nav %></nav>
+              <%= button_to "Sign out", session_path, method: :delete, class: "secondary" %>
+            </div>
+          </details>
+        </header>
       <% end %>
-      <%= yield %>
-    </main>
+
+      <main class="main">
+        <div class="content">
+          <% flash.each do |type, message| %>
+            <div class="flash <%= type %>" role="status"><%= message %></div>
+          <% end %>
+          <%= yield %>
+        </div>
+      </main>
+    </div>
   </body>
 </html>

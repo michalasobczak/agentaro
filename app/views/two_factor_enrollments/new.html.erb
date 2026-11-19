@@ -1,10 +1,17 @@
 <% content_for :title, "Set up authenticator · Agentaro" %>
 <h1>Set up your authenticator</h1>
-<p>Your account requires a verification code at sign-in. Scan this QR code with Google Authenticator (or any TOTP app), then enter the code it shows.</p>
+<p class="lead">Your account asks for a verification code at sign-in.</p>
+<ol class="muted small">
+  <li>Open Google Authenticator (or another TOTP app) and scan the code.</li>
+  <li>Enter the 6-digit code the app shows.</li>
+</ol>
 <div class="qr"><%= raw @qr_svg %></div>
-<p class="muted">Can't scan? Enter this key manually: <code class="secret"><%= @secret.scan(/.{1,4}/).join(" ") %></code></p>
-<%= form_with url: two_factor_enrollment_path, class: "stack" do |f| %>
-  <label>Code <%= f.text_field :code, required: true, autofocus: true, inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]{6,7}" %></label>
+<p class="small muted">Can't scan? Enter this key manually:<br><span class="secret"><%= @secret.scan(/.{1,4}/).join(" ") %></span></p>
+<%= form_with url: two_factor_enrollment_path, class: "form" do |f| %>
+  <div class="field">
+    <%= f.label :code %>
+    <%= f.text_field :code, class: "code", required: true, autofocus: true, inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]{6,7}", maxlength: 7, placeholder: "000000" %>
+  </div>
   <%= f.submit "Confirm" %>
 <% end %>
-<%= button_to "Cancel and sign out", session_path, method: :delete, class: "link" %>
+<div class="auth-footer"><%= button_to "Cancel and sign out", session_path, method: :delete, class: "link" %></div>

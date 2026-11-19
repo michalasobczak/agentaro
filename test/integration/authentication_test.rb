@@ -41,7 +41,7 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     bodies = [ %w[nobody whatever-password], [ "alice", "wrong password!!" ], [ "carol", PASSWORD ] ].map do |username, password|
       post session_path, params: { username: username, password: password }
       assert_response :unprocessable_content
-      response.body.scan(/<p class="flash alert">.*?<\/p>/).first
+      response.body.scan(/<div class="flash alert"[^>]*>.*?<\/div>/).first
     end
     assert_equal 1, bodies.uniq.size
     assert_match SessionsController::INVALID, bodies.first

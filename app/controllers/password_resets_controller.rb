@@ -2,6 +2,7 @@
 # The token travels as a query or form parameter (never in the path), so it is filtered from logs
 # and from the audit log (spec 003).
 class PasswordResetsController < ApplicationController
+  layout "auth" # spec 006: centered sign-in card, no navigation
   allow_unauthenticated_access
   rate_limit to: 10, within: 3.minutes, only: :update, store: RATE_LIMIT_STORE,
              with: -> { redirect_to new_session_path, alert: "Too many attempts. Try again in a few minutes." }
