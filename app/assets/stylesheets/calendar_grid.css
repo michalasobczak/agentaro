@@ -1,0 +1,600 @@
+/*
+ * Calendar grid placement classes (spec 007) — generated, do not edit by hand.
+ * The CSP forbids inline style attributes, so tasks are positioned with classes:
+ *   r{N}  start row (5-minute rows, 0–287)    h{N}  height in rows (1–288)
+ *   c{N}  start sub-column (1–60)              w{N}  width in sub-columns (lanes 1–6 of 60)
+ */
+.cal-day .r0{grid-row-start:1}
+.cal-day .r1{grid-row-start:2}
+.cal-day .r2{grid-row-start:3}
+.cal-day .r3{grid-row-start:4}
+.cal-day .r4{grid-row-start:5}
+.cal-day .r5{grid-row-start:6}
+.cal-day .r6{grid-row-start:7}
+.cal-day .r7{grid-row-start:8}
+.cal-day .r8{grid-row-start:9}
+.cal-day .r9{grid-row-start:10}
+.cal-day .r10{grid-row-start:11}
+.cal-day .r11{grid-row-start:12}
+.cal-day .r12{grid-row-start:13}
+.cal-day .r13{grid-row-start:14}
+.cal-day .r14{grid-row-start:15}
+.cal-day .r15{grid-row-start:16}
+.cal-day .r16{grid-row-start:17}
+.cal-day .r17{grid-row-start:18}
+.cal-day .r18{grid-row-start:19}
+.cal-day .r19{grid-row-start:20}
+.cal-day .r20{grid-row-start:21}
+.cal-day .r21{grid-row-start:22}
+.cal-day .r22{grid-row-start:23}
+.cal-day .r23{grid-row-start:24}
+.cal-day .r24{grid-row-start:25}
+.cal-day .r25{grid-row-start:26}
+.cal-day .r26{grid-row-start:27}
+.cal-day .r27{grid-row-start:28}
+.cal-day .r28{grid-row-start:29}
+.cal-day .r29{grid-row-start:30}
+.cal-day .r30{grid-row-start:31}
+.cal-day .r31{grid-row-start:32}
+.cal-day .r32{grid-row-start:33}
+.cal-day .r33{grid-row-start:34}
+.cal-day .r34{grid-row-start:35}
+.cal-day .r35{grid-row-start:36}
+.cal-day .r36{grid-row-start:37}
+.cal-day .r37{grid-row-start:38}
+.cal-day .r38{grid-row-start:39}
+.cal-day .r39{grid-row-start:40}
+.cal-day .r40{grid-row-start:41}
+.cal-day .r41{grid-row-start:42}
+.cal-day .r42{grid-row-start:43}
+.cal-day .r43{grid-row-start:44}
+.cal-day .r44{grid-row-start:45}
+.cal-day .r45{grid-row-start:46}
+.cal-day .r46{grid-row-start:47}
+.cal-day .r47{grid-row-start:48}
+.cal-day .r48{grid-row-start:49}
+.cal-day .r49{grid-row-start:50}
+.cal-day .r50{grid-row-start:51}
+.cal-day .r51{grid-row-start:52}
+.cal-day .r52{grid-row-start:53}
+.cal-day .r53{grid-row-start:54}
+.cal-day .r54{grid-row-start:55}
+.cal-day .r55{grid-row-start:56}
+.cal-day .r56{grid-row-start:57}
+.cal-day .r57{grid-row-start:58}
+.cal-day .r58{grid-row-start:59}
+.cal-day .r59{grid-row-start:60}
+.cal-day .r60{grid-row-start:61}
+.cal-day .r61{grid-row-start:62}
+.cal-day .r62{grid-row-start:63}
+.cal-day .r63{grid-row-start:64}
+.cal-day .r64{grid-row-start:65}
+.cal-day .r65{grid-row-start:66}
+.cal-day .r66{grid-row-start:67}
+.cal-day .r67{grid-row-start:68}
+.cal-day .r68{grid-row-start:69}
+.cal-day .r69{grid-row-start:70}
+.cal-day .r70{grid-row-start:71}
+.cal-day .r71{grid-row-start:72}
+.cal-day .r72{grid-row-start:73}
+.cal-day .r73{grid-row-start:74}
+.cal-day .r74{grid-row-start:75}
+.cal-day .r75{grid-row-start:76}
+.cal-day .r76{grid-row-start:77}
+.cal-day .r77{grid-row-start:78}
+.cal-day .r78{grid-row-start:79}
+.cal-day .r79{grid-row-start:80}
+.cal-day .r80{grid-row-start:81}
+.cal-day .r81{grid-row-start:82}
+.cal-day .r82{grid-row-start:83}
+.cal-day .r83{grid-row-start:84}
+.cal-day .r84{grid-row-start:85}
+.cal-day .r85{grid-row-start:86}
+.cal-day .r86{grid-row-start:87}
+.cal-day .r87{grid-row-start:88}
+.cal-day .r88{grid-row-start:89}
+.cal-day .r89{grid-row-start:90}
+.cal-day .r90{grid-row-start:91}
+.cal-day .r91{grid-row-start:92}
+.cal-day .r92{grid-row-start:93}
+.cal-day .r93{grid-row-start:94}
+.cal-day .r94{grid-row-start:95}
+.cal-day .r95{grid-row-start:96}
+.cal-day .r96{grid-row-start:97}
+.cal-day .r97{grid-row-start:98}
+.cal-day .r98{grid-row-start:99}
+.cal-day .r99{grid-row-start:100}
+.cal-day .r100{grid-row-start:101}
+.cal-day .r101{grid-row-start:102}
+.cal-day .r102{grid-row-start:103}
+.cal-day .r103{grid-row-start:104}
+.cal-day .r104{grid-row-start:105}
+.cal-day .r105{grid-row-start:106}
+.cal-day .r106{grid-row-start:107}
+.cal-day .r107{grid-row-start:108}
+.cal-day .r108{grid-row-start:109}
+.cal-day .r109{grid-row-start:110}
+.cal-day .r110{grid-row-start:111}
+.cal-day .r111{grid-row-start:112}
+.cal-day .r112{grid-row-start:113}
+.cal-day .r113{grid-row-start:114}
+.cal-day .r114{grid-row-start:115}
+.cal-day .r115{grid-row-start:116}
+.cal-day .r116{grid-row-start:117}
+.cal-day .r117{grid-row-start:118}
+.cal-day .r118{grid-row-start:119}
+.cal-day .r119{grid-row-start:120}
+.cal-day .r120{grid-row-start:121}
+.cal-day .r121{grid-row-start:122}
+.cal-day .r122{grid-row-start:123}
+.cal-day .r123{grid-row-start:124}
+.cal-day .r124{grid-row-start:125}
+.cal-day .r125{grid-row-start:126}
+.cal-day .r126{grid-row-start:127}
+.cal-day .r127{grid-row-start:128}
+.cal-day .r128{grid-row-start:129}
+.cal-day .r129{grid-row-start:130}
+.cal-day .r130{grid-row-start:131}
+.cal-day .r131{grid-row-start:132}
+.cal-day .r132{grid-row-start:133}
+.cal-day .r133{grid-row-start:134}
+.cal-day .r134{grid-row-start:135}
+.cal-day .r135{grid-row-start:136}
+.cal-day .r136{grid-row-start:137}
+.cal-day .r137{grid-row-start:138}
+.cal-day .r138{grid-row-start:139}
+.cal-day .r139{grid-row-start:140}
+.cal-day .r140{grid-row-start:141}
+.cal-day .r141{grid-row-start:142}
+.cal-day .r142{grid-row-start:143}
+.cal-day .r143{grid-row-start:144}
+.cal-day .r144{grid-row-start:145}
+.cal-day .r145{grid-row-start:146}
+.cal-day .r146{grid-row-start:147}
+.cal-day .r147{grid-row-start:148}
+.cal-day .r148{grid-row-start:149}
+.cal-day .r149{grid-row-start:150}
+.cal-day .r150{grid-row-start:151}
+.cal-day .r151{grid-row-start:152}
+.cal-day .r152{grid-row-start:153}
+.cal-day .r153{grid-row-start:154}
+.cal-day .r154{grid-row-start:155}
+.cal-day .r155{grid-row-start:156}
+.cal-day .r156{grid-row-start:157}
+.cal-day .r157{grid-row-start:158}
+.cal-day .r158{grid-row-start:159}
+.cal-day .r159{grid-row-start:160}
+.cal-day .r160{grid-row-start:161}
+.cal-day .r161{grid-row-start:162}
+.cal-day .r162{grid-row-start:163}
+.cal-day .r163{grid-row-start:164}
+.cal-day .r164{grid-row-start:165}
+.cal-day .r165{grid-row-start:166}
+.cal-day .r166{grid-row-start:167}
+.cal-day .r167{grid-row-start:168}
+.cal-day .r168{grid-row-start:169}
+.cal-day .r169{grid-row-start:170}
+.cal-day .r170{grid-row-start:171}
+.cal-day .r171{grid-row-start:172}
+.cal-day .r172{grid-row-start:173}
+.cal-day .r173{grid-row-start:174}
+.cal-day .r174{grid-row-start:175}
+.cal-day .r175{grid-row-start:176}
+.cal-day .r176{grid-row-start:177}
+.cal-day .r177{grid-row-start:178}
+.cal-day .r178{grid-row-start:179}
+.cal-day .r179{grid-row-start:180}
+.cal-day .r180{grid-row-start:181}
+.cal-day .r181{grid-row-start:182}
+.cal-day .r182{grid-row-start:183}
+.cal-day .r183{grid-row-start:184}
+.cal-day .r184{grid-row-start:185}
+.cal-day .r185{grid-row-start:186}
+.cal-day .r186{grid-row-start:187}
+.cal-day .r187{grid-row-start:188}
+.cal-day .r188{grid-row-start:189}
+.cal-day .r189{grid-row-start:190}
+.cal-day .r190{grid-row-start:191}
+.cal-day .r191{grid-row-start:192}
+.cal-day .r192{grid-row-start:193}
+.cal-day .r193{grid-row-start:194}
+.cal-day .r194{grid-row-start:195}
+.cal-day .r195{grid-row-start:196}
+.cal-day .r196{grid-row-start:197}
+.cal-day .r197{grid-row-start:198}
+.cal-day .r198{grid-row-start:199}
+.cal-day .r199{grid-row-start:200}
+.cal-day .r200{grid-row-start:201}
+.cal-day .r201{grid-row-start:202}
+.cal-day .r202{grid-row-start:203}
+.cal-day .r203{grid-row-start:204}
+.cal-day .r204{grid-row-start:205}
+.cal-day .r205{grid-row-start:206}
+.cal-day .r206{grid-row-start:207}
+.cal-day .r207{grid-row-start:208}
+.cal-day .r208{grid-row-start:209}
+.cal-day .r209{grid-row-start:210}
+.cal-day .r210{grid-row-start:211}
+.cal-day .r211{grid-row-start:212}
+.cal-day .r212{grid-row-start:213}
+.cal-day .r213{grid-row-start:214}
+.cal-day .r214{grid-row-start:215}
+.cal-day .r215{grid-row-start:216}
+.cal-day .r216{grid-row-start:217}
+.cal-day .r217{grid-row-start:218}
+.cal-day .r218{grid-row-start:219}
+.cal-day .r219{grid-row-start:220}
+.cal-day .r220{grid-row-start:221}
+.cal-day .r221{grid-row-start:222}
+.cal-day .r222{grid-row-start:223}
+.cal-day .r223{grid-row-start:224}
+.cal-day .r224{grid-row-start:225}
+.cal-day .r225{grid-row-start:226}
+.cal-day .r226{grid-row-start:227}
+.cal-day .r227{grid-row-start:228}
+.cal-day .r228{grid-row-start:229}
+.cal-day .r229{grid-row-start:230}
+.cal-day .r230{grid-row-start:231}
+.cal-day .r231{grid-row-start:232}
+.cal-day .r232{grid-row-start:233}
+.cal-day .r233{grid-row-start:234}
+.cal-day .r234{grid-row-start:235}
+.cal-day .r235{grid-row-start:236}
+.cal-day .r236{grid-row-start:237}
+.cal-day .r237{grid-row-start:238}
+.cal-day .r238{grid-row-start:239}
+.cal-day .r239{grid-row-start:240}
+.cal-day .r240{grid-row-start:241}
+.cal-day .r241{grid-row-start:242}
+.cal-day .r242{grid-row-start:243}
+.cal-day .r243{grid-row-start:244}
+.cal-day .r244{grid-row-start:245}
+.cal-day .r245{grid-row-start:246}
+.cal-day .r246{grid-row-start:247}
+.cal-day .r247{grid-row-start:248}
+.cal-day .r248{grid-row-start:249}
+.cal-day .r249{grid-row-start:250}
+.cal-day .r250{grid-row-start:251}
+.cal-day .r251{grid-row-start:252}
+.cal-day .r252{grid-row-start:253}
+.cal-day .r253{grid-row-start:254}
+.cal-day .r254{grid-row-start:255}
+.cal-day .r255{grid-row-start:256}
+.cal-day .r256{grid-row-start:257}
+.cal-day .r257{grid-row-start:258}
+.cal-day .r258{grid-row-start:259}
+.cal-day .r259{grid-row-start:260}
+.cal-day .r260{grid-row-start:261}
+.cal-day .r261{grid-row-start:262}
+.cal-day .r262{grid-row-start:263}
+.cal-day .r263{grid-row-start:264}
+.cal-day .r264{grid-row-start:265}
+.cal-day .r265{grid-row-start:266}
+.cal-day .r266{grid-row-start:267}
+.cal-day .r267{grid-row-start:268}
+.cal-day .r268{grid-row-start:269}
+.cal-day .r269{grid-row-start:270}
+.cal-day .r270{grid-row-start:271}
+.cal-day .r271{grid-row-start:272}
+.cal-day .r272{grid-row-start:273}
+.cal-day .r273{grid-row-start:274}
+.cal-day .r274{grid-row-start:275}
+.cal-day .r275{grid-row-start:276}
+.cal-day .r276{grid-row-start:277}
+.cal-day .r277{grid-row-start:278}
+.cal-day .r278{grid-row-start:279}
+.cal-day .r279{grid-row-start:280}
+.cal-day .r280{grid-row-start:281}
+.cal-day .r281{grid-row-start:282}
+.cal-day .r282{grid-row-start:283}
+.cal-day .r283{grid-row-start:284}
+.cal-day .r284{grid-row-start:285}
+.cal-day .r285{grid-row-start:286}
+.cal-day .r286{grid-row-start:287}
+.cal-day .r287{grid-row-start:288}
+.cal-day .h1{grid-row-end:span 1}
+.cal-day .h2{grid-row-end:span 2}
+.cal-day .h3{grid-row-end:span 3}
+.cal-day .h4{grid-row-end:span 4}
+.cal-day .h5{grid-row-end:span 5}
+.cal-day .h6{grid-row-end:span 6}
+.cal-day .h7{grid-row-end:span 7}
+.cal-day .h8{grid-row-end:span 8}
+.cal-day .h9{grid-row-end:span 9}
+.cal-day .h10{grid-row-end:span 10}
+.cal-day .h11{grid-row-end:span 11}
+.cal-day .h12{grid-row-end:span 12}
+.cal-day .h13{grid-row-end:span 13}
+.cal-day .h14{grid-row-end:span 14}
+.cal-day .h15{grid-row-end:span 15}
+.cal-day .h16{grid-row-end:span 16}
+.cal-day .h17{grid-row-end:span 17}
+.cal-day .h18{grid-row-end:span 18}
+.cal-day .h19{grid-row-end:span 19}
+.cal-day .h20{grid-row-end:span 20}
+.cal-day .h21{grid-row-end:span 21}
+.cal-day .h22{grid-row-end:span 22}
+.cal-day .h23{grid-row-end:span 23}
+.cal-day .h24{grid-row-end:span 24}
+.cal-day .h25{grid-row-end:span 25}
+.cal-day .h26{grid-row-end:span 26}
+.cal-day .h27{grid-row-end:span 27}
+.cal-day .h28{grid-row-end:span 28}
+.cal-day .h29{grid-row-end:span 29}
+.cal-day .h30{grid-row-end:span 30}
+.cal-day .h31{grid-row-end:span 31}
+.cal-day .h32{grid-row-end:span 32}
+.cal-day .h33{grid-row-end:span 33}
+.cal-day .h34{grid-row-end:span 34}
+.cal-day .h35{grid-row-end:span 35}
+.cal-day .h36{grid-row-end:span 36}
+.cal-day .h37{grid-row-end:span 37}
+.cal-day .h38{grid-row-end:span 38}
+.cal-day .h39{grid-row-end:span 39}
+.cal-day .h40{grid-row-end:span 40}
+.cal-day .h41{grid-row-end:span 41}
+.cal-day .h42{grid-row-end:span 42}
+.cal-day .h43{grid-row-end:span 43}
+.cal-day .h44{grid-row-end:span 44}
+.cal-day .h45{grid-row-end:span 45}
+.cal-day .h46{grid-row-end:span 46}
+.cal-day .h47{grid-row-end:span 47}
+.cal-day .h48{grid-row-end:span 48}
+.cal-day .h49{grid-row-end:span 49}
+.cal-day .h50{grid-row-end:span 50}
+.cal-day .h51{grid-row-end:span 51}
+.cal-day .h52{grid-row-end:span 52}
+.cal-day .h53{grid-row-end:span 53}
+.cal-day .h54{grid-row-end:span 54}
+.cal-day .h55{grid-row-end:span 55}
+.cal-day .h56{grid-row-end:span 56}
+.cal-day .h57{grid-row-end:span 57}
+.cal-day .h58{grid-row-end:span 58}
+.cal-day .h59{grid-row-end:span 59}
+.cal-day .h60{grid-row-end:span 60}
+.cal-day .h61{grid-row-end:span 61}
+.cal-day .h62{grid-row-end:span 62}
+.cal-day .h63{grid-row-end:span 63}
+.cal-day .h64{grid-row-end:span 64}
+.cal-day .h65{grid-row-end:span 65}
+.cal-day .h66{grid-row-end:span 66}
+.cal-day .h67{grid-row-end:span 67}
+.cal-day .h68{grid-row-end:span 68}
+.cal-day .h69{grid-row-end:span 69}
+.cal-day .h70{grid-row-end:span 70}
+.cal-day .h71{grid-row-end:span 71}
+.cal-day .h72{grid-row-end:span 72}
+.cal-day .h73{grid-row-end:span 73}
+.cal-day .h74{grid-row-end:span 74}
+.cal-day .h75{grid-row-end:span 75}
+.cal-day .h76{grid-row-end:span 76}
+.cal-day .h77{grid-row-end:span 77}
+.cal-day .h78{grid-row-end:span 78}
+.cal-day .h79{grid-row-end:span 79}
+.cal-day .h80{grid-row-end:span 80}
+.cal-day .h81{grid-row-end:span 81}
+.cal-day .h82{grid-row-end:span 82}
+.cal-day .h83{grid-row-end:span 83}
+.cal-day .h84{grid-row-end:span 84}
+.cal-day .h85{grid-row-end:span 85}
+.cal-day .h86{grid-row-end:span 86}
+.cal-day .h87{grid-row-end:span 87}
+.cal-day .h88{grid-row-end:span 88}
+.cal-day .h89{grid-row-end:span 89}
+.cal-day .h90{grid-row-end:span 90}
+.cal-day .h91{grid-row-end:span 91}
+.cal-day .h92{grid-row-end:span 92}
+.cal-day .h93{grid-row-end:span 93}
+.cal-day .h94{grid-row-end:span 94}
+.cal-day .h95{grid-row-end:span 95}
+.cal-day .h96{grid-row-end:span 96}
+.cal-day .h97{grid-row-end:span 97}
+.cal-day .h98{grid-row-end:span 98}
+.cal-day .h99{grid-row-end:span 99}
+.cal-day .h100{grid-row-end:span 100}
+.cal-day .h101{grid-row-end:span 101}
+.cal-day .h102{grid-row-end:span 102}
+.cal-day .h103{grid-row-end:span 103}
+.cal-day .h104{grid-row-end:span 104}
+.cal-day .h105{grid-row-end:span 105}
+.cal-day .h106{grid-row-end:span 106}
+.cal-day .h107{grid-row-end:span 107}
+.cal-day .h108{grid-row-end:span 108}
+.cal-day .h109{grid-row-end:span 109}
+.cal-day .h110{grid-row-end:span 110}
+.cal-day .h111{grid-row-end:span 111}
+.cal-day .h112{grid-row-end:span 112}
+.cal-day .h113{grid-row-end:span 113}
+.cal-day .h114{grid-row-end:span 114}
+.cal-day .h115{grid-row-end:span 115}
+.cal-day .h116{grid-row-end:span 116}
+.cal-day .h117{grid-row-end:span 117}
+.cal-day .h118{grid-row-end:span 118}
+.cal-day .h119{grid-row-end:span 119}
+.cal-day .h120{grid-row-end:span 120}
+.cal-day .h121{grid-row-end:span 121}
+.cal-day .h122{grid-row-end:span 122}
+.cal-day .h123{grid-row-end:span 123}
+.cal-day .h124{grid-row-end:span 124}
+.cal-day .h125{grid-row-end:span 125}
+.cal-day .h126{grid-row-end:span 126}
+.cal-day .h127{grid-row-end:span 127}
+.cal-day .h128{grid-row-end:span 128}
+.cal-day .h129{grid-row-end:span 129}
+.cal-day .h130{grid-row-end:span 130}
+.cal-day .h131{grid-row-end:span 131}
+.cal-day .h132{grid-row-end:span 132}
+.cal-day .h133{grid-row-end:span 133}
+.cal-day .h134{grid-row-end:span 134}
+.cal-day .h135{grid-row-end:span 135}
+.cal-day .h136{grid-row-end:span 136}
+.cal-day .h137{grid-row-end:span 137}
+.cal-day .h138{grid-row-end:span 138}
+.cal-day .h139{grid-row-end:span 139}
+.cal-day .h140{grid-row-end:span 140}
+.cal-day .h141{grid-row-end:span 141}
+.cal-day .h142{grid-row-end:span 142}
+.cal-day .h143{grid-row-end:span 143}
+.cal-day .h144{grid-row-end:span 144}
+.cal-day .h145{grid-row-end:span 145}
+.cal-day .h146{grid-row-end:span 146}
+.cal-day .h147{grid-row-end:span 147}
+.cal-day .h148{grid-row-end:span 148}
+.cal-day .h149{grid-row-end:span 149}
+.cal-day .h150{grid-row-end:span 150}
+.cal-day .h151{grid-row-end:span 151}
+.cal-day .h152{grid-row-end:span 152}
+.cal-day .h153{grid-row-end:span 153}
+.cal-day .h154{grid-row-end:span 154}
+.cal-day .h155{grid-row-end:span 155}
+.cal-day .h156{grid-row-end:span 156}
+.cal-day .h157{grid-row-end:span 157}
+.cal-day .h158{grid-row-end:span 158}
+.cal-day .h159{grid-row-end:span 159}
+.cal-day .h160{grid-row-end:span 160}
+.cal-day .h161{grid-row-end:span 161}
+.cal-day .h162{grid-row-end:span 162}
+.cal-day .h163{grid-row-end:span 163}
+.cal-day .h164{grid-row-end:span 164}
+.cal-day .h165{grid-row-end:span 165}
+.cal-day .h166{grid-row-end:span 166}
+.cal-day .h167{grid-row-end:span 167}
+.cal-day .h168{grid-row-end:span 168}
+.cal-day .h169{grid-row-end:span 169}
+.cal-day .h170{grid-row-end:span 170}
+.cal-day .h171{grid-row-end:span 171}
+.cal-day .h172{grid-row-end:span 172}
+.cal-day .h173{grid-row-end:span 173}
+.cal-day .h174{grid-row-end:span 174}
+.cal-day .h175{grid-row-end:span 175}
+.cal-day .h176{grid-row-end:span 176}
+.cal-day .h177{grid-row-end:span 177}
+.cal-day .h178{grid-row-end:span 178}
+.cal-day .h179{grid-row-end:span 179}
+.cal-day .h180{grid-row-end:span 180}
+.cal-day .h181{grid-row-end:span 181}
+.cal-day .h182{grid-row-end:span 182}
+.cal-day .h183{grid-row-end:span 183}
+.cal-day .h184{grid-row-end:span 184}
+.cal-day .h185{grid-row-end:span 185}
+.cal-day .h186{grid-row-end:span 186}
+.cal-day .h187{grid-row-end:span 187}
+.cal-day .h188{grid-row-end:span 188}
+.cal-day .h189{grid-row-end:span 189}
+.cal-day .h190{grid-row-end:span 190}
+.cal-day .h191{grid-row-end:span 191}
+.cal-day .h192{grid-row-end:span 192}
+.cal-day .h193{grid-row-end:span 193}
+.cal-day .h194{grid-row-end:span 194}
+.cal-day .h195{grid-row-end:span 195}
+.cal-day .h196{grid-row-end:span 196}
+.cal-day .h197{grid-row-end:span 197}
+.cal-day .h198{grid-row-end:span 198}
+.cal-day .h199{grid-row-end:span 199}
+.cal-day .h200{grid-row-end:span 200}
+.cal-day .h201{grid-row-end:span 201}
+.cal-day .h202{grid-row-end:span 202}
+.cal-day .h203{grid-row-end:span 203}
+.cal-day .h204{grid-row-end:span 204}
+.cal-day .h205{grid-row-end:span 205}
+.cal-day .h206{grid-row-end:span 206}
+.cal-day .h207{grid-row-end:span 207}
+.cal-day .h208{grid-row-end:span 208}
+.cal-day .h209{grid-row-end:span 209}
+.cal-day .h210{grid-row-end:span 210}
+.cal-day .h211{grid-row-end:span 211}
+.cal-day .h212{grid-row-end:span 212}
+.cal-day .h213{grid-row-end:span 213}
+.cal-day .h214{grid-row-end:span 214}
+.cal-day .h215{grid-row-end:span 215}
+.cal-day .h216{grid-row-end:span 216}
+.cal-day .h217{grid-row-end:span 217}
+.cal-day .h218{grid-row-end:span 218}
+.cal-day .h219{grid-row-end:span 219}
+.cal-day .h220{grid-row-end:span 220}
+.cal-day .h221{grid-row-end:span 221}
+.cal-day .h222{grid-row-end:span 222}
+.cal-day .h223{grid-row-end:span 223}
+.cal-day .h224{grid-row-end:span 224}
+.cal-day .h225{grid-row-end:span 225}
+.cal-day .h226{grid-row-end:span 226}
+.cal-day .h227{grid-row-end:span 227}
+.cal-day .h228{grid-row-end:span 228}
+.cal-day .h229{grid-row-end:span 229}
+.cal-day .h230{grid-row-end:span 230}
+.cal-day .h231{grid-row-end:span 231}
+.cal-day .h232{grid-row-end:span 232}
+.cal-day .h233{grid-row-end:span 233}
+.cal-day .h234{grid-row-end:span 234}
+.cal-day .h235{grid-row-end:span 235}
+.cal-day .h236{grid-row-end:span 236}
+.cal-day .h237{grid-row-end:span 237}
+.cal-day .h238{grid-row-end:span 238}
+.cal-day .h239{grid-row-end:span 239}
+.cal-day .h240{grid-row-end:span 240}
+.cal-day .h241{grid-row-end:span 241}
+.cal-day .h242{grid-row-end:span 242}
+.cal-day .h243{grid-row-end:span 243}
+.cal-day .h244{grid-row-end:span 244}
+.cal-day .h245{grid-row-end:span 245}
+.cal-day .h246{grid-row-end:span 246}
+.cal-day .h247{grid-row-end:span 247}
+.cal-day .h248{grid-row-end:span 248}
+.cal-day .h249{grid-row-end:span 249}
+.cal-day .h250{grid-row-end:span 250}
+.cal-day .h251{grid-row-end:span 251}
+.cal-day .h252{grid-row-end:span 252}
+.cal-day .h253{grid-row-end:span 253}
+.cal-day .h254{grid-row-end:span 254}
+.cal-day .h255{grid-row-end:span 255}
+.cal-day .h256{grid-row-end:span 256}
+.cal-day .h257{grid-row-end:span 257}
+.cal-day .h258{grid-row-end:span 258}
+.cal-day .h259{grid-row-end:span 259}
+.cal-day .h260{grid-row-end:span 260}
+.cal-day .h261{grid-row-end:span 261}
+.cal-day .h262{grid-row-end:span 262}
+.cal-day .h263{grid-row-end:span 263}
+.cal-day .h264{grid-row-end:span 264}
+.cal-day .h265{grid-row-end:span 265}
+.cal-day .h266{grid-row-end:span 266}
+.cal-day .h267{grid-row-end:span 267}
+.cal-day .h268{grid-row-end:span 268}
+.cal-day .h269{grid-row-end:span 269}
+.cal-day .h270{grid-row-end:span 270}
+.cal-day .h271{grid-row-end:span 271}
+.cal-day .h272{grid-row-end:span 272}
+.cal-day .h273{grid-row-end:span 273}
+.cal-day .h274{grid-row-end:span 274}
+.cal-day .h275{grid-row-end:span 275}
+.cal-day .h276{grid-row-end:span 276}
+.cal-day .h277{grid-row-end:span 277}
+.cal-day .h278{grid-row-end:span 278}
+.cal-day .h279{grid-row-end:span 279}
+.cal-day .h280{grid-row-end:span 280}
+.cal-day .h281{grid-row-end:span 281}
+.cal-day .h282{grid-row-end:span 282}
+.cal-day .h283{grid-row-end:span 283}
+.cal-day .h284{grid-row-end:span 284}
+.cal-day .h285{grid-row-end:span 285}
+.cal-day .h286{grid-row-end:span 286}
+.cal-day .h287{grid-row-end:span 287}
+.cal-day .h288{grid-row-end:span 288}
+.cal-day .c1{grid-column-start:1}
+.cal-day .c11{grid-column-start:11}
+.cal-day .c13{grid-column-start:13}
+.cal-day .c16{grid-column-start:16}
+.cal-day .c21{grid-column-start:21}
+.cal-day .c25{grid-column-start:25}
+.cal-day .c31{grid-column-start:31}
+.cal-day .c37{grid-column-start:37}
+.cal-day .c41{grid-column-start:41}
+.cal-day .c46{grid-column-start:46}
+.cal-day .c49{grid-column-start:49}
+.cal-day .c51{grid-column-start:51}
+.cal-day .w60{grid-column-end:span 60}
+.cal-day .w30{grid-column-end:span 30}
+.cal-day .w20{grid-column-end:span 20}
+.cal-day .w15{grid-column-end:span 15}
+.cal-day .w12{grid-column-end:span 12}
+.cal-day .w10{grid-column-end:span 10}

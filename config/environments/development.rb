@@ -1,6 +1,10 @@
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
+  # Never use assets precompiled by bin/start (public/assets): always compile live, so new or changed
+  # stylesheets and scripts show up immediately (found in specs 006 and 007).
+  config.assets.output_path = Rails.root.join("tmp/assets-#{Rails.env}")
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Make code changes take effect immediately without server restart.

@@ -1,6 +1,16 @@
 Rails.application.routes.draw do
   root "home#show"
 
+  # Spec 007: calendar of tasks
+  get "calendar" => "calendar#show", as: :calendar
+  resources :tasks, only: %i[new create show edit update destroy] do
+    member do
+      patch :move
+      post :copy
+      post :duplicate
+    end
+  end
+
   # Spec 002: sign-in, TOTP, password-change links
   resource :session, only: %i[new create destroy]
   resource :two_factor, only: %i[new create]

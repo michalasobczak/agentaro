@@ -1,0 +1,74 @@
+<% local_start, local_end = task.starts_at.in_time_zone, task.ends_at.in_time_zone %>
+<% end_date = task.all_day ? (local_end - 1.day).to_date : local_end.to_date %>
+<% in_dialog = local_assigns[:in_dialog] %>
+<% if in_dialog %>
+  <ul class="errors" data-errors hidden></ul>
+<% elsif errors.present? %>
+  <ul class="errors"><% errors.each do |e| %><li><%= e %></li><% end %></ul>
+<% end %>
+<%= form_with model: task, url: url, method: method, scope: :task, class: "form task-form", id: (in_dialog ? "new-task-form" : nil) do |f| %>
+  <%= hidden_field_tag :return_to, return_to if return_to %>
+  <%= hidden_field_tag :occurrence, occurrence.original_start.iso8601 if occurrence %>
+
+  <div class="field"><%= f.label :title %><%= f.text_field :title, required: true, maxlength: 200, autofocus: task.new_record? %></div>
+  <div class="field"><%= f.label :location %><%= f.text_field :location, maxlength: 200 %></div>
+  <div class="field"><%= f.label :description %><%= f.text_area :description, rows: 4, maxlength: 5000 %></div>
+
+  <% if current_user.admin? %>
+    <div class="field">
+      <%= f.label :calendar %>
+      <%= f.select :calendar, [ [ "Private — only me", "private" ], [ "System-wide — everyone sees it", "system" ] ] %>
+    </div>
+  <% end %>
+
+  <label class="check"><%= f.check_box :all_day %><span>All day <span class="hint">(1 to <%= Task::MAX_ALL_DAY_DAYS %> days, no hours)</span></span></label>
+
+  <div class="field-row">
+    <div class="field"><%= label_tag "task_start_date", "Starts" %><%= date_field_tag "task[start_date]", local_start.to_date.iso8601, id: "task_start_date", required: true %></div>
+    <div class="field time-field"><%= label_tag "task_start_time", "at" %><%= time_field_tag "task[start_time]", local_start.strftime("%H:%M"), id: "task_start_time" %></div>
+  </div>
+  <div class="field-row">
+    <div class="field"><%= label_tag "task_end_date", "Ends" %><%= date_field_tag "task[end_date]", end_date.iso8601, id: "task_end_date", required: true %></div>
+    <div class="field time-field"><%= label_tag "task_end_time", "at" %><%= time_field_tag "task[end_time]", local_end.strftime("%H:%M"), id: "task_end_time" %></div>
+  </div>
+  <p class="hint">A task lasts from 1 minute to 4 days. Times are in <%= Time.zone.name %>.</p>
+
+  <% unless occurrence %>
+    <fieldset class="repeat">
+      <legend>Repeat</legend>
+      <div class="field-row">
+        <div class="field"><%= f.select :repeat, [ [ "Does not repeat", "none" ], [ "Daily", "daily" ], [ "Weekly", "weekly" ], [ "Monthly (same day)", "monthly" ] ] %></div>
+        <div class="field interval"><span class="inline-label">every</span><%= f.number_field :repeat_interval, min: 1, max: 99, "aria-label": "Interval" %><span class="inline-label">day(s) / week(s) / month(s)</span></div>
+      </div>
+      <div class="weekdays" role="group" aria-label="Weekdays for weekly tasks">
+        <% %w[Mon Tue Wed Thu Fri Sat Sun].each_with_index do |name, i| %>
+          <label class="day-toggle"><%= check_box_tag "task[weekdays][]", i + 1, task.weekdays.include?(i + 1), id: "task_weekday_#{i + 1}" %><span><%= name %></span></label>
+        <% end %>
+      </div>
+      <div class="field-row ends">
+        <label class="radio"><%= radio_button_tag "task[repeat_ends]", "until", task.repeat_count.nil? %> Ends on</label>
+        <%= date_field_tag "task[repeat_until]", (task.repeat_until || (local_start + Task::SERIES_LIMIT).to_date).iso8601, max: (local_start + Task::SERIES_LIMIT).to_date.iso8601, "aria-label": "Ends on date" %>
+        <label class="radio"><%= radio_button_tag "task[repeat_ends]", "count", task.repeat_count.present? %> after</label>
+        <%= number_field_tag "task[repeat_count]", task.repeat_count, min: 1, max: 400, "aria-label": "Number of times" %><span class="inline-label">times</span>
+      </div>
+      <p class="hint">A series lasts at most 3 months.</p>
+    </fieldset>
+  <% end %>
+
+  <% if occurrence %>
+    <fieldset class="scope">
+      <legend>This task repeats — apply changes to</legend>
+      <label class="radio"><%= radio_button_tag :scope, "this", true %> This occurrence only</label>
+      <label class="radio"><%= radio_button_tag :scope, "series", false %> The whole series</label>
+    </fieldset>
+  <% end %>
+
+  <div class="actions">
+    <%= f.submit task.new_record? ? "Create task" : "Save" %>
+    <% if in_dialog %>
+      <button type="button" class="secondary" data-close>Cancel</button>
+    <% else %>
+      <%= link_to "Cancel", return_to || calendar_path, class: "button secondary" %>
+    <% end %>
+  </div>
+<% end %>

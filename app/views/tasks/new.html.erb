@@ -1,0 +1,4 @@
+<%= page_header "New task" %>
+<div class="card task-card">
+  <%= render "form", task: @task, url: tasks_path, method: :post, occurrence: nil, return_to: @return_to, errors: @task.errors.full_messages %>
+</div>

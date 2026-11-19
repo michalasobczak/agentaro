@@ -38,7 +38,8 @@ module Agentaro
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # Times are stored in UTC and shown in Europe/Warsaw for everyone (spec 007, Q8).
+    config.time_zone = "Europe/Warsaw"
     # config.eager_load_paths << Rails.root.join("extras")
 
     # Don't generate system test files.

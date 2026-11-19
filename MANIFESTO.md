@@ -23,7 +23,9 @@ Implementation principles for Agentaro. Based on the 24 engineering essentials o
 - **Audit (specs 003, 004):** own Rack middleware and model concern, no audit gems; separate SQLite database; hash chains; writes that skip callbacks (`update_all`, `update_columns`, …) are forbidden in application code — a test enforces it.
 - **Running (spec 005):** real use is production mode via `bin/start` (generic error pages, `AGENTARO_HTTPS_PROXY=1`, allowed hostnames from `AGENTARO_HOSTS`); `bin/dev` only for development on localhost. Tests run in proxy mode (set in `config/environments/test.rb`).
 - **Failed sign-ins (spec 005, F4):** counted per typed username, never per account, so failures cost the same for known and unknown names.
-- **Interface (spec 006):** plain CSS with design tokens, system fonts, inline SVG icons, no CSS framework, no JavaScript; phone menu uses `<details>`. Breakpoints: phone < 640 px, tablet 640–1099 px, desktop above.
+- **Interface (spec 006):** plain CSS with design tokens, system fonts, inline SVG icons, no CSS framework; phone menu uses `<details>`.
+- **JavaScript (spec 007, owner: "allow JavaScript"):** only first-party files in `app/assets/javascripts/`, no libraries, no CDN; CSP `script-src 'self'` (no inline scripts, no eval). Scripts never build HTML from data. Everything must also work through plain forms when the script is missing. Breakpoints: phone < 640 px, tablet 640–1099 px, desktop above.
+- **Time (spec 007):** stored in UTC, shown and computed in Europe/Warsaw (`config.time_zone`); recurring tasks keep their wall-clock time across daylight-saving changes.
 - **Machine-local secrets:** generated on first boot into `storage/secrets.yml` (mode 0600, ignored by git); environment variables override.
 - **Local CI:** `bin/ci` (Rails 8.1) is the pipeline; failures are never bypassed.
 

@@ -1,0 +1,19 @@
+<%= page_header @task.title, (@task.recurring? ? "Repeating task" : nil) %>
+<div class="task-layout">
+  <div class="card task-card">
+    <%= render "form", task: @task, url: task_path(@task), method: :patch, occurrence: @occurrence, return_to: @return_to, errors: @errors %>
+  </div>
+  <div class="card task-side">
+    <h2>Actions</h2>
+    <div class="stack">
+      <%= button_to duplicate_task_path(@task), params: { occurrence: @occurrence&.original_start&.iso8601, return_to: @return_to }.compact, class: "secondary" do %><%= icon(:plus) %> Duplicate to next day<% end %>
+      <% if @occurrence %>
+        <%= button_to "Delete this occurrence", task_path(@task), method: :delete, params: { occurrence: @occurrence.original_start.iso8601, scope: "this", return_to: @return_to }.compact, class: "danger", form: { data: { confirm: "Delete this occurrence?" } } %>
+        <%= button_to "Delete the whole series", task_path(@task), method: :delete, params: { scope: "series", return_to: @return_to }.compact, class: "danger", form: { data: { confirm: "Delete every occurrence of this task?" } } %>
+      <% else %>
+        <%= button_to "Delete task", task_path(@task), method: :delete, params: { return_to: @return_to }.compact, class: "danger", form: { data: { confirm: "Delete this task?" } } %>
+      <% end %>
+    </div>
+    <p class="hint spaced"><%= @task.system? ? "System-wide task — every user sees it." : "Private task — only you see it." %></p>
+  </div>
+</div>

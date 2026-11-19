@@ -1,8 +1,9 @@
-# Content Security Policy (Rondo E14). The interface uses no JavaScript and no external resources.
+# Content Security Policy (Rondo E14). No external resources. Scripts: first-party files only — no inline
+# scripts, no eval, no CDNs (spec 007, Q1: JavaScript allowed for the calendar).
 Rails.application.configure do
   config.content_security_policy do |policy|
     policy.default_src :self
-    policy.script_src :none
+    policy.script_src :self
     policy.style_src :self
     policy.img_src :self, :data
     policy.font_src :self

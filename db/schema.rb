@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_19_170000) do
   create_table "password_links", force: :cascade do |t|
     t.integer "user_id", null: false
     t.integer "created_by_id", null: false
@@ -44,6 +44,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_150000) do
     t.index ["username"], name: "index_sign_in_throttles_on_username", unique: true
   end
 
+  create_table "task_exceptions", force: :cascade do |t|
+    t.integer "task_id", null: false
+    t.datetime "occurs_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["task_id", "occurs_at"], name: "index_task_exceptions_on_task_id_and_occurs_at", unique: true
+    t.index ["task_id"], name: "index_task_exceptions_on_task_id"
+  end
+
+  create_table "tasks", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "calendar", default: "private", null: false
+    t.string "title", null: false
+    t.string "location"
+    t.text "description"
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.boolean "all_day", default: false, null: false
+    t.string "repeat", default: "none", null: false
+    t.integer "repeat_interval", default: 1, null: false
+    t.string "repeat_weekdays"
+    t.date "repeat_until"
+    t.integer "repeat_count"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["calendar", "starts_at"], name: "index_tasks_on_calendar_and_starts_at"
+    t.index ["user_id", "starts_at"], name: "index_tasks_on_user_id_and_starts_at"
+    t.index ["user_id"], name: "index_tasks_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "username", null: false
     t.string "password_digest"
@@ -61,4 +91,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_150000) do
   add_foreign_key "password_links", "users"
   add_foreign_key "password_links", "users", column: "created_by_id"
   add_foreign_key "sessions", "users"
+  add_foreign_key "task_exceptions", "tasks"
+  add_foreign_key "tasks", "users"
 end

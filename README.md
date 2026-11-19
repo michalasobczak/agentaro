@@ -73,8 +73,9 @@ Everything lives in `storage/`: the databases (development and production), the 
 
 ## Functional architecture
 
-Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No JavaScript, no external resources.
+Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
+- **Calendar (spec 007):** day, 4-day, week and month views; one-time and recurring tasks (daily, weekly on chosen days, monthly; at most 3 months per series) from 1 minute to 4 days, all-day tasks; new tasks in a popup over the calendar; drag & drop, resize, cut, copy, paste, duplicate. Private tasks per user and a system-wide calendar that admins maintain. Europe/Warsaw time.
 - **Interface (spec 006):** responsive — sidebar layout on desktop and tablet (≥ 640 px), compact top bar on phones; light and dark mode; plain CSS and inline SVG icons. Phones get sign-in, home, own sessions and password; admin tools are for desktop and tablet.
 
 - **Accounts (spec 002):** roles `admin` and `user`; passwords (bcrypt, 12+ characters, common-password list); TOTP (Google Authenticator) — mandatory for admins, switchable per user by an admin; sessions in the database, revoked 7 days after sign-in; one-time password-change links instead of e-mail; admins managed on the command line.
@@ -92,7 +93,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No JavaSc
 - 2026-11-19: specs 002–004 implemented — authentication, roles and TOTP; HTTP audit log; data changelog. Tests: 58. Security analysis: spec 005 (2 medium, 3 low findings, fixes proposed).
 - 2026-11-19: spec 005 implemented — Secure cookies and HSTS behind the proxy, production mode via `bin/start`, automatic daily audit pruning, equal work on every failed sign-in. Tests: 64. Security round 1 closed.
 - 2026-11-19: spec 006 implemented — responsive, designed interface (desktop, tablet, phone). Tests: 69.
-- Next: task calendar and provider adapters (Claude Code, Codex).
+- 2026-11-19: spec 007 implemented — calendar of tasks; owner correction: adding a task opens in a popup. Tests: 98.
+- Next: provider adapters (Claude Code, Codex); later, assigning tasks to agents.
 
 ## Specifications
 
@@ -104,6 +106,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No JavaSc
 | 004 | [Data changelog](specs/004-data-changelog.md) | implemented |
 | 005 | [Security analysis, round 1](specs/005-security-round-1.md) | implemented |
 | 006 | [Responsive layout and visual design](specs/006-responsive-ui.md) | implemented |
+| 007 | [Calendar of tasks](specs/007-calendar.md) | implemented |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 

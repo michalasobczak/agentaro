@@ -4,6 +4,10 @@
 # and recreated between test runs. Don't rely on the data there!
 
 Rails.application.configure do
+  # Never use assets precompiled by bin/start (public/assets): always compile live, so new or changed
+  # stylesheets and scripts show up immediately (found in specs 006 and 007).
+  config.assets.output_path = Rails.root.join("tmp/assets-#{Rails.env}")
+
   # Audit pruning runs in a background thread in real use; tests trigger it explicitly (spec 005, F3).
   config.x.audit_auto_prune = false
 

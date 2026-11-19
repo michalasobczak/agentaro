@@ -1,0 +1,123 @@
+<% content_for :title, "Calendar · Agentaro" %>
+<% content_for :content_class, "full" %>
+<% content_for :scripts do %><%= javascript_include_tag "calendar", defer: true %><% end %>
+<% here = request.fullpath %>
+<% hours = (0..23).to_a %>
+
+<div class="calendar view-<%= @view %>" data-view="<%= @view %>" data-move-url="<%= tasks_path %>" data-new-url="<%= new_task_path %>" data-return-to="<%= here %>">
+  <div class="cal-toolbar">
+    <div class="cal-nav">
+      <%= link_to calendar_path(view: @view, date: @previous), class: "button secondary icon-only", "aria-label": "Previous" do %><%= icon(:chevron_left) %><% end %>
+      <%= link_to "Today", calendar_path(view: @view), class: "button secondary" %>
+      <%= link_to calendar_path(view: @view, date: @next), class: "button secondary icon-only", "aria-label": "Next" do %><%= icon(:chevron_right) %><% end %>
+      <h1 class="cal-title"><%= calendar_title(@view, @days) %></h1>
+    </div>
+    <div class="cal-tools">
+      <%= form_with url: calendar_path, method: :get, class: "cal-date" do |f| %>
+        <%= hidden_field_tag :view, @view %>
+        <%= f.date_field :date, value: @date.iso8601, "aria-label": "Go to date" %>
+        <%= f.submit "Go", name: nil, class: "secondary" %>
+      <% end %>
+      <nav class="segmented" aria-label="View">
+        <% { "day" => "Day", "4days" => "4 days", "week" => "Week", "month" => "Month" }.each do |key, label| %>
+          <%= link_to label, calendar_path(view: key, date: @date.iso8601), class: [("active" if @view == key), ("desktop-only" unless key == "day")].compact.join(" "), "aria-current": (@view == key ? "page" : nil) %>
+        <% end %>
+      </nav>
+      <%= link_to new_task_path(return_to: here), class: "button", data: { new_task: true } do %><%= icon(:plus) %> New task<% end %>
+    </div>
+  </div>
+
+  <% if @view != "day" %>
+    <div class="callout mobile-note"><%= icon(:info) %><div>On a phone the calendar shows one day at a time. <%= link_to "Open day view", calendar_path(view: "day", date: @date.iso8601) %></div></div>
+  <% end %>
+
+  <% if @view == "month" %>
+    <div class="cal-month <%= "desktop-only" %>">
+      <div class="month-head"><% %w[Mon Tue Wed Thu Fri Sat Sun].each do |d| %><div><%= d %></div><% end %></div>
+      <div class="month-grid">
+        <% @days.each do |day| %>
+          <% items = day_occurrences(day, @occurrences) %>
+          <div class="month-day <%= "other-month" if day.month != @date.month %> <%= "today" if day == Time.zone.today %>" data-date="<%= day.iso8601 %>">
+            <%= link_to day.day, calendar_path(view: "day", date: day.iso8601), class: "month-date" %>
+            <% items.first(4).each do |o| %>
+              <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: o.task.title do %>
+                <span class="task-time"><%= o.all_day? ? "" : l(o.starts_at.in_time_zone, format: "%H:%M") %></span><span class="task-title"><%= o.task.title %></span>
+              <% end %>
+            <% end %>
+            <% if items.size > 4 %><%= link_to "+#{items.size - 4} more", calendar_path(view: "day", date: day.iso8601), class: "more" %><% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% else %>
+    <div class="cal-grid days-<%= @days.size %> <%= "desktop-only" if @days.size > 1 %>">
+      <div class="cal-head">
+        <div class="gutter"></div>
+        <% @days.each do |day| %>
+          <%= link_to calendar_path(view: "day", date: day.iso8601), class: ["day-head", ("today" if day == Time.zone.today)].compact.join(" ") do %>
+            <span class="dow"><%= l(day, format: "%a") %></span><span class="dom"><%= day.day %></span>
+          <% end %>
+        <% end %>
+      </div>
+      <div class="cal-allday">
+        <div class="gutter small muted">all day</div>
+        <% @days.each do |day| %>
+          <div class="allday-cell" data-date="<%= day.iso8601 %>">
+            <% all_day_occurrences(day, @occurrences).each do |o| %>
+              <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: o.task.title do %>
+                <span class="task-title"><%= o.task.title %></span>
+              <% end %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+      <div class="cal-body" id="cal-body">
+        <div class="cal-hours">
+          <% hours.each do |h| %><div class="hour-label" id="h<%= h %>"><%= format("%02d:00", h) %></div><% end %>
+        </div>
+        <% @days.each do |day| %>
+          <div class="cal-day <%= "today" if day == Time.zone.today %>" data-date="<%= day.iso8601 %>">
+            <% timed_segments(day, @occurrences).each do |seg| %>
+              <% o = seg.occurrence %>
+              <%= link_to task_path_for(o, here), class: task_classes(o, seg.placement_classes, ("cont-before" if seg.continues_before), ("cont-after" if seg.continues_after)), data: task_data(o), title: "#{o.task.title} · #{task_time_label(o)}" do %>
+                <% if o.task.editable_by?(current_user) && !seg.continues_before %><span class="handle handle-top" aria-hidden="true"></span><% end %>
+                <span class="task-title"><%= o.task.title %><% if o.task.recurring? %> <%= icon(:repeat, css: "icon tiny") %><% end %></span>
+                <span class="task-time"><%= task_time_label(o) %></span>
+                <% if o.task.location.present? %><span class="task-loc"><%= o.task.location %></span><% end %>
+                <% if o.task.editable_by?(current_user) && !seg.continues_after %><span class="handle handle-bottom" aria-hidden="true"></span><% end %>
+              <% end %>
+            <% end %>
+            <% if day == Time.zone.today %><div class="now-line r<%= (Time.zone.now.hour * 60 + Time.zone.now.min) / 5 %>"></div><% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <p class="cal-legend small muted">
+    <span class="legend t-private"></span> Private <span class="legend t-system"></span> System-wide
+    <span class="desktop-only">· Click a task to edit it, drag to move, drag its edges to resize. Right-click or hover + ⌘/Ctrl C, X, V, D for copy, cut, paste, duplicate.</span>
+  </p>
+
+  <dialog id="scope-dialog" class="card">
+    <h2>Change a recurring task</h2>
+    <p class="muted">Apply this change to:</p>
+    <div class="actions">
+      <button type="button" value="this">This occurrence</button>
+      <button type="button" value="series" class="secondary">Whole series</button>
+      <button type="button" value="cancel" class="link">Cancel</button>
+    </div>
+  </dialog>
+  <%# New task in a popup over the calendar (owner correction); the page form stays as a fallback. %>
+  <% default_start = (Time.zone.now + 1.hour).beginning_of_hour %>
+  <dialog id="task-dialog" class="card task-dialog" aria-labelledby="task-dialog-title">
+    <div class="dialog-header">
+      <h2 id="task-dialog-title">New task</h2>
+      <button type="button" class="icon-close" data-close aria-label="Close">×</button>
+    </div>
+    <%= render "tasks/form", task: Task.new(starts_at: default_start, ends_at: default_start + 1.hour, calendar: "private", repeat_interval: 1),
+                             url: tasks_path, method: :post, occurrence: nil, return_to: here, errors: [], in_dialog: true %>
+  </dialog>
+  <div id="cal-menu" class="cal-menu" hidden role="menu"></div>
+  <div id="cal-clipboard" class="cal-clipboard" hidden></div>
+</div>
