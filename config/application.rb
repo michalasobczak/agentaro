@@ -77,7 +77,7 @@ module Agentaro
     config.x.task_scheduler = true
     config.x.run_workers = 2
     config.x.run_timeout = 15 * 60 # seconds
-    config.x.runs_dir = File.expand_path("../var/runs", __dir__)
+    config.x.runs_dir = File.expand_path("../var/runs/#{Rails.env}", __dir__) # one folder per environment
 
     # Command-line sessions are recorded as "cli:<user>" in the data changelog (spec 004).
     console { Current.actor = "cli:#{ENV.fetch("USER", "unknown")}" }

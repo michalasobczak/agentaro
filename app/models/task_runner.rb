@@ -4,6 +4,7 @@ require "net/http"
 # sends it to the executor (G3) in the run's own folder (G4). Never raises: every outcome is a state.
 class TaskRunner
   NOT_RUNNABLE = "running %s is not supported yet (spec 010, Q3)"
+  WEB_TOOLS = "WebSearch WebFetch"
 
   Outcome = Data.define(:state, :output, :error, :exit_status)
 
@@ -88,12 +89,15 @@ class TaskRunner
   def cli_call(key, model, prompt)
     case key
     when "claude_code"
-      args = [ "-p", "--output-format", "text", "--no-session-persistence", "--permission-mode", "acceptEdits", "--settings", claude_settings ]
+      # Web search and fetch are allowed (owner fix: "Claude said, that it couldnt use web search"); in print
+      # mode every tool that is not allowed up front is refused.
+      args = [ "-p", "--output-format", "text", "--no-session-persistence", "--permission-mode", "acceptEdits",
+               "--allowedTools", WEB_TOOLS, "--settings", claude_settings ]
       args += [ "--model", model ] if model
       [ args, prompt.text, nil ]
     when "codex"
       answer = folder.join("answer.txt").to_s
-      args = [ "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", work_dir.to_s, "-o", answer ]
+      args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", work_dir.to_s, "-o", answer ]
       args += [ "-m", model ] if model
       [ args + [ "-" ], prompt.text, answer ]
     when "ollama_cli"

@@ -69,7 +69,7 @@ Open `https://<host>.<tailnet>.ts.net` on any device in your tailnet. After upda
 
 ### Backups
 
-Run folders (files agents wrote) live in `var/runs/`. Everything else lives in `storage/`: the databases (development and production), the audit databases, `settings.env` and `secrets.yml` (encryption keys for TOTP secrets — without it every authenticator has to be set up again). Back up the whole folder.
+Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything else lives in `storage/`: the databases (development and production), the audit databases, `settings.env` and `secrets.yml` (encryption keys for TOTP secrets — without it every authenticator has to be set up again). Back up the whole folder.
 
 ## Functional architecture
 

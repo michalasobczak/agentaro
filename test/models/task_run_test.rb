@@ -49,7 +49,7 @@ class TaskRunTest < ActiveSupport::TestCase
         run = TaskRunner.new(run_for(task)).perform!
         assert_equal [ "succeeded", "Here is the draft." ], [ run.state, run.output ]
         args = File.read("#{log}/args")
-        assert_match "-p --output-format text --no-session-persistence --permission-mode acceptEdits --settings", args
+        assert_match "-p --output-format text --no-session-persistence --permission-mode acceptEdits --allowedTools WebSearch WebFetch --settings", args
         assert_match '"denyRead":["' + Rails.root.join("storage").realpath.to_s, args
         assert_no_match "Draft the newsletter", args, "the prompt is not in the arguments"
         assert_equal run.prompt, File.read("#{log}/stdin")
@@ -71,7 +71,7 @@ class TaskRunTest < ActiveSupport::TestCase
       with_fake_program("codex", script) do
         run = TaskRunner.new(run_for(task)).perform!
         assert_equal [ "succeeded", "Final answer", nil ], [ run.state, run.output, run.error ]
-        assert_match(/^exec --skip-git-repo-check --sandbox workspace-write --ephemeral --color never -C \S+\/work -o \S+answer.txt -$/, File.read("#{log}/args").strip)
+        assert_match(/^--search exec --skip-git-repo-check --sandbox workspace-write --ephemeral --color never -C \S+\/work -o \S+answer.txt -$/, File.read("#{log}/args").strip)
       end
     end
   end
@@ -205,6 +205,11 @@ class TaskRunTest < ActiveSupport::TestCase
       assert_no_match "secret plans", change.changeset
       assert_match "characters]", change.changeset
     end
+  end
+
+  test "each environment has its own runs folder (incident fix)" do
+    config = Rails.root.join("config/application.rb").read
+    assert_match 'var/runs/#{Rails.env}', config
   end
 
   test "deleting a task deletes its runs; deleting the agent keeps them" do
