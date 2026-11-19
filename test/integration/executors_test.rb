@@ -87,6 +87,23 @@ class ExecutorsTest < ActionDispatch::IntegrationTest
     assert_equal 1, Executor.count
   end
 
+  test "notes and default model are optional" do
+    sign_in(@admin)
+    get new_admin_executor_path
+    assert_select "label[for=executor_notes]", text: "Notes (optional)"
+    assert_select "textarea[name='executor[notes]'][required]", 0
+    post admin_executors_path, params: { executor: { name: "Bare", preset: "codex", notes: "", default_model: "" } }
+    assert_redirected_to executors_path
+    assert_equal [ nil, nil ], Executor.find_by!(name: "Bare").then { |e| [ e.notes, e.default_model ] }
+  end
+
+  test "form fields stay inside their panel (owner fix)" do
+    css = Rails.root.join("app/assets/stylesheets/application.css").read
+    assert_match(/\.field \{[^}]*grid-template-columns: minmax\(0, 1fr\)/, css)
+    base = css[/input\[type=text\][^{]*\{/]
+    %w[input[type=url] select textarea].each { |sel| assert_includes base, sel }
+  end
+
   test "signed-out visitors are sent to sign in" do
     get executors_path
     assert_redirected_to new_session_path

@@ -190,15 +190,16 @@ form.button_to { display: inline; margin: 0; }
 
 /* ---------- Forms ---------- */
 .form { display: grid; gap: 1.1rem; max-width: 30rem; }
-.field { display: grid; gap: 0.4rem; }
+.field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; } /* long values never widen the panel */
 .field > span, .field label { font-weight: 600; font-size: 0.95rem; }
 .hint { font-size: 0.85rem; color: var(--muted); font-weight: 400; }
-input[type=text], input[type=password], input[type=search], input:not([type]), select {
-  width: 100%; min-height: 2.9rem; padding: 0.6rem 0.85rem; font: inherit;
+input[type=text], input[type=password], input[type=search], input[type=url], input[type=email], input:not([type]), select, textarea {
+  width: 100%; max-width: 100%; min-height: 2.9rem; padding: 0.6rem 0.85rem; font: inherit;
   color: var(--fg); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+textarea { min-height: 6rem; resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
 input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em; text-align: center; }
 .check { display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.85rem 1rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); font-weight: 500; cursor: pointer; }
 .check input { width: 1.15rem; height: 1.15rem; margin-top: 0.2rem; accent-color: var(--accent); }

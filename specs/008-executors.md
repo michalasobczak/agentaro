@@ -27,7 +27,7 @@ Admins manage **executors**: the AI tools Agentaro will later use to do work, re
 - G2. Add and edit an executor by choosing a **preset** (Q3); the program and its arguments come from the preset and cannot be changed in the web:
   - **CLI:** Claude Code (`claude`), Codex (`codex`), Gemini CLI (`gemini`), Grok CLI (`grok`), Ollama (`ollama`), LM Studio (`lms`).
   - **API, no token (Q2):** Ollama (`http://localhost:11434`), LM Studio (`http://localhost:1234/v1`), OpenAI-compatible server (llama.cpp, vLLM, LocalAI; `http://localhost:8080/v1`).
-- G3. Fields: name (unique), preset, enabled, default model (optional), notes; for API presets also the base URL (default from the preset).
+- G3. Fields: name (unique), preset, enabled, default model (optional), notes (optional; owner: "Make notes optional"); for API presets also the base URL (default from the preset).
 - G4. **Check** an executor on demand, and see the result with a timestamp:
   - CLI: the program is found and `<program> <version argument>` answers within 10 seconds; the version is shown;
   - API: the models endpoint answers within 10 seconds; the list of models is shown.

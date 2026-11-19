@@ -21,7 +21,7 @@ class Executor < ApplicationRecord
     Preset.new("openai_compatible_api", "OpenAI-compatible server (API)", "api", nil, nil, "openai", "http://localhost:8080/v1")
   ].index_by(&:key).freeze
 
-  normalizes :name, :default_model, with: ->(value) { value.to_s.strip.presence }
+  normalizes :name, :default_model, :notes, with: ->(value) { value.to_s.strip.presence }
   normalizes :base_url, with: ->(value) { value.to_s.strip.delete_suffix("/").presence }
 
   validates :name, presence: true, length: { maximum: 60 }, uniqueness: { case_sensitive: false }

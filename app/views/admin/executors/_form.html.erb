@@ -18,12 +18,12 @@
     <span class="hint">API presets only; ignored for command-line tools. No user names, passwords or keys.</span>
   </div>
   <div class="field">
-    <%= f.label :default_model %>
-    <%= f.text_field :default_model, maxlength: 200, autocapitalize: "none", spellcheck: false, placeholder: "Optional" %>
+    <%= f.label :default_model, "Default model (optional)" %>
+    <%= f.text_field :default_model, maxlength: 200, autocapitalize: "none", spellcheck: false, placeholder: "e.g. qwen3:8b" %>
   </div>
   <div class="field">
-    <%= f.label :notes %>
-    <%= f.text_area :notes, rows: 3, maxlength: 2000 %>
+    <%= f.label :notes, "Notes (optional)" %>
+    <%= f.text_area :notes, rows: 3, maxlength: 2000, placeholder: "Anything worth remembering, e.g. which account is logged in" %>
   </div>
   <label class="check"><%= f.check_box :enabled %><span>Enabled<br><span class="hint">Disabled executors are kept but not used.</span></span></label>
   <div class="actions"><%= f.submit executor.persisted? ? "Save changes" : "Add executor" %><%= link_to "Cancel", executors_path, class: "button secondary" %></div>
