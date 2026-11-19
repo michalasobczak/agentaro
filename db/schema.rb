@@ -10,7 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_19_200000) do
+  create_table "executors", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "preset", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "base_url"
+    t.string "default_model"
+    t.text "notes"
+    t.datetime "last_checked_at"
+    t.boolean "last_check_ok"
+    t.text "last_check_output"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_executors_on_name", unique: true
+  end
+
   create_table "password_links", force: :cascade do |t|
     t.integer "user_id", null: false
     t.integer "created_by_id", null: false

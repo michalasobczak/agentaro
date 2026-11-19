@@ -27,6 +27,7 @@ Implementation principles for Agentaro. Based on the 24 engineering essentials o
 - **JavaScript (spec 007, owner: "allow JavaScript"):** only first-party files in `app/assets/javascripts/`, no libraries, no CDN; CSP `script-src 'self'` (no inline scripts, no eval). Scripts never build HTML from data. Everything must also work through plain forms when the script is missing. Breakpoints: phone < 640 px, tablet 640–1099 px, desktop above.
 - **Time (spec 007):** stored in UTC, shown and computed in Europe/Warsaw (`config.time_zone`); recurring tasks keep their wall-clock time across daylight-saving changes.
 - **Machine-local secrets:** generated on first boot into `storage/secrets.yml` (mode 0600, ignored by git); environment variables override.
+- **Executors (spec 008, owner):** AI tools are reached as CLIs logged in on the host or as local APIs without a key; Agentaro stores no API keys or tokens. What may run is fixed in code (`Executor::PRESETS`), never typed in the web; programs start without a shell and without Agentaro's environment.
 - **Local CI:** `bin/ci` (Rails 8.1) is the pipeline; failures are never bypassed.
 
 ## To be determined

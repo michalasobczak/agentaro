@@ -1,0 +1,9 @@
+<%= page_header @executor.name, "#{@executor.label} · #{@executor.cli? ? "command line" : "local API"}" do %>
+  <%= link_to admin_data_changes_path(record_type: "Executor", record_id: @executor.id), class: "button secondary desktop-only" do %><%= icon(:history) %> Change history<% end %>
+<% end %>
+<%= desktop_only_note %>
+<div class="card desktop-only"><%= render "form", executor: @executor %></div>
+<div class="card desktop-only">
+  <div class="card-header"><h2>Delete</h2></div>
+  <%= button_to "Delete executor", admin_executor_path(@executor), method: :delete, class: "danger", form: { data: { confirm: "Delete #{@executor.name}?" } } %>
+</div>

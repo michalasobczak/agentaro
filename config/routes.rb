@@ -11,6 +11,8 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :executors, only: :index # spec 008 (read-only for everyone, Q4)
+
   # Spec 002: sign-in, TOTP, password-change links
   resource :session, only: %i[new create destroy]
   resource :two_factor, only: %i[new create]
@@ -35,6 +37,9 @@ Rails.application.routes.draw do
     end
     resources :audit_events, only: :index   # spec 003
     resources :data_changes, only: :index   # spec 004
+    resources :executors, only: %i[new create edit update destroy] do # spec 008
+      post :check, on: :member
+    end
   end
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

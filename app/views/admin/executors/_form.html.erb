@@ -1,0 +1,30 @@
+<% if executor.errors.any? %><ul class="errors"><% executor.errors.full_messages.each do |e| %><li><%= e %></li><% end %></ul><% end %>
+<%= form_with model: executor, url: (executor.persisted? ? admin_executor_path(executor) : admin_executors_path), class: "form" do |f| %>
+  <div class="field">
+    <%= f.label :preset %>
+    <%= f.select :preset, grouped_options_for_select(
+          Executor::PRESETS.values.group_by { |p| p.cli? ? "Command line on this computer" : "Local API, no key" }
+                                  .transform_values { |list| list.map { |p| [ p.label, p.key ] } },
+          executor.preset) %>
+    <span class="hint">The program and its arguments come from the preset and cannot be changed here.</span>
+  </div>
+  <div class="field">
+    <%= f.label :name %>
+    <%= f.text_field :name, required: true, maxlength: 60, placeholder: "e.g. Claude on this Mac" %>
+  </div>
+  <div class="field">
+    <%= f.label :base_url, "Base URL" %>
+    <%= f.url_field :base_url, maxlength: 300, placeholder: "Default from the preset, e.g. http://localhost:11434", autocapitalize: "none", spellcheck: false %>
+    <span class="hint">API presets only; ignored for command-line tools. No user names, passwords or keys.</span>
+  </div>
+  <div class="field">
+    <%= f.label :default_model %>
+    <%= f.text_field :default_model, maxlength: 200, autocapitalize: "none", spellcheck: false, placeholder: "Optional" %>
+  </div>
+  <div class="field">
+    <%= f.label :notes %>
+    <%= f.text_area :notes, rows: 3, maxlength: 2000 %>
+  </div>
+  <label class="check"><%= f.check_box :enabled %><span>Enabled<br><span class="hint">Disabled executors are kept but not used.</span></span></label>
+  <div class="actions"><%= f.submit executor.persisted? ? "Save changes" : "Add executor" %><%= link_to "Cancel", executors_path, class: "button secondary" %></div>
+<% end %>

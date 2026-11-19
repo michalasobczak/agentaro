@@ -276,5 +276,11 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
   .facts dd { margin-bottom: 0.6rem; }
 }
 
+/* Executors (spec 008) */
+.row-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.button.small, button.small { min-height: 0; padding: 0.3rem 0.7rem; font-size: 0.875rem; }
+.check-output td { padding-top: 0; }
+.check-output pre { margin: 0; max-height: 8rem; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+
 /* Spacing helper (inline style attributes are blocked by the Content-Security-Policy) */
 .spaced { margin-top: 1.25rem; }
