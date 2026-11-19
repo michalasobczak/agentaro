@@ -10,7 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_19_220000) do
+  create_table "agents", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "kind", default: "private", null: false
+    t.string "name", null: false
+    t.string "description"
+    t.text "master_prompt", null: false
+    t.integer "executor_id", null: false
+    t.string "model"
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["executor_id"], name: "index_agents_on_executor_id"
+    t.index ["kind", "user_id", "name"], name: "index_agents_on_kind_and_user_id_and_name"
+    t.index ["user_id"], name: "index_agents_on_user_id"
+  end
+
   create_table "executors", force: :cascade do |t|
     t.string "name", null: false
     t.string "preset", null: false
@@ -84,6 +100,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_200000) do
     t.integer "repeat_count"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "agent_id"
+    t.index ["agent_id"], name: "index_tasks_on_agent_id"
     t.index ["calendar", "starts_at"], name: "index_tasks_on_calendar_and_starts_at"
     t.index ["user_id", "starts_at"], name: "index_tasks_on_user_id_and_starts_at"
     t.index ["user_id"], name: "index_tasks_on_user_id"
@@ -103,9 +121,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_200000) do
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 
+  add_foreign_key "agents", "executors"
+  add_foreign_key "agents", "users"
   add_foreign_key "password_links", "users"
   add_foreign_key "password_links", "users", column: "created_by_id"
   add_foreign_key "sessions", "users"
   add_foreign_key "task_exceptions", "tasks"
+  add_foreign_key "tasks", "agents"
   add_foreign_key "tasks", "users"
 end

@@ -1,0 +1,9 @@
+<%= page_header @agent.name, @agent.shared? ? "Shared agent" : "Private agent" do %>
+  <%= link_to admin_data_changes_path(record_type: "Agent", record_id: @agent.id), class: "button secondary desktop-only" do %><%= icon(:history) %> Change history<% end if current_user.admin? %>
+<% end %>
+<div class="card"><%= render "form", agent: @agent %></div>
+<div class="card">
+  <div class="card-header"><h2>Delete</h2></div>
+  <p class="muted small">Tasks assigned to this agent stay in the calendar without an agent.</p>
+  <%= button_to "Delete agent", agent_path(@agent), method: :delete, class: "danger", form: { data: { confirm: "Delete #{@agent.name}?" } } %>
+</div>

@@ -31,8 +31,11 @@ class Admin::ExecutorsController < Admin::BaseController
   end
 
   def destroy
-    @executor.destroy!
-    redirect_to executors_path, notice: "Executor #{@executor.name} deleted."
+    if @executor.destroy
+      redirect_to executors_path, notice: "Executor #{@executor.name} deleted."
+    else
+      redirect_to edit_admin_executor_path(@executor), alert: "#{@executor.name} is used by agents; assign them another executor first."
+    end
   end
 
   def check

@@ -1,0 +1,33 @@
+<% if agent.errors.any? %><ul class="errors"><% agent.errors.full_messages.each do |e| %><li><%= e %></li><% end %></ul><% end %>
+<% executors = Executor.where(enabled: true).or(Executor.where(id: agent.executor_id)).ordered %>
+<%= form_with model: agent, class: "form agent-form" do |f| %>
+  <%= f.hidden_field :kind if agent.new_record? %>
+  <div class="field">
+    <%= f.label :name %>
+    <%= f.text_field :name, required: true, maxlength: 60, placeholder: "e.g. Research assistant" %>
+  </div>
+  <div class="field">
+    <%= f.label :description, "Description (optional)" %>
+    <%= f.text_field :description, maxlength: 500, placeholder: "One line shown in lists" %>
+  </div>
+  <div class="field">
+    <%= f.label :master_prompt %>
+    <%= f.text_area :master_prompt, rows: 10, required: true, maxlength: 20_000, placeholder: "Who this agent is: role, character, what it cares about, how it works and speaks." %>
+    <span class="hint">Written by people only. What the agent learns will live in its memory (a later spec), not here.</span>
+  </div>
+  <div class="field">
+    <%= f.label :executor_id, "Executor" %>
+    <% if executors.empty? %>
+      <p class="callout">No enabled executors yet. <%= current_user.admin? ? link_to("Add one", new_admin_executor_path) : "Ask an admin to add one." %></p>
+    <% else %>
+      <%= f.select :executor_id, executors.map { |e| [ "#{e.name} — #{e.label}#{" (disabled)" unless e.enabled?}", e.id ] }, (agent.executor_id ? {} : { prompt: "Choose an executor" }), required: true %>
+    <% end %>
+    <span class="hint">The AI tool this agent runs on.</span>
+  </div>
+  <div class="field">
+    <%= f.label :model, "Model (optional)" %>
+    <%= f.text_field :model, maxlength: 200, autocapitalize: "none", spellcheck: false, placeholder: "Leave empty to use the executor's default" %>
+  </div>
+  <label class="check"><%= f.check_box :enabled %><span>Enabled<br><span class="hint">Disabled agents keep their tasks but cannot be assigned to new ones.</span></span></label>
+  <div class="actions"><%= f.submit agent.persisted? ? "Save changes" : "Create agent" %><%= link_to "Cancel", agents_path, class: "button secondary" %></div>
+<% end %>

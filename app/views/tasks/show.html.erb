@@ -3,6 +3,7 @@
 <div class="card task-card">
   <dl class="facts">
     <dt>When</dt><dd><%= task_time_label(@occurrence || Task::Occurrence.new(task: @task, starts_at: @task.starts_at, ends_at: @task.ends_at, original_start: @task.starts_at)) %>, <%= l shown.starts_at.in_time_zone.to_date, format: :long %></dd>
+    <% if @task.agent %><dt>Agent</dt><dd><%= agent_label(@task) %></dd><% end %>
     <% if @task.location.present? %><dt>Location</dt><dd><%= @task.location %></dd><% end %>
     <% if @task.description.present? %><dt>Description</dt><dd class="pre"><%= @task.description %></dd><% end %>
     <% if @task.recurring? %><dt>Repeats</dt><dd><%= @task.repeat %></dd><% end %>

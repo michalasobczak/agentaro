@@ -21,6 +21,13 @@
     </div>
   <% end %>
 
+  <% agent_options = agent_options_for(task) %>
+  <div class="field">
+    <%= f.label :agent_id, "Agent (optional)" %>
+    <%= f.select :agent_id, agent_options, { include_blank: "No agent" } %>
+    <span class="hint"><% if agent_options.empty? %>No agents yet — <%= link_to "create one", new_agent_path %>.<% else %>Who will do this task. Running tasks comes in a later version.<% end %></span>
+  </div>
+
   <label class="check"><%= f.check_box :all_day %><span>All day <span class="hint">(1 to <%= Task::MAX_ALL_DAY_DAYS %> days, no hours)</span></span></label>
 
   <div class="field-row">

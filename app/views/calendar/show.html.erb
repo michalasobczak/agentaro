@@ -40,7 +40,7 @@
           <div class="month-day <%= "other-month" if day.month != @date.month %> <%= "today" if day == Time.zone.today %>" data-date="<%= day.iso8601 %>">
             <%= link_to day.day, calendar_path(view: "day", date: day.iso8601), class: "month-date" %>
             <% items.first(4).each do |o| %>
-              <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: o.task.title do %>
+              <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: [ o.task.title, agent_label(o.task) ].compact.join(" · ") do %>
                 <span class="task-time"><%= o.all_day? ? "" : l(o.starts_at.in_time_zone, format: "%H:%M") %></span><span class="task-title"><%= o.task.title %></span>
               <% end %>
             <% end %>
@@ -64,7 +64,7 @@
         <% @days.each do |day| %>
           <div class="allday-cell" data-date="<%= day.iso8601 %>">
             <% all_day_occurrences(day, @occurrences).each do |o| %>
-              <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: o.task.title do %>
+              <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: [ o.task.title, agent_label(o.task) ].compact.join(" · ") do %>
                 <span class="task-title"><%= o.task.title %></span>
               <% end %>
             <% end %>
@@ -79,11 +79,12 @@
           <div class="cal-day <%= "today" if day == Time.zone.today %>" data-date="<%= day.iso8601 %>">
             <% timed_segments(day, @occurrences).each do |seg| %>
               <% o = seg.occurrence %>
-              <%= link_to task_path_for(o, here), class: task_classes(o, seg.placement_classes, ("cont-before" if seg.continues_before), ("cont-after" if seg.continues_after)), data: task_data(o), title: "#{o.task.title} · #{task_time_label(o)}" do %>
+              <%= link_to task_path_for(o, here), class: task_classes(o, seg.placement_classes, ("cont-before" if seg.continues_before), ("cont-after" if seg.continues_after)), data: task_data(o), title: [ o.task.title, task_time_label(o), agent_label(o.task) ].compact.join(" · ") do %>
                 <% if o.task.editable_by?(current_user) && !seg.continues_before %><span class="handle handle-top" aria-hidden="true"></span><% end %>
                 <span class="task-title"><%= o.task.title %><% if o.task.recurring? %> <%= icon(:repeat, css: "icon tiny") %><% end %></span>
                 <span class="task-time"><%= task_time_label(o) %></span>
                 <% if o.task.location.present? %><span class="task-loc"><%= o.task.location %></span><% end %>
+                <% if o.task.agent %><span class="task-agent"><%= icon(:agent, css: "icon tiny") %> <%= o.task.agent.name %></span><% end %>
                 <% if o.task.editable_by?(current_user) && !seg.continues_after %><span class="handle handle-bottom" aria-hidden="true"></span><% end %>
               <% end %>
             <% end %>

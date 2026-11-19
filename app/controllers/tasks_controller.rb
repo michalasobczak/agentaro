@@ -138,7 +138,7 @@ class TasksController < ApplicationController
   def task_attributes
     p = params.fetch(:task, {}).permit(:title, :location, :description, :calendar, :all_day, :start_date, :start_time,
                                        :end_date, :end_time, :repeat, :repeat_interval, :repeat_ends, :repeat_until,
-                                       :repeat_count, weekdays: [])
+                                       :repeat_count, :agent_id, weekdays: [])
     all_day = p[:all_day] == "1"
     starts = local_time(p[:start_date], all_day ? "00:00" : p[:start_time])
     ends = all_day ? local_time(p[:end_date], "00:00")&.+(1.day) : local_time(p[:end_date], p[:end_time])
@@ -148,7 +148,21 @@ class TasksController < ApplicationController
     attrs[:calendar] = p[:calendar] if Task::CALENDARS.include?(p[:calendar])
     attrs[:repeat_until] = p[:repeat_ends] == "count" ? nil : (Date.iso8601(p[:repeat_until]) rescue nil)
     attrs[:repeat_count] = p[:repeat_ends] == "count" ? p[:repeat_count].presence : nil
-    attrs
+    agent_attributes(p, attrs)
+  end
+
+  # Spec 009, R3: a newly chosen agent must be one the user may assign to this kind of task; keeping the
+  # current agent is always allowed (so a task stays editable after its agent is disabled).
+  def agent_attributes(p, attrs)
+    return attrs unless p.key?(:agent_id)
+
+    requested = p[:agent_id].presence&.to_i
+    return attrs.merge(agent_id: nil) if requested.nil?
+    return attrs.merge(agent_id: requested) if @task&.persisted? && requested == @task.agent_id
+
+    calendar = current_user.admin? ? (attrs[:calendar] || @task&.calendar || "private") : "private"
+    agent = Agent.assignable(current_user, calendar).find_by(id: requested)
+    agent ? attrs.merge(agent_id: agent.id) : attrs.merge(agent_refused: true)
   end
 
   def local_time(date, time)

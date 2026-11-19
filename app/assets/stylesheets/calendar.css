@@ -68,10 +68,11 @@
 .task .task-title { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task .task-time, .task .task-loc { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task.short { flex-direction: row; align-items: center; gap: 0.4rem; padding-top: 0; padding-bottom: 0; font-size: 0.74rem; line-height: 1.1; }
-.task.short .task-loc { display: none; }
+.task.short .task-loc, .task.short .task-agent { display: none; }
+.task .task-agent { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task.tiny { min-height: 0.95rem; font-size: 0.7rem; line-height: 1; padding: 0 0.35rem; }
 .task.tiny { flex-direction: row; align-items: center; }
-.task.tiny .task-time, .task.tiny .task-loc { display: none; }
+.task.tiny .task-time, .task.tiny .task-loc, .task.tiny .task-agent { display: none; }
 .task.cont-before { border-top-left-radius: 0; border-top-right-radius: 0; }
 .task.cont-after { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .task.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; }

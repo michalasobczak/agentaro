@@ -1,0 +1,32 @@
+<%= page_header "Agents", "Who does the work: a master prompt that says who the agent is, and the executor it runs on." do %>
+  <%= link_to new_agent_path, class: "button" do %><%= icon(:plus) %> New agent<% end %>
+  <% if current_user.admin? %>
+    <%= link_to new_agent_path(kind: "shared"), class: "button secondary" do %><%= icon(:users) %> New shared agent<% end %>
+  <% end %>
+<% end %>
+
+<% [ [ "My agents", "Only you see and use these.", @private_agents ], [ "Shared agents", "Made by admins; everyone can assign them to tasks.", @shared_agents ] ].each do |title, subtitle, agents| %>
+  <div class="card card-flush agent-list">
+    <div class="card-header"><div><h2><%= title %></h2><p class="muted small"><%= subtitle %></p></div></div>
+    <% if agents.empty? %>
+      <p class="muted padded">None yet.</p>
+    <% else %>
+      <ul class="rows">
+        <% agents.each do |agent| %>
+          <li>
+            <%= link_to agent_path(agent), class: "row-link" do %>
+              <span class="row-main">
+                <strong><%= agent.name %></strong>
+                <% if agent.description %><span class="muted small"><%= agent.description %></span><% end %>
+              </span>
+              <span class="row-meta">
+                <span class="small"><%= icon(:chip, css: "icon tiny") %> <%= agent.runtime_label %></span>
+                <% if !agent.enabled? %><%= badge("disabled") %><% elsif !agent.executor.enabled? %><%= badge("executor disabled", "warn") %><% end %>
+              </span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+<% end %>

@@ -283,5 +283,19 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .check-output td { padding-top: 0; }
 .check-output pre { margin: 0; max-height: 8rem; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
 
+/* Agents (spec 009) */
+.padded { padding: 0 1.5rem 1.25rem; margin: 0; }
+.rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.rows li + li { border-top: 1px solid var(--line); }
+.row-link { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; padding: 0.9rem 1.5rem; color: inherit; }
+.row-link:hover { background: var(--surface-2); text-decoration: none; }
+.row-main { display: grid; gap: 0.15rem; min-width: 0; }
+.row-meta { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); }
+.agent-list .card-header { margin-bottom: 0.75rem; }
+.agent-list .card-header h2 { margin: 0; }
+.agent-list .card-header p { margin: 0.2rem 0 0; }
+.agent-form { max-width: 44rem; }
+.task-agent { display: inline-flex; align-items: center; gap: 0.3rem; }
+
 /* Spacing helper (inline style attributes are blocked by the Content-Security-Policy) */
 .spaced { margin-top: 1.25rem; }

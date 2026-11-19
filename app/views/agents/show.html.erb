@@ -1,0 +1,10 @@
+<%= page_header @agent.name, "Shared agent — read only" %>
+<div class="card">
+  <dl class="facts">
+    <% if @agent.description %><dt>Description</dt><dd><%= @agent.description %></dd><% end %>
+    <dt>Runs on</dt><dd><%= @agent.runtime_label %></dd>
+    <dt>Status</dt><dd><%= @agent.usable? ? badge("available", "ok") : badge("not available", "warn") %></dd>
+    <dt>Master prompt</dt><dd class="pre"><%= @agent.master_prompt %></dd>
+  </dl>
+  <div class="actions spaced"><%= link_to "Back to agents", agents_path, class: "button secondary" %></div>
+</div>

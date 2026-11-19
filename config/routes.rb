@@ -11,6 +11,7 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :agents # spec 009
   resources :executors, only: :index # spec 008 (read-only for everyone, Q4)
 
   # Spec 002: sign-in, TOTP, password-change links

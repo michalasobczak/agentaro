@@ -20,6 +20,8 @@ class Task < ApplicationRecord
   end
 
   belongs_to :user # author
+  belongs_to :agent, optional: true # spec 009
+  attr_accessor :agent_refused # set by the form when the chosen agent may not be assigned (R3)
   has_many :exceptions, class_name: "TaskException", dependent: :destroy
 
   normalizes :title, :location, with: ->(value) { value.to_s.strip.presence }
@@ -34,6 +36,7 @@ class Task < ApplicationRecord
   validates :starts_at, :ends_at, presence: true
   validate :duration_within_limits
   validate :recurrence_within_limits
+  validate :agent_consistent
 
   scope :visible_to, ->(user) { where(calendar: "system").or(where(calendar: "private", user_id: user.id)) }
 
@@ -59,7 +62,7 @@ class Task < ApplicationRecord
     reach = SERIES_LIMIT + MAX_DURATION
     visible_to(user)
       .where(starts_at: (range.begin - reach)...range.end)
-      .includes(:exceptions)
+      .includes(:exceptions, agent: :executor)
       .flat_map { |task| task.occurrences(range) }
       .sort_by { |o| [ o.starts_at, -o.duration, o.task.id ] }
   end
@@ -156,5 +159,15 @@ class Task < ApplicationRecord
     if repeat_count && series_starts.size < repeat_count
       errors.add(:repeat_count, "would run past 3 months — a series lasts at most a quarter")
     end
+  end
+
+  # Spec 009, R4: a private agent belongs to the task's author and only on a private task.
+  def agent_consistent
+    errors.add(:agent, "is not available: choose an enabled agent you may use") if agent_refused
+    return unless agent
+    return if agent.shared?
+
+    errors.add(:agent, "is private to another user") if agent.user_id != user_id
+    errors.add(:agent, "must be a shared agent on a system-wide task") if system?
   end
 end

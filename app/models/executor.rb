@@ -21,6 +21,8 @@ class Executor < ApplicationRecord
     Preset.new("openai_compatible_api", "OpenAI-compatible server (API)", "api", nil, nil, "openai", "http://localhost:8080/v1")
   ].index_by(&:key).freeze
 
+  has_many :agents, dependent: :restrict_with_error # spec 009, S4: in use → cannot be deleted
+
   normalizes :name, :default_model, :notes, with: ->(value) { value.to_s.strip.presence }
   normalizes :base_url, with: ->(value) { value.to_s.strip.delete_suffix("/").presence }
 

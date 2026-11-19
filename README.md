@@ -75,6 +75,7 @@ Everything lives in `storage/`: the databases (development and production), the 
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
+- **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent; nothing runs yet.
 - **Executors (spec 008):** the AI tools Agentaro can use, managed by admins from built-in presets — command-line tools logged in on this computer (Claude Code, Codex, Gemini CLI, Grok CLI, Ollama, LM Studio) and local APIs that need no key (Ollama, LM Studio, OpenAI-compatible servers). On-demand check: version of the program, or list of models. Users see the list read-only. No keys or tokens are stored; subscriptions are used by logging in on the host (`claude login`, `codex login`).
 - **Calendar (spec 007):** day, 4-day, week and month views; one-time and recurring tasks (daily, weekly on chosen days, monthly; at most 3 months per series) from 1 minute to 4 days, all-day tasks; new tasks in a popup over the calendar; drag & drop, resize, cut, copy, paste, duplicate. Private tasks per user and a system-wide calendar that admins maintain. Europe/Warsaw time.
 - **Interface (spec 006):** responsive — sidebar layout on desktop and tablet (≥ 640 px), compact top bar on phones; light and dark mode; plain CSS and inline SVG icons. Phones get sign-in, home, own sessions and password; admin tools are for desktop and tablet.
@@ -96,7 +97,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-19: spec 006 implemented — responsive, designed interface (desktop, tablet, phone). Tests: 69.
 - 2026-11-19: spec 007 implemented — calendar of tasks; owner correction: adding a task opens in a popup. Tests: 98.
 - 2026-11-19: spec 008 implemented — executors (CLI and local API presets, check, read-only list for users). Tests: 117. Security analysis: F9, F10 fixed.
-- Next: running prompts on executors (adapters per preset); later, agents and assigning tasks to them.
+- 2026-11-19: spec 009 implemented — agents (private and shared) with a master prompt and an executor, assignable to calendar tasks. Tests: 137. Security analysis: F11 fixed.
+- Next: spec 010 running a task on its agent's executor; then 011 memory and context (draft), 012 self-improvement.
 
 ## Specifications
 
@@ -110,6 +112,10 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 006 | [Responsive layout and visual design](specs/006-responsive-ui.md) | implemented |
 | 007 | [Calendar of tasks](specs/007-calendar.md) | implemented |
 | 008 | [Executors](specs/008-executors.md) | implemented |
+| 009 | [Agents and task assignment](specs/009-agents.md) | implemented |
+| 010 | Running tasks on executors | not written |
+| 011 | [Agent memory and context](specs/011-agent-memory.md) | draft |
+| 012 | Self-improvement | not written |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 

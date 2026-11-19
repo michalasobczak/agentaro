@@ -105,4 +105,15 @@ module CalendarHelper
     flush.call
     segments
   end
+
+  # Spec 009: agents offered in the task form — my private and shared ones for a private task, shared only for a
+  # system-wide task (admins see both groups); the current agent stays listed, marked when no longer available.
+  def agent_options_for(task)
+    calendars = current_user.admin? ? %w[private system] : %w[private]
+    agents = calendars.flat_map { |c| Agent.assignable(current_user, c).includes(:executor).to_a }.uniq.sort_by { |a| a.name.downcase }
+    agents << task.agent if task.agent && !agents.include?(task.agent)
+    agents.map { |a| [ "#{a.name}#{" (shared)" if a.shared?}#{" — not available" unless a.usable?}", a.id ] }
+  end
+
+  def agent_label(task) = task.agent && "#{task.agent.name}#{" (not available)" unless task.agent.usable?}"
 end

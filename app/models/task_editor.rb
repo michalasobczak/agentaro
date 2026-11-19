@@ -41,6 +41,7 @@ class TaskEditor
     copy = @task.dup
     copy.assign_attributes(starts_at: starts_at, ends_at: starts_at + @task.duration, calendar: calendar,
                            repeat: "none", repeat_until: nil, repeat_count: nil, repeat_weekdays: nil, repeat_interval: 1)
+    copy.agent = nil if copy.agent && !copy.agent.usable? # spec 009, F11: a new task never gets an unusable agent
     copy.ends_at = end_for_all_day(copy, source_start) if copy.all_day
     save(copy, {})
   end

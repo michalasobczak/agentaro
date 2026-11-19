@@ -27,6 +27,7 @@
         <% main_nav = capture do %>
           <%= nav_link "Home", root_path, :home %>
           <%= nav_link "Calendar", calendar_path, :calendar, active: controller_path.in?(%w[calendar tasks]) %>
+          <%= nav_link "Agents", agents_path, :agent, active: controller_path == "agents" %>
           <%= nav_link "Executors", executors_path, :chip, active: controller_path.in?(%w[executors admin/executors]) %>
           <%= nav_link "My sessions", account_sessions_path, :sessions %>
           <% unless current_user.admin? %><%= nav_link "Password", edit_account_password_path, :key %><% end %>
