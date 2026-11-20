@@ -6,5 +6,10 @@
   <%= page_header "Director" %>
   <div class="card"><p>You have no director yet. <%= link_to "Choose one on the Team page", team_path %>.</p></div>
 <% else %>
-  <%= render "directors/chat", director: @director, messages: @messages, writing: @writing %>
+  <% content_for :scripts do %><%= javascript_include_tag "work_panel", defer: true %><% end %>
+  <%# Spec 027: the chat on the left, the spaces with their epics and steps on the right. %>
+  <div class="director-layout">
+    <%= render "directors/chat", director: @director, messages: @messages, writing: @writing %>
+    <%= render "directors/work_panel", work: @work %>
+  </div>
 <% end %>

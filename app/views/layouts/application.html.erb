@@ -14,6 +14,7 @@
     <%# Spec 020: Turbo swaps page bodies, so the floating chat (and voice mode) survives moving between pages. %>
     <%= javascript_include_tag "turbo.min", type: "module" %>
     <%= javascript_include_tag "app", defer: true %>
+    <% if signed_in? %><%= javascript_include_tag "notices", defer: true %><% end %>
     <%= yield :scripts %>
     <% if (dock_director = chat_dock_director) %><%= javascript_include_tag "chat", defer: true %><% end %>
   </head>
@@ -73,5 +74,7 @@
       </main>
     </div>
     <%= render "directors/dock", director: dock_director if dock_director %>
+    <%# Spec 026: notices of blocked epics, on every page (kept across Turbo visits). %>
+    <% if signed_in? %><div id="notice-stack" class="notice-stack" data-notices data-url="<%= notices_path %>" data-turbo-permanent aria-live="polite"></div><% end %>
   </body>
 </html>

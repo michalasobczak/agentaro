@@ -85,7 +85,7 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
 
   test "G4: the chat strip lists the members with icons, status and activity; it folds into a count" do
     get director_path
-    assert_select ".content > .chat-app[data-team-stamp] .team-strip[data-team-strip]" do
+    assert_select ".content .director-layout > .chat-app[data-team-stamp] .team-strip[data-team-strip]" do
       assert_select "[data-team-count]", text: "1 of 2 busy"
       assert_select ".team-chip", 2
       assert_select ".team-chip[data-team-agent='#{@evidence.id}'] .agent-icon.is-strip.tone-#{@evidence.id % 8}", text: "EA"

@@ -48,7 +48,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_select ".bubble-row.from-director .bubble-text", text: "<script>x</script> OK"
     assert_select ".bubble-row.from-director .bubble-name", text: "Dyrektor"
     assert_select ".bubble-actions", text: "Added to the list: A"
-    assert_select ".content > .chat-app [data-typing]:not([hidden])", 1, "the director is writing"
+    assert_select ".content .director-layout > .chat-app [data-typing]:not([hidden])", 1, "the director is writing"
     assert_select "script:not([src])", 0
     assert_select "[style]", 0
   end
@@ -142,7 +142,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_select "script:not([src])", 0
     get director_path
     assert_select "#chat-dock[data-chat-dock][data-turbo-permanent]", 1, "spec 020: the floating chat is on the Director page too (hidden unless talking)"
-    assert_select ".content > .chat-app:not(.is-dock)", 1
+    assert_select ".content .director-layout > .chat-app:not(.is-dock)", 1
     assert_select "script[src*='/chat-']", 1, "chat.js once"
   end
 
@@ -248,7 +248,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_equal "pl", @user.reload.chat_language, "unknown languages are ignored"
     get director_path
     assert_select ".lang-switch button.is-active", text: "PL"
-    assert_select ".content > .chat-app [data-voice-done]", 1
+    assert_select ".content .director-layout > .chat-app [data-voice-done]", 1
   end
 
   test "spec 019: the verifier on the Team page and the button in the chat; other users cannot use mine" do
@@ -263,7 +263,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_select ".org-node.is-verifier", text: /Wera/
     get director_path
     assert_select "form[action='#{verify_director_path}'] button[data-verify]"
-    assert_select ".content > .chat-app [data-voice-verify]", 1
+    assert_select ".content .director-layout > .chat-app [data-voice-verify]", 1
     post verify_director_path, headers: { "Accept" => "application/json" }
     assert_equal({ "ok" => true, "active" => true, "writing" => true }, JSON.parse(response.body), "invited: checks the conversation at once")
     assert @user.reload.verifier_active?

@@ -33,6 +33,11 @@ class TaskRunTest < ActiveSupport::TestCase
 
   RECORD = 'echo "$@" > "$LOG/args"; cat > "$LOG/stdin"; pwd > "$LOG/pwd"; env > "$LOG/env"'
 
+  # Owner fix (2026-11-20, "zmień limit z 15 minut na 30 minut runtime zadania"): a step's agent may work 30 minutes.
+  test "a run may take up to 30 minutes before it is stopped" do
+    assert_equal 30.minutes.to_i, Rails.application.config.x.run_timeout
+  end
+
   test "G2: the prompt is the master prompt, then the task in Europe/Warsaw" do
     prompt = TaskRunner.prompt_for(task, @agent, t("2026-11-20 09:00"))
     assert_equal "You are a concise writer.", prompt.system

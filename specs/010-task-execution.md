@@ -30,7 +30,7 @@ When a calendar task with an agent reaches its start time, Agentaro runs it: it 
   - Ollama CLI: `ollama run <model>`; LM Studio CLI: `lms chat <model> -p` (prompt as argument; LM Studio reads no stdin);
   - Ollama API: `POST /api/chat`; LM Studio / OpenAI-compatible API: `POST /chat/completions`;
   - Gemini CLI, Grok CLI: not supported yet (Q3) — their runs are *skipped* with that reason.
-- G4. Each run executes in its own empty working folder (`var/runs/<environment>/<id>/work`, outside `storage/`), with the minimal environment of spec 008 (R4), a timeout (default 15 minutes) and output limited to 200 KB.
+- G4. Each run executes in its own empty working folder (`var/runs/<environment>/<id>/work`, outside `storage/`), with the minimal environment of spec 008 (R4), a timeout (default 15 minutes; 30 minutes since the owner fix of 2026-11-20) and output limited to 200 KB.
 - G5. Run states: queued → running → succeeded / failed / timed out / skipped / missed. Output, errors, exit status, duration and times are stored.
 - G6. Visibility: the task page lists its runs (newest first) with state and result; a run page shows the prompt and the full answer; the calendar marks occurrences that ran (ok, failed, running). Runs are visible to whoever may see the task.
 - G7. "Run now" on a task (editable by the user): runs the chosen occurrence immediately, once.

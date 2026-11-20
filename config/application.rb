@@ -76,7 +76,7 @@ module Agentaro
     # each in its own folder under var/runs (outside storage/, which agents may not read).
     config.x.task_scheduler = true
     config.x.run_workers = 2
-    config.x.run_timeout = 15 * 60 # seconds
+    config.x.run_timeout = 30 * 60 # seconds; owner fix (2026-11-20): was 15 minutes, too short for research steps
     config.x.runs_dir = File.expand_path("../var/runs/#{Rails.env}", __dir__) # one folder per environment
     # Spec 018: the Docker socket agents may use in spaces with a working folder (Colima, else Docker Desktop).
     config.x.docker_socket = ENV.fetch("AGENTARO_DOCKER_SOCKET") do

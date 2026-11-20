@@ -1,0 +1,31 @@
+<%# Spec 027: each active space with its epics in progress and their steps; work_panel.js redraws it from
+    the same data (WorkPanel) every few seconds. What is running blinks. %>
+<aside class="work-panel" data-work-panel data-url="<%= work_director_path %>" aria-label="Spaces and their work">
+  <h2 class="work-panel-title">Work</h2>
+  <div data-work-spaces>
+    <% if work[:spaces].empty? %><p class="muted small">No active spaces.</p><% end %>
+    <% work[:spaces].each do |space| %>
+      <section class="work-space">
+        <%= link_to space[:name], space[:url], class: "work-space-name" %>
+        <% if space[:epics].empty? %>
+          <p class="work-none small muted">Nothing planned or in progress.</p>
+        <% else %>
+          <ul class="work-epics">
+            <% space[:epics].each do |epic| %>
+              <li class="work-epic is-<%= epic[:state] %>">
+                <div class="work-epic-head"><%= link_to epic[:title], epic[:url] %><span class="work-state small"><%= epic[:state] %></span></div>
+                <% if epic[:steps].any? %>
+                  <ol class="work-steps">
+                    <% epic[:steps].each do |step| %>
+                      <li class="work-step is-<%= step[:state].tr("_", "-") %>" title="<%= step[:agent] %>"><span class="work-step-n"><%= step[:position] %></span><span class="work-step-title"><%= step[:title] %></span><span class="work-state small"><%= step[:state].tr("_", " ") %></span></li>
+                    <% end %>
+                  </ol>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</aside>

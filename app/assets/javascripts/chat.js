@@ -16,6 +16,19 @@
   const DRAFT_KEY = "agentaro.chat.draft";
   const MAX_KEY = "agentaro.chat.max"; // owner fix: the floating chat maximized
 
+  // Spec 026: while the tab is in the background, a new answer makes its title blink until the user comes back.
+  const titleBlink = (() => {
+    let timer = null, base = null;
+    const stop = () => { if (!timer) return; clearInterval(timer); timer = null; document.title = base; };
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) stop(); });
+    return (who) => {
+      if (timer || !document.hidden) return;
+      base = document.title;
+      let on = false;
+      timer = setInterval(() => { on = !on; document.title = on ? `(1) New message from ${who}` : base; }, 1000);
+    };
+  })();
+
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -669,10 +682,17 @@
   const isOpen = () => dock.classList.contains("is-open");
   const markSeen = (id) => { if (id > seen()) store.set("localStorage", SEEN_KEY, String(id)); };
   let newest = Number(app.dataset.latestReplyId) || 0;
+  const directorName = launcher.querySelector(".chat-launcher-label")?.textContent || "the director";
+  // Spec 026: unread answers show a dot and make the closed chat's button blink until it is opened.
+  function showUnread() {
+    const on = !isOpen() && newest > seen();
+    unread.hidden = !on;
+    launcher.classList.toggle("has-unread", on);
+  }
 
   const instance = chat(app, {
     visible: isOpen,
-    reply: (id) => { newest = Math.max(newest, id); if (isOpen()) markSeen(id); else unread.hidden = newest <= seen(); },
+    reply: (id) => { if (id > newest) titleBlink(directorName); newest = Math.max(newest, id); if (isOpen()) markSeen(id); else showUnread(); },
     writing: (value) => launcher.classList.toggle("is-writing", value),
     draft: (text) => store.set("sessionStorage", DRAFT_KEY, text || null)
   });
@@ -689,12 +709,12 @@
     store.set("localStorage", OPEN_KEY, open ? "1" : null);
     if (open) {
       markSeen(newest);
-      unread.hidden = true;
+      showUnread();
       instance.poll(); // loads the history the first time, then keeps it current
       instance.toBottom();
       if (focus) instance.input.focus();
     } else {
-      unread.hidden = newest <= seen();
+      showUnread();
       if (focus) launcher.focus();
     }
   }

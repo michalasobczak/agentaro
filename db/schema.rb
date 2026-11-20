@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_126000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_127000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -244,6 +244,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_126000) do
     t.datetime "started_at"
     t.datetime "finished_at"
     t.integer "active_step_from", default: 1, null: false
+    t.datetime "block_dismissed_at"
     t.index ["space_id"], name: "index_work_items_on_space_id"
     t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"
     t.index ["user_id"], name: "index_work_items_on_user_id"

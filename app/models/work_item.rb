@@ -72,8 +72,13 @@ class WorkItem < ApplicationRecord
   end
 
   def block!(reason)
-    update!(state: "blocked", blocked_reason: reason.to_s.truncate(2000), finished_at: (Time.current if started_at))
+    block_dismissed_at_will_change! # written even when this copy never saw the notice closed (another request did)
+    update!(state: "blocked", blocked_reason: reason.to_s.truncate(2000), finished_at: (Time.current if started_at),
+            block_dismissed_at: nil) # spec 026: a new block shows its notice again
   end
+
+  # Spec 026: blocked epics whose notice the user has not closed.
+  scope :block_notices, -> { where(state: "blocked", block_dismissed_at: nil) }
 
   private
 

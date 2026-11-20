@@ -7,6 +7,12 @@ class DirectorsController < ApplicationController
     @director = current_user.director_role&.agent
     @messages = current_user.chat_messages.current.ordered.last(100)
     @writing = writing?
+    @work = WorkPanel.for(current_user)
+  end
+
+  # Spec 027: the panel beside the chat, polled by work_panel.js.
+  def work
+    render json: WorkPanel.for(current_user)
   end
 
   # Spec 019, owner fix ("jak zapraszam weryfikatora, to ma on być do odwołania aktywny"): the button invites the

@@ -381,6 +381,28 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .chat-launcher .chat-avatar { width: 2.4rem; height: 2.4rem; }
 .chat-launcher.is-writing .chat-avatar { animation: launcher-pulse 1.4s ease-in-out infinite; }
 @keyframes launcher-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 50% { box-shadow: 0 0 0 0.45rem transparent; } }
+/* Spec 026: unread messages make the closed chat's button blink until it is opened. */
+.chat-launcher.has-unread { animation: launcher-blink 1.1s ease-in-out infinite; border-color: var(--bad); }
+@keyframes launcher-blink { 0%, 100% { box-shadow: var(--shadow), 0 0 0 0 color-mix(in srgb, var(--bad) 60%, transparent); } 50% { box-shadow: var(--shadow), 0 0 0 0.6rem transparent; background: var(--bad-soft); } }
+@media (prefers-reduced-motion: reduce) { .chat-launcher.has-unread { animation: none; } }
+
+/* Spec 026: notices of blocked epics, top right on every page, until closed. */
+.notice-stack { position: fixed; top: 1rem; right: 1rem; z-index: 40; display: flex; flex-direction: column; gap: 0.6rem; width: min(24rem, calc(100vw - 2rem)); pointer-events: none; }
+.notice { pointer-events: auto; padding: 0.8rem 0.9rem; border-radius: var(--radius); border: 1px solid var(--bad); background: var(--surface); box-shadow: var(--shadow); animation: notice-in 0.25s ease-out; }
+.notice-head { display: flex; justify-content: space-between; gap: 0.5rem; color: var(--bad); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.notice-space { color: var(--muted); text-transform: none; letter-spacing: 0; }
+.notice-title { display: block; margin-top: 0.25rem; font-weight: 700; color: var(--fg); overflow-wrap: anywhere; }
+.notice-reason { margin: 0.3rem 0 0.6rem; color: var(--muted); overflow-wrap: anywhere; }
+.notice-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.notice-allow { margin-top: 0.4rem; padding: 0; }
+/* Next to the open floating chat, not over it; with the chat maximized or on a phone, at the bottom left. */
+body:has(.chat-dock.is-open) .notice-stack { right: calc(var(--dock-width) + 1rem); }
+body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; right: auto; left: 1rem; }
+@media (max-width: 639px) { body:has(.chat-dock.is-open) .notice-stack { top: auto; bottom: 5.5rem; right: auto; left: 1rem; z-index: 45; } }
+/* On the Director page (spec 027) the right side is the work panel: notices sit at the bottom left, over the chat. */
+@media (min-width: 900px) { body:has(.director-layout) .notice-stack { top: auto; right: auto; bottom: 6.5rem; left: calc(var(--sidebar-width, 260px) + 1.5rem); } }
+@keyframes notice-in { from { transform: translateY(-0.5rem); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .notice { animation: none; } }
 .chat-unread { position: absolute; top: 0.2rem; left: 2.2rem; width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--bad); border: 2px solid var(--surface); }
 .chat-dock-panel { display: none; position: fixed; top: 0; right: 0; bottom: 0; width: var(--dock-width); max-width: 100vw; z-index: 30;
   border-left: 1px solid var(--line); box-shadow: -12px 0 40px rgba(16, 24, 40, 0.14); background: var(--surface); }
@@ -491,6 +513,43 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .content > .chat-app { flex: 1 1 auto; height: auto; min-height: 20rem; width: 100%; }
 .content > .flash:has(~ .chat-app) { max-width: 60rem; width: 100%; margin-left: auto; margin-right: auto; }
 @media (max-width: 639px) { .main:has(> .content > .chat-app) > .content { height: calc(100dvh - 3.9rem); } }
+
+/* Spec 027: on the Director page the chat is on the left and the work panel on the right; under 900 px the panel
+   goes below the chat. What is running blinks. */
+.main:has(> .content > .director-layout) > .content { display: flex; flex-direction: column; height: calc(100dvh - 2rem); }
+.director-layout { flex: 1 1 auto; min-height: 20rem; display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem); gap: 1rem; }
+.director-layout > .chat-app { height: auto; min-height: 0; max-width: none; margin: 0; width: 100%; }
+.work-panel { min-height: 0; overflow-y: auto; padding: 0.9rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.work-panel-title { margin: 0 0 0.75rem; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.work-space + .work-space { margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+.work-space-name { font-weight: 700; color: var(--fg); }
+.work-none { margin: 0.3rem 0 0; }
+.work-epics { list-style: none; margin: 0.45rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.work-epic { border-left: 3px solid var(--line); padding: 0.15rem 0 0.15rem 0.65rem; }
+.work-epic.is-planned { border-color: var(--accent); }
+.work-epic.is-running { border-color: var(--warn); }
+.work-epic.is-blocked { border-color: var(--bad); }
+.work-epic-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.work-epic-head a { font-weight: 600; overflow-wrap: anywhere; }
+.work-state { flex: none; color: var(--muted); }
+.work-epic.is-running > .work-epic-head .work-state { color: var(--warn); }
+.work-epic.is-blocked > .work-epic-head .work-state { color: var(--bad); }
+.work-steps { list-style: none; margin: 0.3rem 0 0; padding: 0; }
+.work-step { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr) auto; gap: 0.4rem; align-items: baseline; padding: 0.08rem 0; font-size: 0.85rem; color: var(--muted); }
+.work-step-n { font-variant-numeric: tabular-nums; }
+.work-step-title { overflow-wrap: anywhere; }
+.work-step.is-succeeded .work-state { color: var(--ok); }
+.work-step.is-failed .work-state, .work-step.is-timed-out .work-state { color: var(--bad); }
+.work-step.is-running { color: var(--fg); font-weight: 600; }
+.work-step.is-running .work-state, .work-epic.is-running > .work-epic-head .work-state { animation: work-blink 1.2s ease-in-out infinite; }
+@keyframes work-blink { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .work-step.is-running .work-state, .work-epic.is-running > .work-epic-head .work-state { animation: none; } }
+@media (max-width: 899px) {
+  .main:has(> .content > .director-layout) > .content { height: auto; }
+  .director-layout { grid-template-columns: 1fr; }
+  .director-layout > .chat-app { height: calc(100dvh - 4rem); }
+  .work-panel { overflow: visible; }
+}
 .archive-stream .bubble { animation: none; }
 
 /* Epic steps in order (spec 016) */
@@ -597,8 +656,8 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 @container (max-width: 520px) { .voice-panel { flex-wrap: wrap; } .voice-info { flex-basis: calc(100% - 3rem); } }
 /* Spec 020, Q1: on the Director page the floating chat shows only while voice mode runs in it, and then the
    page's own chat steps aside, so the conversation is never shown twice. */
-body:has(.content > .chat-app) .chat-dock:not(.is-voice) { display: none; }
-body:has(.chat-dock.is-voice) .content > .chat-app { display: none; }
+body:has(.content > .chat-app, .director-layout > .chat-app) .chat-dock:not(.is-voice) { display: none; }
+body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice) .director-layout > .chat-app { display: none; }
 /* The floating chat maximized (owner fix): over the page, next to the menu */
 .chat-dock.is-max .chat-dock-panel { left: var(--sidebar-width, 260px); width: auto; max-width: none; box-shadow: none; }
 .chat-dock.is-max .chat-app.is-dock .chat-stream { max-width: 52rem; margin: 0 auto; width: 100%; }

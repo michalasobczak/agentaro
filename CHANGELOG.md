@@ -234,3 +234,21 @@
   - **No data change.** The stored state stays `planned`; `WorkItem#board_state` says what the user sees.
   - **Ordering.** Cards are ordered within one column, so a running epic cannot be ordered among waiting ones.
   - **Checks.** Test: `spaces_test.rb`. Browser check at 1440 px with five columns.
+- Owner fix ("zmień limit z 15 minut na 30 minut runtime zadania"). An agent's run, an epic step or a calendar task, may now work 30 minutes before it is stopped; the limit was 15 minutes. The owner's research step had stopped at 15 minutes. The limit is `config.x.run_timeout`; spec 010 G4 notes the change. Test: `task_run_test.rb`.
+- Spec 026 Unread chat blinks; blocked epics pop up. The owner asked: "chcę, żeby czat mrugał, jeśli mam coś nieprzeczytanego… żeby wyskakiwał komunikat o tym, że jest coś zablokowanego, np. popup". The owner's decisions are Q1–Q3.
+  - **Blinking chat.** The closed floating chat's button blinks while an answer is unread. While the tab is in the background, its title alternates with "(1) New message from <director>".
+  - **Blocked notices.** A blocked epic pops up on every page (`notices.js`, `GET /notices` every 10 s) with its space, reason, Try again, Open epic and Close.
+  - **Closing.** Close is stored on the epic (`work_items.block_dismissed_at`, migration `20261121127000`), so the notice does not come back anywhere until the epic is blocked again.
+  - **Mac notifications.** After the user allows it once, each new block also comes as a macOS notification while the tab is hidden.
+  - **Placement.** Notices sit beside the open chat, not over it.
+  - **Found by the tests.** A copy of an epic that had not seen the notice closed did not clear the stored time when it blocked the epic again. `block!` now always writes it.
+  - **Tests:** `test/integration/notices_test.rb`.
+  - **Browser check on demo data:** notice placement, Close, a new block shown again, the blinking button.
+- Spec 027 Work panel beside the director chat. The owner asked: "obok chatu, po prawej, stacki ze space i zadań… co które są w realizacji mają mrugać… te, które nie mają… niech info, że nie ma". The owner's decisions are Q1–Q3.
+  - **The panel.** On the Director page the chat is on the left and the panel on the right. Under 900 px the panel is below the chat.
+  - **What it shows.** Each active space with its new, planned, running and blocked epics, running first. Each epic lists the steps of its current plan with their states.
+  - **Blinking and empty spaces.** Running epics and steps blink. An empty space says "Nothing planned or in progress."
+  - **Live updates.** `WorkPanel`, `GET /director/work` and `work_panel.js` redraw the panel every 5 s, only when something changed.
+  - **Found in the browser.** Two CSS rules hid the floating chat on the Director page only when the chat was directly in the content. With the new layout both chats would show, so the rules were updated. Notices of spec 026 sit at the bottom left on this page.
+  - **Tests:** `test/integration/work_panel_test.rb`; selectors in two older tests follow the new layout.
+  - **Browser check on demo data:** at 1440 px and on a phone (no horizontal scroll). The panel changed within 5 s after a step ended.
