@@ -65,6 +65,18 @@ class ExecutorCheck
   end
 
   def run_api(preset)
+    models = api_models(preset)
+    Result.new(true, self.class.clean(models.any? ? "Models: #{models.first(50).join(", ")}" : "Answered; no models listed."))
+  rescue Failure => e
+    Result.new(false, e.message)
+  end
+
+  public
+
+  Failure = Class.new(StandardError)
+
+  # Spec 022, G1: the names an API executor lists. Raises Failure with a message in words.
+  def api_models(preset = executor.preset_definition)
     uri = URI.parse((executor.base_url.presence || preset.default_url) + MODELS_PATH.fetch(preset.protocol))
     body = +""
     response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https",
@@ -74,21 +86,22 @@ class ExecutorCheck
 
         res.read_body do |chunk|
           body << chunk
-          return Result.new(false, "Answered with more than #{MAX_BODY / 1.megabyte} MB; not read.") if body.bytesize > MAX_BODY
+          raise Failure, "Answered with more than #{MAX_BODY / 1.megabyte} MB; not read." if body.bytesize > MAX_BODY
         end
       end
     end
-    return Result.new(false, "Answered #{response.code} #{response.message}.") unless response.is_a?(Net::HTTPSuccess)
+    raise Failure, "Answered #{response.code} #{response.message}." unless response.is_a?(Net::HTTPSuccess)
 
-    models = model_names(preset.protocol, JSON.parse(body))
-    Result.new(true, self.class.clean(models.any? ? "Models: #{models.first(50).join(", ")}" : "Answered; no models listed."))
+    model_names(preset.protocol, JSON.parse(body))
   rescue JSON::ParserError
-    Result.new(false, "Answered, but not with a list of models.")
+    raise Failure, "Answered, but not with a list of models."
   rescue Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout
-    Result.new(false, "No answer within #{@timeout} seconds.")
+    raise Failure, "No answer within #{@timeout} seconds."
   rescue SystemCallError, SocketError, IOError, OpenSSL::SSL::SSLError, URI::InvalidURIError => e
-    Result.new(false, "Could not connect: #{e.message}")
+    raise Failure, "Could not connect: #{e.message}"
   end
+
+  private
 
   def model_names(protocol, body)
     list = protocol == "ollama" ? body["models"] : body["data"]

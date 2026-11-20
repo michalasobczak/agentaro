@@ -17,10 +17,21 @@
     <%= f.url_field :base_url, maxlength: 300, placeholder: "Default from the preset, e.g. http://localhost:11434", autocapitalize: "none", spellcheck: false %>
     <span class="hint">API presets only; ignored for command-line tools. No user names, passwords or keys.</span>
   </div>
-  <div class="field">
-    <%= f.label :default_model, "Default model (optional)" %>
-    <%= f.text_field :default_model, maxlength: 200, autocapitalize: "none", spellcheck: false, placeholder: "e.g. qwen3:8b" %>
-  </div>
+  <% if executor.persisted? %>
+    <%= render "models/picker", f: f, field: :default_model, lists: { executor.id.to_s => model_list_entry(executor) }.to_json, source: nil, key: executor.id,
+               record: executor, check: { executor_target: executor.id } %>
+    <div class="field">
+      <%= f.label :extra_models, "More model names (optional)" %>
+      <%= f.text_area :extra_models, rows: 3, autocapitalize: "none", spellcheck: false, placeholder: "One per line, e.g. a full Claude model name" %>
+      <span class="hint">Offered in the lists next to what the tool reports. Up to <%= Executor::MAX_EXTRA_MODELS %>.</span>
+    </div>
+  <% else %>
+    <div class="field">
+      <%= f.label :default_model, "Default model (optional)" %>
+      <%= f.text_field :default_model, maxlength: 200, autocapitalize: "none", spellcheck: false, placeholder: "e.g. qwen3:8b" %>
+      <span class="hint">After saving, the tool's model list and Check model are on this executor's page.</span>
+    </div>
+  <% end %>
   <div class="field">
     <%= f.label :notes, "Notes (optional)" %>
     <%= f.text_area :notes, rows: 3, maxlength: 2000, placeholder: "Anything worth remembering, e.g. which account is logged in" %>

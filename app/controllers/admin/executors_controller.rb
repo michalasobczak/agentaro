@@ -3,7 +3,7 @@
 class Admin::ExecutorsController < Admin::BaseController
   before_action :set_executor, except: %i[new create]
   # A check holds a server thread for up to 10 seconds (R4), so checks are rate-limited (security analysis, F9).
-  rate_limit to: 20, within: 1.minute, only: :check, store: RATE_LIMIT_STORE,
+  rate_limit to: 20, within: 1.minute, only: %i[check refresh_models], store: RATE_LIMIT_STORE,
              with: -> { redirect_to executors_path, alert: "Too many checks. Try again in a minute." }
 
   def new
@@ -43,6 +43,13 @@ class Admin::ExecutorsController < Admin::BaseController
     redirect_to executors_path, (result.ok ? :notice : :alert) => "#{@executor.name}: #{result.ok ? "answers" : "check failed"}."
   end
 
+  # Spec 022, G3: read the tool's model list again; the forms offer it.
+  def refresh_models
+    result = @executor.refresh_models!
+    message = result.ok ? "#{@executor.name}: #{result.models.size} models listed." : "#{@executor.name}: #{result.note}"
+    redirect_to edit_admin_executor_path(@executor), (result.ok ? :notice : :alert) => message
+  end
+
   private
 
   def set_executor
@@ -50,6 +57,6 @@ class Admin::ExecutorsController < Admin::BaseController
   end
 
   def executor_params
-    params.expect(executor: %i[name preset enabled base_url default_model notes])
+    params.expect(executor: %i[name preset enabled base_url default_model effort extra_models notes])
   end
 end

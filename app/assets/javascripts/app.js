@@ -33,8 +33,8 @@ window.agentaroOnPage = (start) => {
 // for a fingerprint of what it shows and refreshes when it changed — never while the user is busy: a dialog
 // or menu open, a drag in progress, a task selected, or unsaved edits (then a notice is shown instead).
 (() => {
-  const INTERVAL = 20000;
-  let watched = null, stamp = null, dirty = false, stopped = false;
+  const INTERVAL = 20000; // a page may ask for less with data-refresh-every (seconds, at least 5)
+  let watched = null, stamp = null, dirty = false, stopped = false, last = 0;
 
   // Each visit brings its own page to watch.
   document.addEventListener("turbo:load", () => { watched = null; });
@@ -49,9 +49,12 @@ window.agentaroOnPage = (start) => {
   const busy = () => Boolean(document.querySelector("dialog[open], .is-dragging, .is-selected, .cal-menu:not([hidden])")) ||
     (document.activeElement && document.activeElement.matches("input, textarea, select") && !document.activeElement.closest(".chat-app"));
 
-  async function check() {
+  async function check(force) {
     const element = current();
     if (!element || stopped || document.hidden) return;
+    const every = Math.max(5, Number(element.dataset.refreshEvery) || INTERVAL / 1000) * 1000;
+    if (!force && Date.now() - last < every - 500) return;
+    last = Date.now();
     let response;
     try {
       response = await fetch(element.dataset.refreshUrl, { headers: { Accept: "application/json" }, credentials: "same-origin", redirect: "manual" });
@@ -71,6 +74,6 @@ window.agentaroOnPage = (start) => {
     if (document.dispatchEvent(new CustomEvent("agentaro:refresh", { cancelable: true }))) window.agentaroReload();
   }
 
-  setInterval(check, INTERVAL);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+  setInterval(() => check(false), 5000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(true); });
 })();

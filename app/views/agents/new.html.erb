@@ -1,2 +1,3 @@
+<% content_for :scripts do %><%= javascript_include_tag "model_picker", defer: true %><% end %>
 <%= page_header(@agent.shared? ? "New shared agent" : "New agent", @agent.shared? ? "Everyone will be able to assign it to their tasks." : "Only you will see and use it.") %>
 <div class="card"><%= render "form", agent: @agent %></div>

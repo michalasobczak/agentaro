@@ -273,4 +273,99 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     get stamp_director_path, headers: { "Accept" => "application/json" }
     assert_not_equal first, JSON.parse(response.body)["stamp"]
   end
+
+  # Spec 021: a stand-in agent ("claude" on PATH) answers with text or JSON.
+  def with_director_answer(answer)
+    Dir.mktmpdir do |bin|
+      File.write(File.join(bin, "answer"), answer.is_a?(String) ? answer : answer.to_json)
+      File.write(File.join(bin, "claude"), "#!/bin/sh\ncat > /dev/null\ncat \"#{bin}/answer\"\n")
+      File.chmod(0o755, File.join(bin, "claude"))
+      original = ENV["PATH"]
+      ENV["PATH"] = "#{bin}:#{original}"
+      yield
+    ensure
+      ENV["PATH"] = original
+    end
+  end
+
+  def blocked_epic
+    item = @user.work_items.create!(title: "World review", state: "blocked", blocked_reason: "Step 2 failed", started_at: 5.minutes.ago)
+    run = ->(step, state, output = nil) { TaskRun.create!(user: @user, work_item: item, epic_step: step, agent: @member, purpose: "epic_step", trigger: "scheduled", occurrence_start: Time.current, state: state, output: output) }
+    first = item.epic_steps.create!(position: 1, title: "Find topics", agent: @member, state: "succeeded")
+    run.(first, "succeeded", "Topics found: [Topic A], [Topic B]")
+    second = item.epic_steps.create!(position: 2, title: "Check sources", agent: @member, state: "failed")
+    item.epic_steps.create!(position: 3, title: "Summary", agent: @member)
+    [ item, second, run.(second, "failed") ]
+  end
+
+  test "spec 021: chat and verification show the topics while the next step is running" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    @user.team_roles.create!(agent: @member, role: "verifier")
+    item, second, attempt = blocked_epic
+    item.update!(state: "planned", blocked_reason: nil)
+    second.update!(state: "running")
+    attempt.update!(state: "running", output: "unfinished source check")
+
+    post chat_messages_path, params: { chat_message: { content: "Which topics did the topic-selection step find?" } }
+    chat = TaskRun.find_by!(user: @user, purpose: "chat")
+    with_director_answer(reply: "The topics were [Topic A] and [Topic B].", actions: []) do
+      ManagementRunner.new(chat).perform!
+    end
+    post verify_director_path
+    verification = TaskRun.find_by!(user: @user, purpose: "verify")
+    with_director_answer("The step result confirms both topics.") do
+      ManagementRunner.new(verification).perform!
+    end
+
+    [ chat, verification ].each do |run|
+      assert_match "| Topics found: [Topic A], [Topic B]", run.reload.prompt
+      assert_no_match "unfinished source check", run.prompt
+      assert_equal "succeeded", run.state
+    end
+    get director_path
+    assert_select ".bubble", text: /The topics were \[Topic A\] and \[Topic B\]/
+    assert_select ".bubble", text: /The step result confirms both topics/
+    assert_equal "running", second.reload.state
+  end
+
+  test "spec 021: the user asks in the chat to retry a failed step; the director's retry is applied once" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    @user.team_roles.create!(agent: @member, role: "member")
+    item, second, failed = blocked_epic
+    post chat_messages_path, params: { chat_message: { content: "Ponów krok 2 w World review" } }
+    chat = TaskRun.where(user: @user, purpose: "chat", state: "queued").sole
+    with_director_answer(reply: "Jasne, ponawiam.", actions: [ { type: "retry_step", id: item.id, step: 2, attempt: failed.id } ]) do
+      ManagementRunner.new(chat).perform!
+    end
+    assert_match "| Topics found: [Topic A], [Topic B]", chat.reload.prompt.to_s, "the director saw the answer of step 1"
+    assert_equal [ "planned", %w[succeeded queued pending] ], [ item.reload.state, item.epic_steps.map(&:state) ]
+    assert_equal 1, second.runs.where(state: "queued").count
+    assert_equal 1, item.epic_steps.first.runs.count
+    get director_path
+    assert_select ".bubble-actions", text: /Retrying step 2 "Check sources" of "World review"/
+
+    post chat_messages_path, params: { chat_message: { content: "Ponów krok 2 w World review jeszcze raz" } }
+    stale = TaskRun.where(user: @user, purpose: "chat", state: "queued").sole
+    with_director_answer(reply: "Ponawiam.", actions: [ { type: "retry_step", id: item.id, step: 2, attempt: failed.id } ]) do
+      ManagementRunner.new(stale).perform!
+    end
+    assert_match "not blocked", @user.chat_messages.ordered.last.content, "the stale retry is refused and the reason reported"
+    assert_equal 1, item.runs.where(state: %w[queued running]).count
+  end
+
+  test "spec 021: without a clear request from the user the retry is refused; Try again on the page still works" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    item, second, failed = blocked_epic
+    post chat_messages_path, params: { chat_message: { content: "What did the topic step find?" } }
+    chat = TaskRun.where(user: @user, purpose: "chat", state: "queued").sole
+    with_director_answer(reply: "Retrying.", actions: [ { type: "retry_step", id: item.id, step: 2, attempt: failed.id } ]) do
+      ManagementRunner.new(chat).perform!
+    end
+    assert_match "has not asked in their message", @user.chat_messages.ordered.last.content
+    assert_equal [ "blocked", 1 ], [ item.reload.state, second.runs.count ]
+
+    post retry_work_item_path(item)
+    assert_equal [ "planned", %w[succeeded queued pending] ], [ item.reload.state, item.epic_steps.map(&:state) ]
+    assert_equal 1, item.epic_steps.first.runs.count
+  end
 end

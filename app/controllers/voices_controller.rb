@@ -1,8 +1,10 @@
 # Spec 017: the director chat's voice — transcription of the user's speech and the director's spoken answer.
 # Signed-in users only (ApplicationController); limited per user (R1, R2).
 class VoicesController < ApplicationController
-  rate_limit to: 60, within: 10.minutes, only: :transcribe, by: -> { current_user.id }, store: RATE_LIMIT_STORE,
-             with: -> { render json: { error: "Too many recordings. Try again in a few minutes." }, status: :too_many_requests }
+  # Owner fix ("too many recordings — czasami mam taki komunikat"): hands-free mode sends every utterance, so the
+  # limit allows a lively conversation (about one recording every 2.5 s on average); the browser waits when it is hit.
+  rate_limit to: 240, within: 10.minutes, only: :transcribe, by: -> { current_user.id }, store: RATE_LIMIT_STORE,
+             with: -> { render json: { error: "Too many recordings.", retry_after: 30 }, status: :too_many_requests }
   rate_limit to: 300, within: 10.minutes, only: :speak, by: -> { current_user.id }, store: RATE_LIMIT_STORE,
              with: -> { render json: { error: "Too much speech. Try again in a few minutes." }, status: :too_many_requests }
 

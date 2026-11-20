@@ -56,7 +56,7 @@ class AgentsController < ApplicationController
 
   # The executor must be one that exists; disabled executors may stay on an agent but are not offered for a new choice.
   def agent_params
-    attrs = params.expect(agent: %i[name description master_prompt executor_id model enabled])
+    attrs = params.expect(agent: %i[name description master_prompt executor_id model effort enabled])
     if attrs[:executor_id].present? && attrs[:executor_id].to_s != @agent&.executor_id.to_s
       attrs[:executor_id] = Executor.where(enabled: true).find_by(id: attrs[:executor_id])&.id
     end

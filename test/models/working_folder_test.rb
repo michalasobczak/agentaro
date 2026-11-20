@@ -55,8 +55,8 @@ class WorkingFolderTest < ActiveSupport::TestCase
 
   def step_run(space)
     item = @user.work_items.create!(title: "Fix bug", space: space, state: "planned")
-    step = item.epic_steps.create!(position: 1, title: "Fix", agent: @agent)
-    TaskRun.create!(user: @user, work_item: item, epic_step: step, agent: @agent, purpose: "epic_step", trigger: "scheduled", occurrence_start: Time.current)
+    item.epic_steps.create!(position: 1, title: "Fix", agent: @agent)
+    StepChain.start(item)
   end
 
   test "G2, G3, G6: a step runs in the folder with Bash, network for any host, Docker and the read limit" do

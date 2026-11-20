@@ -26,11 +26,15 @@ class AgentCall
     return Outcome.new("skipped", nil, "#{@agent.name} is not available (disabled agent or executor).", nil) unless @agent.usable?
 
     executor = @agent.executor
-    model = @agent.model || executor.default_model
+    model = @agent.effective_model
+    @effort = @agent.effective_effort # spec 022, G5
     @run.update!(state: "running", started_at: @run.started_at || Time.current, agent_name: @agent.name, executor_name: executor.name,
                  preset: executor.preset, model: model, prompt: @prompt.text)
     preset = executor.preset_definition
     return Outcome.new("skipped", nil, format(NOT_RUNNABLE, preset.label), nil) unless preset.runnable?
+    unless Executor.valid_model_name?(model) # spec 022, R1: a name saved before the rule never reaches the tool
+      return Outcome.new("failed", nil, "The model name #{model.inspect} #{Executor::MODEL_NAME_RULE}; fix it on the agent or executor.", nil)
+    end
 
     preset.cli? ? run_cli(preset, executor, model, @prompt) : run_api(preset, executor, model, @prompt)
   rescue StandardError => e
@@ -125,12 +129,14 @@ class AgentCall
       args = [ "-p", "--output-format", "text", "--no-session-persistence", "--permission-mode", "acceptEdits",
                "--allowedTools", (space ? "Bash #{WEB_TOOLS}" : WEB_TOOLS), "--settings", claude_settings(space) ]
       args += [ "--model", model ] if model
+      args += [ "--effort", @effort ] if @effort # spec 022, G5
       [ args, prompt.text, nil ]
     when "codex"
       answer = folder.join("answer.txt").to_s
       args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
       args.insert(5, "-c", "sandbox_workspace_write.network_access=true") if space # spec 018, Q5: network in a working folder (reads not limited: F17)
       args += [ "-m", model ] if model
+      args += [ "-c", "model_reasoning_effort=#{@effort}" ] if @effort # spec 022, G5
       [ args + [ "-" ], prompt.text, answer ]
     when "ollama_cli"
       model ? [ [ "run", model ], prompt.text, nil ] : nil

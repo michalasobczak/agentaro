@@ -24,10 +24,8 @@
     <% end %>
     <span class="hint">The AI tool this agent runs on.</span>
   </div>
-  <div class="field">
-    <%= f.label :model, "Model (optional)" %>
-    <%= f.text_field :model, maxlength: 200, autocapitalize: "none", spellcheck: false, placeholder: "Leave empty to use the executor's default" %>
-  </div>
+  <%= render "models/picker", f: f, field: :model, lists: model_lists_json(executors), source: "#agent_executor_id", key: agent.executor_id || executors.first&.id,
+             record: (agent if agent.persisted?), check: (agent.persisted? ? { agent_id: agent.id } : {}) %>
   <label class="check"><%= f.check_box :enabled %><span>Enabled<br><span class="hint">Disabled agents keep their tasks but cannot be assigned to new ones.</span></span></label>
   <div class="actions"><%= f.submit agent.persisted? ? "Save changes" : "Create agent" %><%= link_to "Cancel", agents_path, class: "button secondary" %></div>
 <% end %>

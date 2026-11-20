@@ -23,6 +23,8 @@ module ChangeStamp
            EpicStep.where(work_item_id: user.work_items.select(:id)).maximum(:updated_at))
   end
 
+  def run(run) = digest(run.state, run.updated_at)
+
   def task(task)
     digest(task.updated_at, task.exceptions.count, task.runs.count, task.runs.maximum(:updated_at), task.agent&.updated_at)
   end

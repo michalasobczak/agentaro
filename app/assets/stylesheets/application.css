@@ -602,3 +602,12 @@ body:has(.chat-dock.is-voice) .content > .chat-app { display: none; }
 @media (min-width: 1100px) { body:has(.chat-dock.is-open.is-max) .main { margin-right: 0; } }
 @media (max-width: 639px) { .chat-dock.is-max .chat-dock-panel { left: 0; } }
 .chat-dock [data-dock-max][aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+
+/* Spec 022: model picker and Check model */
+.model-picker { display: grid; gap: 0.9rem; }
+.model-picker select[data-model-select] + input:not([hidden]) { margin-top: 0.4rem; }
+.model-check { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.model-check-result { overflow-wrap: anywhere; }
+.model-check-result[data-state="ok"] { color: var(--ok); }
+.model-check-result[data-state="bad"] { color: var(--bad); }
+.model-check-result[data-state="warn"], .model-check-result[data-state="busy"] { color: var(--muted); }

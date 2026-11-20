@@ -17,6 +17,7 @@ class WorkItem < ApplicationRecord
   validates :state, inclusion: { in: STATES }
   validates :priority, inclusion: { in: PRIORITIES }
   validate :space_of_user
+  before_update :retire_plan_on_move, if: :will_save_change_to_space_id?
   before_validation(on: :create) { self.space ||= Space.default_for(user) if user } # the only active space, or "General"
 
   STATE_ORDER = %w[new planned blocked done].freeze # spec 013: kanban columns; cancelled folded below
@@ -29,12 +30,18 @@ class WorkItem < ApplicationRecord
   def state_label = state.tr("_", " ")
   def open? = OPEN.include?(state)
 
+  def active_steps = epic_steps.where(position: active_step_from..)
+
   def active_run? = runs.where(state: %w[queued running]).exists?
 
   # Steps not started are dropped (spec 011: calendar steps; spec 016, G7: pending steps are cancelled; a running
   # step finishes and its answer is kept).
   def cancel!
     transaction do
+      reload
+      runs.where(user_id: user_id, purpose: "epic_step", state: "queued").find_each do |run|
+        run.update!(state: "skipped", error: "The epic was cancelled before this step started.", finished_at: Time.current)
+      end
       tasks.where("starts_at > ?", Time.current).find_each(&:destroy!)
       epic_steps.where(state: %w[pending queued]).find_each { |step| step.update!(state: "cancelled") }
       update!(state: "cancelled", finished_at: (Time.current if started_at))
@@ -65,6 +72,11 @@ class WorkItem < ApplicationRecord
   end
 
   private
+
+  def retire_plan_on_move
+    self.active_step_from = (epic_steps.maximum(:position) || 0) + 1
+    self.plan_summary = self.blocked_reason = self.started_at = self.finished_at = nil
+  end
 
   # The space is the user's own; a new epic, or one moved to another space, needs an active space (S4).
   def space_of_user

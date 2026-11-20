@@ -24,7 +24,8 @@ class TaskRunsTest < ActionDispatch::IntegrationTest
     assert_redirected_to task_run_path(run)
     assert_equal [ "manual", "queued", "user:#{@user.id}:alice", t("2026-11-20 09:00") ], [ run.trigger, run.state, run.requested_by, run.occurrence_start ]
     follow_redirect!
-    assert_select "meta[http-equiv=refresh]", 1, "refreshes while not finished"
+    assert_select "meta[http-equiv=refresh]", 0, "owner fix: no <meta refresh>, it outlived Turbo visits"
+    assert_select "[data-refresh-url$='/stamp'][data-refresh-every='5']", 1, "refreshes itself while not finished"
   end
 
   test "Run now on one occurrence of a series" do
@@ -41,6 +42,7 @@ class TaskRunsTest < ActionDispatch::IntegrationTest
                           started_at: 2.minutes.ago, finished_at: 1.minute.ago)
     get task_run_path(run)
     assert_select "meta[http-equiv=refresh]", 0
+    assert_select "[data-refresh-every]", 0, "a finished run stops refreshing"
     assert_select "pre.run-text", text: "<script>alert(1)</script> Done"
     assert_select "script:not([src])", 0
     assert_select "details pre", text: /Your task/

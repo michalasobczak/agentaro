@@ -1,4 +1,4 @@
-<% unless @run.finished? %><% content_for :head, tag.meta("http-equiv": "refresh", content: "5") %><% end %>
+<% unless @run.finished? %><div hidden data-refresh-url="<%= stamp_task_run_path(@run) %>" data-refresh-stamp="<%= ChangeStamp.run(@run) %>" data-refresh-every="5"></div><% end %>
 <% run_label = "Run, #{l(@run.created_at, format: :short)}" %>
 <% if @task %>
   <% if (crumbs = step_crumbs(@task)) %><%= breadcrumbs(*crumbs, [ run_label ]) %><% end %>

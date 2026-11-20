@@ -33,7 +33,7 @@ Agentaro enforces one limit: an agent **cannot read the working folders of other
 ## 3. Objective
 
 **Goals**
-- G1. A space has an optional **working folder**: an absolute path to an existing directory on the host, set on the space form (and by the director with `update_space`). The space page shows it.
+- G1. A space has an optional **working folder**: an absolute path to an existing directory on the host, set on the space form. ~~And by the director with `update_space`~~: removed by the B20 analysis after spec 021, because step results in the director's prompt could steer it. The space page shows it.
 - G2. Every step of an epic in that space runs with that folder as its working directory, on Claude Code or Codex. Ollama and LM Studio answer text only, as before.
 - G3. **Freedom inside** (Q3):
   - agents read and write anything in the folder;

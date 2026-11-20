@@ -1,3 +1,4 @@
+<% content_for :scripts do %><%= javascript_include_tag "model_picker", defer: true %><% end %>
 <%= page_header @agent.name, @agent.shared? ? "Shared agent" : "Private agent" do %>
   <%= link_to admin_data_changes_path(record_type: "Agent", record_id: @agent.id), class: "button secondary desktop-only" do %><%= icon(:history) %> Change history<% end if current_user.admin? %>
 <% end %>

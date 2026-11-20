@@ -15,7 +15,7 @@ class WorkItemsController < ApplicationController
     item = current_user.work_items.find(params[:id])
     return redirect_to(work_item_path(item), alert: "Only blocked items can be tried again.") unless item.state == "blocked"
 
-    if item.epic_steps.any? # spec 016, G5: resume from the step that stopped
+    if item.active_steps.exists? # spec 016, G5: resume from the step that stopped
       StepChain.resume(item)
       return redirect_to(work_item_path(item), notice: "Resumed from the step that stopped.")
     end

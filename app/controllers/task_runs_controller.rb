@@ -10,6 +10,13 @@ class TaskRunsController < ApplicationController
     @task = @run.task
   end
 
+  # Owner fix ("wraca mi automatycznie do epiki… nie chcę, żeby automatycznie za mnie nawigował"): a <meta refresh>
+  # outlived Turbo visits and pulled the user back to the run; the page now asks for this stamp instead.
+  def stamp
+    run = TaskRun.visible_to(current_user).find(params[:id])
+    render json: { stamp: ChangeStamp.run(run) }
+  end
+
   def create
     task = Task.visible_to(current_user).find(params[:task_id])
     unless task.editable_by?(current_user)

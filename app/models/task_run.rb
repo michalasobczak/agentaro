@@ -35,6 +35,11 @@ class TaskRun < ApplicationRecord
 
   def state_label = state.tr("_", " ")
 
+  def self.prompt_text(text)
+    text.to_s.dup.force_encoding(Encoding::UTF_8).scrub("?").delete("\0")
+        .gsub(/\r\n|[\r\v\f\u0085\u2028\u2029]/, "\n")
+  end
+
   # Truncates on character boundaries so stored text stays valid UTF-8.
   def self.limit_text(text, bytes)
     text = text.to_s.dup.force_encoding(Encoding::UTF_8).scrub("?")

@@ -1,0 +1,22 @@
+<%# Spec 022: model and effort with the executor's list, "other…", and Check model. Without JavaScript: the text field. %>
+<%# locals: f, field (:model or :default_model), lists (JSON), source (CSS selector of the executor select, or nil), key (list key when no source), record, check (params for the check) %>
+<% current_list = JSON.parse(lists)[key.to_s] || JSON.parse(lists).values.first || {} %>
+<div class="model-picker" data-model-picker data-lists="<%= lists %>" data-source="<%= source %>" data-key="<%= key %>"
+     data-check-url="<%= model_checks_path %>" data-check="<%= check.to_json %>" data-agent="<%= field == :model ? "1" : "" %>">
+  <div class="field">
+    <%= f.label field, field == :model ? "Model" : "Default model" %>
+    <select data-model-select hidden aria-label="Choose a model"></select>
+    <%= f.text_field field, maxlength: 200, autocapitalize: "none", spellcheck: false, data: { model_input: "" },
+                     placeholder: field == :model ? "Leave empty to use the executor's default" : "e.g. qwen3:8b" %>
+    <span class="hint">Letters, digits and . _ : / @ - only. Pick from the list, or “Other…” for any name the tool knows.</span>
+  </div>
+  <div class="field" data-effort-field<%= " hidden" if Array(current_list["efforts"]).empty? %>>
+    <%= f.label :effort, "Effort" %>
+    <%= f.select :effort, [ [ "Default", "" ] ] + Executor::EFFORTS.values.flatten.uniq.map { |e| [ e, e ] }, {}, data: { model_effort: "" } %>
+    <span class="hint">How hard the model thinks (Claude Code and Codex only). More effort: better answers, slower, more usage.</span>
+  </div>
+  <div class="model-check">
+    <button type="button" class="secondary small" data-model-check hidden>Check model</button>
+    <%= model_check_status(record) %>
+  </div>
+</div>

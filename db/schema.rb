@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_123000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_125000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -22,6 +22,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_123000) do
     t.boolean "enabled", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "effort"
+    t.datetime "model_checked_at"
+    t.boolean "model_check_ok"
+    t.text "model_check_output"
     t.index ["executor_id"], name: "index_agents_on_executor_id"
     t.index ["kind", "user_id", "name"], name: "index_agents_on_kind_and_user_id_and_name"
     t.index ["user_id"], name: "index_agents_on_user_id"
@@ -68,6 +72,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_123000) do
     t.text "last_check_output"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.json "models"
+    t.datetime "models_listed_at"
+    t.text "models_note"
+    t.text "extra_models"
+    t.string "effort"
+    t.datetime "model_checked_at"
+    t.boolean "model_check_ok"
+    t.text "model_check_output"
     t.index ["name"], name: "index_executors_on_name", unique: true
   end
 
@@ -230,6 +242,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_123000) do
     t.integer "space_id", null: false
     t.datetime "started_at"
     t.datetime "finished_at"
+    t.integer "active_step_from", default: 1, null: false
     t.index ["space_id"], name: "index_work_items_on_space_id"
     t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"
     t.index ["user_id"], name: "index_work_items_on_user_id"

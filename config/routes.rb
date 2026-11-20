@@ -15,6 +15,7 @@ Rails.application.routes.draw do
   end
 
   resources :agents # spec 009
+  resources :model_checks, only: :create, path: "models/check" # spec 022: Check model
   # Spec 011: chat with the director, the work list, the team
   resource :director, only: :show do
     get :stamp
@@ -47,7 +48,9 @@ Rails.application.routes.draw do
   end
   resource :team, only: :show
   resources :team_roles, only: %i[create update destroy], path: "team/roles"
-  resources :task_runs, only: :show, path: "runs" # spec 010
+  resources :task_runs, only: :show, path: "runs" do # spec 010
+    get :stamp, on: :member # owner fix: the run page refreshes itself without <meta refresh> (spec 020)
+  end
   resources :executors, only: :index # spec 008 (read-only for everyone, Q4)
 
   # Spec 002: sign-in, TOTP, password-change links
@@ -76,6 +79,7 @@ Rails.application.routes.draw do
     resources :data_changes, only: :index   # spec 004
     resources :executors, only: %i[new create edit update destroy] do # spec 008
       post :check, on: :member
+      post :refresh_models, on: :member # spec 022, G3
     end
   end
 

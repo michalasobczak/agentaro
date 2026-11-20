@@ -289,7 +289,7 @@
     const dots = [...panel.querySelectorAll(".voice-dots i")];
     const doneButton = panel.querySelector("[data-voice-done]");
     const LABELS = { listening: "Listening…", hearing: "Listening…", transcribing: "Writing down…", thinking: "Thinking…", speaking: "Speaking…", error: "Voice problem" };
-    const SILENCE_MS = 1000, MIN_SPEECH_MS = 350, MAX_SPEECH_MS = 30000, TARGET_RATE = 16000;
+    const SILENCE_MS = 1000, MIN_SPEECH_MS = 600, MAX_SPEECH_MS = 30000, TARGET_RATE = 16000;
 
     let state = "off", ctx = null, mic = null, source = null, processor = null;
     let floor = 0.01, loudMs = 0, quietMs = 0, speechMs = 0, chunks = [], preroll = [], peak = 0, heard = [], heardMs = 0;
@@ -352,7 +352,7 @@
       for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
       const level = Math.sqrt(sum / samples.length);
       const ms = (samples.length / ctx.sampleRate) * 1000;
-      const threshold = Math.max(0.012, floor * 3);
+      const threshold = Math.max(0.015, floor * 4); // owner fix: fewer false starts from background noise
 
       if (state === "speaking") { // G6: talking over the director stops it
         loudMs = level > Math.max(0.05, floor * 6) ? loudMs + ms : 0;
@@ -432,6 +432,11 @@
           headers: { "Content-Type": "audio/wav", Accept: "application/json", "X-CSRF-Token": chat.csrf }, credentials: "same-origin" });
         const data = await response.json().catch(() => ({ error: "Could not understand the recording." }));
         if (mine !== generation || state === "off") return;
+        if (response.status === 429) { // owner fix: wait instead of failing
+          const wait = Number(data.retry_after) || 30;
+          setState("error", `Too many recordings — listening again in ${wait} s.`);
+          return setTimeout(() => { if (state === "error") listen(); }, wait * 1000);
+        }
         if (!response.ok) throw new Error(data.error || "Could not understand the recording.");
         if (!data.text) return listen("I heard nothing — speak again.");
         setState("thinking", `You: ${data.text}`);
