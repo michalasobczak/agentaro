@@ -205,3 +205,19 @@
   - Tests: `chat_order_test.rb` (reproduces "q4 zajęty": fails on the previous code), `voice_test.rb`; two spec 021 tests in `director_chat_test.rb` follow the new rule.
 - Owner fix after spec 023 ("te ikony to wystarczy inicjały max 2"): agent icons show up to two initials, the first letters of the first two words of the name ("Discovery Agent" → DA, "Market Analyst" → MA). A name that does not start with a letter still gets `?`. The helper is renamed `agent_initials`. It is used on the Team page, in the chat strip, the bubbles and the chat header, and now also on the floating chat button, which drew its own first letter before. Tests: `team_status_test.rb`.
 - Owner fix ("napisałem 'hi there'… zanim dokończył, napisałem 'cześć'… dwa razy podobne cześć… pojawiać i znikać wiadomości"). The earlier ordering fix did not work in production. Background runs work inside Rails' executor, where the query cache is on, so the once-a-second check for a newer user message kept reading its first, cached answer. "cześć" was not seen, the answer to "hi there!" was posted, then a second greeting. Runs now work without the query cache (`ManagementRunner#perform!` and the scheduler's worker). Test: `chat_order_test.rb` (a message saved by another request while the reply streams), which fails on the previous code.
+- Spec 024 Conversation fixes (owner, 2026-11-20). The owner said: "moja wypowiedź czeka… do momentu, aż mówca skończy… nie róbmy przerywania"; "nazwy agentów tylko inicjałami… kolorami co się z nimi dzieje"; "spisz to jako spec 24". The owner's decisions are Q1–Q6 in the spec.
+  - **Messages wait for the speaker.** While the director or the verifier writes, or voice mode reads the answer aloud, what the user sends waits in the chat ("Waiting for the director to finish…", kept across a reload in the same tab). Afterwards it is sent at once and gets one answer. The server accepts `chat_message[contents][]` (up to 10, saved in order, one run). A refused batch saves nothing.
+  - **No interruptions.** An answer is never dropped or rewritten because the user wrote again; this withdraws the earlier owner fix. A message that still arrives meanwhile, from another tab, gets the next answer. Voice mode no longer stops the director when the user speaks. The microphone listens after the director has finished, and voice mode started while it writes waits.
+  - **The proposal pass reads all waiting messages** as the request.
+  - **A replaced chat stops listening.** Found in the browser: on the Director page the chat started twice, and the replaced one still answered Enter and the Send button, so one message could be sent twice. Its listeners are now tied to its lifetime.
+  - **A date separator no longer appears twice.**
+  - **The chat's team strip shows initials only, coloured by state** (green free, amber pulsing busy). The name and the state are in the tooltip and for screen readers. Phones show the same row.
+  - **Not reproduced:** the typing dots that kept moving after an answer (20:46 that day). They did not reappear in the browser check.
+  - **Tests:**
+    - `chat_order_test.rb`: answers kept; the next answer queued; the query cache; several waiting messages with one answer.
+    - `director_chat_test.rb`: batches.
+    - `team_status_test.rb`: the strip.
+  - **Browser check** on demo data with a slow stand-in director:
+    - "hej" got its answer first. Then "a jeszcze" and "i to", which had waited, went together and got one answer.
+    - Messages restored after a reload were sent once.
+    - Strip colours changed live.

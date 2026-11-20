@@ -61,23 +61,20 @@ class ChatOrderTest < ActiveSupport::TestCase
 
   def prompts = File.read(File.join(@answers, "prompts")).split("=====\n")
 
-  test "a message written while the director answers: the outdated answer is not posted; one answer to everything" do
+  # Owner fix ("nie róbmy przerywania"): the chat holds messages while the director writes; one that still arrives
+  # (another tab) does not stop the answer — it is posted, and the newer message gets the next answer.
+  test "a message that arrives while the director answers: the answer is posted, not dropped; the newer one is answered next" do
     first = @user.chat_messages.create!(author: "user", content: "Add an epic: write the newsletter")
     run = ManagementRunner.chat!(@user)
     second = nil
     runner = InterruptedRunner.new(run)
     runner.before_call = -> { second ||= @user.chat_messages.create!(author: "user", content: "Actually, make it about backups") }
-    with_director("Got it: a newsletter about backups.") { runner.perform! }
+    with_director("Got it: a newsletter.") { runner.perform! }
 
-    answers = @user.chat_messages.where(author: "director").to_a
-    assert_equal 1, answers.size, "the answer written before the second message is dropped"
-    assert_equal second.id, answers.sole.reply_to_id
-    assert_operator answers.sole.id, :>, second.id
-    assert_equal 2, prompts.size, "the director answered again"
-    assert_no_match "make it about backups", prompts.first
-    assert_match "make it about backups", prompts.last
-    assert_match first.content, prompts.last
-    assert_equal 0, TaskRun.where(purpose: "chat", state: %w[queued running]).count, "nothing left to answer"
+    answer = @user.chat_messages.where(author: "director").sole
+    assert_equal first.id, answer.reply_to_id, "it says which message it answers"
+    assert_equal 1, prompts.size, "written once, not started again"
+    assert TaskRun.exists?(purpose: "chat", state: "queued"), "the newer message gets the next answer"
   end
 
   # A message saved by another request: written straight to SQLite, so this connection's query cache is not told.
@@ -89,52 +86,61 @@ class ChatOrderTest < ActiveSupport::TestCase
 
   # Owner fix ("napisałem 'hi there'… zanim dokończył, napisałem 'cześć'… dwa razy podobne cześć"): background runs
   # work inside Rails' executor, where the query cache is on; the check for a newer message read the cached answer.
-  test "with the query cache on, as in background runs, a message sent meanwhile is still seen: one answer to both" do
+  test "with the query cache on, as in background runs, a message sent meanwhile is still seen and gets the next answer" do
     @user.chat_messages.create!(author: "user", content: "hi there!")
     run = ManagementRunner.chat!(@user)
-    second = nil
     runner = InterruptedRunner.new(run)
     runner.during_call = lambda do
-      runner.send(:newer_user_message?) # the streamed reply checks once a second while the director writes
-      second ||= message_from_another_request("cześć")
+      runner.send(:newer_user_message?) # a check during the call fills the cache
+      message_from_another_request("cześć")
     end
     with_director("Cześć!") { ActiveRecord::Base.cache { runner.perform! } }
 
-    answers = @user.chat_messages.where(author: "director").to_a
-    assert_equal 1, answers.size, "one greeting, not two"
-    assert_equal second.id, answers.sole.reply_to_id
-    assert_match "cześć", prompts.last, "the answer was written knowing the second message"
-    assert_not TaskRun.exists?(purpose: "chat", state: "queued")
+    assert_equal 1, @user.chat_messages.where(author: "director").count
+    assert TaskRun.exists?(purpose: "chat", state: "queued"), "cześć is not missed"
   end
 
-  test "a user who keeps talking: after a few fresh starts the answer is posted, marked, and the newest message gets its own" do
-    @user.chat_messages.create!(author: "user", content: "One")
-    run = ManagementRunner.chat!(@user)
-    runner = InterruptedRunner.new(run)
-    count = 0
-    runner.before_call = -> { @user.chat_messages.create!(author: "user", content: "More #{count += 1}") }
-    with_director("Answer") { runner.perform! }
-
-    assert_equal ManagementRunner::MAX_FRESH_STARTS + 1, prompts.size
-    answer = @user.chat_messages.where(author: "director").sole
-    assert_operator answer.reply_to_id, :<, @user.chat_messages.where(author: "user").maximum(:id), "it says it answers an earlier message"
-    assert TaskRun.exists?(purpose: "chat", state: "queued"), "the newest message is answered next"
-  end
-
-  test "a reply being written is no longer shown or spoken once the user writes again" do
+  test "the reply being written keeps showing until it is posted, whatever the user does meanwhile" do
     @user.chat_messages.create!(author: "user", content: "Hello")
     run = ManagementRunner.chat!(@user)
     runner = ManagementRunner.new(run)
     runner.send(:see_latest_message)
     stream = runner.send(:stream_reply)
     stream.call('{"reply": "Hi the')
-    assert_equal [ "Hi the", @user.chat_messages.last.id ], [ ReplyStream.read(run.id), ReplyStream.reply_to(run.id) ]
     @user.chat_messages.create!(author: "user", content: "Wait")
-    sleep 1.05 # the stream checks at most once a second
     stream.call('{"reply": "Hi there')
-    assert_nil ReplyStream.read(run.id)
+    assert_equal "Hi there", ReplyStream.read(run.id)
   ensure
     ReplyStream.clear(run.id) if run
+  end
+
+  # Owner fix ("jedna odpowiedź na wszystkie"): messages that waited in the chat arrive together; the director answers
+  # them once, and the proposal pass reads all of them as the request.
+  test "several messages that waited: one answer; the proposal pass reads all of them" do
+    space = @user.spaces.create!(name: "Home", kind: "team")
+    @user.chat_messages.create!(author: "director", content: "What next?")
+    @user.chat_messages.create!(author: "user", content: "Add an epic")
+    @user.chat_messages.create!(author: "user", content: "about backups, in Home")
+    run = ManagementRunner.chat!(@user)
+    File.write(File.join(@answers, "proposal"), { reply: "ok", actions: [ { type: "add_item", space: space.id, title: "Backups" } ] }.to_json)
+    File.write(File.join(@answers, "reply"), { reply: "Adding Backups.", actions: [ { type: "add_item", space: space.id, title: "Backups" } ] }.to_json)
+    Dir.mktmpdir do |bin|
+      File.write(File.join(bin, "claude"), <<~SH)
+        #!/bin/sh
+        input=$(cat)
+        printf '%s\\n=====\\n' "$input" >> "#{@answers}/prompts"
+        if printf '%s' "$input" | grep -q '^Earlier conversation'; then cat "#{@answers}/proposal"; else cat "#{@answers}/reply"; fi
+      SH
+      File.chmod(0o755, File.join(bin, "claude"))
+      original = ENV["PATH"]
+      ENV["PATH"] = "#{bin}:#{original}"
+      ManagementRunner.new(run).perform!
+    ensure
+      ENV["PATH"] = original
+    end
+    assert_match "Latest user message from #{@user.username}:\nAdd an epic\nabout backups, in Home", prompts.last
+    assert_equal 1, @user.chat_messages.where(author: "director").where.not(content: "What next?").count
+    assert @user.work_items.exists?(title: "Backups")
   end
 
   # Records what the chat shows while the proposal pass runs.

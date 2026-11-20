@@ -19,8 +19,19 @@ class ChatMessagesController < ApplicationController
                    team_stamp: team[:stamp], team: (team[:agents] if params[:team_stamp] != team[:stamp]) }
   end
 
+  # Owner fix ("moja wypowiedź czeka… do momentu, aż mówca skończy"): messages written while the director was still
+  # writing or speaking waited in the chat; they arrive together and get one answer.
+  MAX_WAITING = 10
+
   def create
-    send_message(params.dig(:chat_message, :content).to_s.strip, spoken: false)
+    contents = params.dig(:chat_message, :contents)
+    if contents.is_a?(Array)
+      return reject("At most #{MAX_WAITING} messages at once.") if contents.size > MAX_WAITING
+
+      send_messages(contents.map { |c| c.to_s.strip }, spoken: false)
+    else
+      send_message(params.dig(:chat_message, :content).to_s.strip, spoken: false)
+    end
   end
 
   # Spec 017: a submitted WAV is transcribed and saved as a spoken message.
@@ -37,15 +48,20 @@ class ChatMessagesController < ApplicationController
 
   private
 
-  def send_message(content, spoken:)
-    return reject("Choose a director on the Team page first.") unless current_user.director_role
-    return reject("Write a message.") if content.empty?
-    return reject("Messages are at most 5,000 characters.") if content.length > 5000
+  def send_message(content, spoken:) = send_messages([ content ], spoken:)
 
-    message = current_user.chat_messages.create!(author: "user", content: content, spoken: spoken)
-    ManagementRunner.chat!(current_user)
+  def send_messages(contents, spoken:)
+    return reject("Choose a director on the Team page first.") unless current_user.director_role
+    return reject("Write a message.") if contents.empty? || contents.any?(&:empty?)
+    return reject("Messages are at most 5,000 characters.") if contents.any? { |c| c.length > 5000 }
+
+    messages = ChatMessage.transaction { contents.map { |c| current_user.chat_messages.create!(author: "user", content: c, spoken: spoken) } }
+    ManagementRunner.chat!(current_user) # one answer to all of them
     respond_to do |format|
-      format.json { render json: { ok: true, message: helpers.chat_message_json(message), writing: director_writing? } }
+      format.json do
+        json = messages.map { |m| helpers.chat_message_json(m) }
+        render json: { ok: true, message: json.last, messages: json, writing: director_writing? }
+      end
       format.any { redirect_to director_path }
     end
   end

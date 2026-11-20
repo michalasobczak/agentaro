@@ -47,10 +47,12 @@
       <button type="button" class="team-summary" data-team-toggle aria-expanded="false"><span data-team-count><%= strip.count { |a| a[:status] == "busy" } %> of <%= strip.size %> busy</span></button>
       <ul class="team-list">
         <% strip.each do |member| %>
-          <li class="team-chip" data-team-agent="<%= member[:id] %>" title="<%= member[:name] %>: <%= member[:label] %>">
+          <%# Spec 024 (owner: "tylko inicjały… zamiast free kolorami"): initials with a coloured ring; the name and the
+              state stay in the tooltip and for screen readers. %>
+          <li class="team-chip is-<%= member[:status] %>" data-team-agent="<%= member[:id] %>" title="<%= member[:name] %>: <%= member[:label] %>">
             <%= agent_icon(agent_initials(member[:name]), tone: "tone-#{member[:id] % 8}", size: "strip", agent_id: member[:id], status: member) %>
-            <span class="team-name"><%= member[:name] %></span>
-            <span class="team-label small" data-team-label><%= agent_strip_label(member) %></span>
+            <span class="team-name visually-hidden"><%= member[:name] %></span>
+            <span class="team-label visually-hidden" data-team-label><%= agent_strip_label(member) %></span>
           </li>
         <% end %>
       </ul>

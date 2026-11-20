@@ -341,6 +341,7 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .from-user .bubble { background: var(--accent); border-color: var(--accent); color: #fff; border-bottom-right-radius: 0.35rem; }
 .from-system .bubble { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
 .bubble.is-pending { opacity: 0.6; }
+.bubble.is-waiting { opacity: 0.6; border-style: dashed; } /* spec 024: waits until the director has finished */
 .bubble.is-failed { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
 .bubble-name { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.1rem; overflow-wrap: anywhere; }
 .from-system .bubble-name { color: var(--warn); }
@@ -643,18 +644,20 @@ body:has(.chat-dock.is-voice) .content > .chat-app { display: none; }
 .team-summary { display: none; }
 .team-list { display: flex; gap: 0.4rem 1rem; min-width: 0; max-width: 100%; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: thin; }
 .team-chip { display: inline-flex; align-items: center; flex: none; gap: 0.35rem; max-width: min(100%, 22rem); white-space: nowrap; }
+/* Spec 024: in the chat strip each member is its initials; the colour shows what it is doing (green free, amber pulsing
+   busy); the name and the state are in the tooltip and for screen readers. */
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.team-chip .agent-icon.is-strip { width: 1.7rem; height: 1.7rem; font-size: 0.72rem; }
+.team-chip .status-dot { display: none; }
+.team-chip.is-free .agent-icon { background: var(--ok); color: #fff; }
+.team-chip.is-busy .agent-icon { background: var(--warn); color: #fff; animation: ring-pulse 1.6s ease-in-out infinite; }
+@keyframes ring-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 60%, transparent); } 50% { box-shadow: 0 0 0 0.3rem transparent; } }
+@media (prefers-reduced-motion: reduce) { .team-chip.is-busy .agent-icon { animation: none; } }
+.team-strip .team-list { gap: 0.6rem; }
 .team-name, .team-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .team-name { font-weight: 600; }
 .team-label { color: var(--muted); flex: none; max-width: 65%; }
-@media (max-width: 639px) {
-  .team-strip { flex-direction: column; align-items: stretch; }
-  .team-summary { display: inline-flex; align-self: flex-start; min-height: 0; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem;
-    background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
-  .team-list { display: none; flex-direction: column; overflow: visible; }
-  .team-strip.is-open .team-list { display: flex; }
-  .team-chip { max-width: 100%; white-space: normal; }
-  .team-name, .team-label { overflow-wrap: anywhere; }
-}
+/* Spec 024: initials only, so phones show the same single row (the "N of M busy" toggle is no longer needed). */
 
 .agent-status { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.5rem; }
 .agent-activities { display: inline-flex; flex-direction: column; }

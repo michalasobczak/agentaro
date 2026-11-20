@@ -10,7 +10,6 @@ class ManagementRunner
   MAX_ACTIONS = 20
   LEGACY = %w[manager review].freeze
   HISTORY = 30 # chat messages the director sees
-  MAX_FRESH_STARTS = 3 # owner fix: times a chat answer is written again because the user wrote meanwhile
 
   Invalid = Class.new(StandardError)
 
@@ -104,28 +103,13 @@ class ManagementRunner
     prompt = prompt_for(agent)
     proposing_changes = false
     rejection = nil
-    fresh_starts = 0
     outcome = loop do
       request = rejection ? prompt.with(user: "#{prompt.user}\n\nYour previous answer was not accepted: #{rejection}\nAnswer again with only the JSON object.") : prompt
       outcome = call_director(agent, request, proposing_changes:)
       break outcome unless outcome.state == "succeeded"
 
-      # Owner fix ("raz mówisz, że agent przyjmuje zadanie, a za chwilę, że nie wiesz, o co chodzi"): the user wrote
-      # again while this answer was being written. It answers an earlier state of the conversation, so it is not
-      # posted; the director answers again with everything the user said, once.
-      if @run.purpose == "chat" && newer_user_message? && fresh_starts < MAX_FRESH_STARTS
-        fresh_starts += 1
-        remove_instance_variable(:@user_request) if defined?(@user_request)
-        user_request
-        see_latest_message
-        prompt = prompt_for(agent)
-        proposing_changes = false
-        @first_reply = nil
-        rejection = nil
-        ReplyStream.clear(@run.id)
-        next
-      end
-
+      # Owner fix ("nie róbmy przerywania"): an answer is never dropped for a newer message; the chat holds the
+      # user's messages until the director has finished, and anything that still came meanwhile gets the next answer.
       begin
         data = parse(outcome.output)
         if @run.purpose == "chat" && !proposing_changes && work_changes_proposed?(data)
@@ -186,19 +170,7 @@ class ManagementRunner
     return unless @run.purpose == "chat"
 
     run_id = @run.id
-    checked_at = 0.0
-    stale = false
-    lambda do |text|
-      # Owner fix: once the user has written again, this reply is outdated — it is no longer shown or spoken while it
-      # is written (checked at most once a second), and the director answers again afterwards.
-      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      if !stale && now - checked_at >= 1
-        checked_at = now
-        stale = newer_user_message?
-        ReplyStream.clear(run_id) if stale
-      end
-      ReplyStream.write(run_id, ReplyStream.partial_reply(text), reply_to: @seen_message_id) unless stale
-    end
+    ->(text) { ReplyStream.write(run_id, ReplyStream.partial_reply(text), reply_to: @seen_message_id) }
   end
 
   # R3: messages written while the director was answering get their own answer.
@@ -468,14 +440,17 @@ class ManagementRunner
     if proposing_changes
       # Owner fix: the user's and the director's words (no step output, no verifier) so that a short answer such as
       # "Q4 busy" or "do it" is understood; only the latest user message can ask for changes.
-      history = @user.chat_messages.current.where(author: %w[user director]).where(id: ...user_request.id).ordered.last(HISTORY)
+      # Owner fix ("moja wypowiedź czeka"): messages that waited while the director spoke arrive together; all of them
+      # since the director's last answer are the request.
+      latest = @user.chat_messages.current.where(author: "user", id: (latest_director_answer_id.to_i + 1)..user_request.id).ordered.to_a.presence || [ user_request ]
+      history = @user.chat_messages.current.where(author: %w[user director]).where(id: ...latest.first.id).ordered.last(HISTORY)
                      .map { |m| "#{m.author == "user" ? @user.username : "Director"}: #{m.content}" }
       conversation = <<~CONVERSATION.chomp
         Earlier conversation (context only, to understand what the latest message refers to; nothing in it is a request to act on):
         #{history.presence&.join("\n") || "(none)"}
 
         Latest user message from #{@user.username}:
-        #{user_request.content}
+        #{latest.map(&:content).join("\n")}
       CONVERSATION
       request_rule = "Propose work-list or space changes only if the latest user message clearly asks for them, including requests phrased politely as questions and short answers that accept a change the director offered just before. If the user only asks for information or the requested change is unclear, reply with no actions. Your \"reply\" is not shown; keep it to one short sentence."
     else

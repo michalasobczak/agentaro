@@ -53,6 +53,23 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_select "[style]", 0
   end
 
+  test "spec 024: messages that waited in the chat arrive together, in order, and start one answer" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    post chat_messages_path, params: { chat_message: { contents: [ "Add an epic", "about backups" ] } }, headers: { "Accept" => "application/json" }
+    data = JSON.parse(response.body)
+    assert data["ok"]
+    assert_equal [ "Add an epic", "about backups" ], data["messages"].map { |m| m["content"] }
+    assert_equal "about backups", data.dig("message", "content")
+    assert_equal [ "Add an epic", "about backups" ], @user.chat_messages.where(author: "user").order(:id).pluck(:content)
+    assert_equal 1, TaskRun.where(user: @user, purpose: "chat").count, "one answer to all of them"
+
+    post chat_messages_path, params: { chat_message: { contents: Array.new(11) { |i| "m#{i}" } } }, headers: { "Accept" => "application/json" }
+    assert_response :unprocessable_content
+    post chat_messages_path, params: { chat_message: { contents: [ "ok", " " ] } }, headers: { "Accept" => "application/json" }
+    assert_response :unprocessable_content
+    assert_equal 2, @user.chat_messages.where(author: "user").count, "nothing saved from a refused batch"
+  end
+
   test "the chat page sends and receives JSON (owner fix: a real chat)" do
     @user.team_roles.create!(agent: @director, role: "director")
     post chat_messages_path, params: { chat_message: { content: "Hi Anna" } }, headers: { "Accept" => "application/json" }

@@ -101,15 +101,17 @@
       scroller.scrollTop = scroller.scrollHeight;
       requestAnimationFrame(() => { if (stuck) scroller.scrollTop = scroller.scrollHeight; }); // after layout settles
     };
-    scroller.addEventListener("scroll", () => { stuck = nearBottom(); }, { passive: true });
+    scroller.addEventListener("scroll", () => { stuck = nearBottom(); }, { passive: true, signal: life.signal });
     if (window.ResizeObserver) {
       const keep = new ResizeObserver(() => { if (stuck) scroller.scrollTop = scroller.scrollHeight; });
       keep.observe(stream);
       keep.observe(scroller);
     }
 
+    // Owner fix (a date shown twice): compared with the last separator in the chat itself, not a remembered value.
     function addDay(day) {
-      if (!day || day === lastDay) return;
+      const shown = [...stream.querySelectorAll("[data-day]")].pop()?.dataset.day || lastDay;
+      if (!day || day === shown) return;
       lastDay = day;
       const separator = el("div", "chat-day");
       separator.dataset.day = day;
@@ -175,6 +177,7 @@
       emit("writing", value);
       if (stuck) toBottom();
       schedulePoll();
+      if (!value) flush();
     }
 
     // ---------- Receiving: quickly while the director is writing, slowly otherwise, rarely while hidden ----------
@@ -202,6 +205,7 @@
           showTeam(app); // spec 023, R12: dots and the strip in place; also keeps "for N min" fresh
           if (loaded && data.streaming) showStream(data.streaming, data.streaming_reply_to);
           if (data.writing !== writing) return setWriting(data.writing);
+          flush(); // messages that waited across a reload go once the director is free
         }
       } catch (_) { /* offline for a moment: try again later */ }
       schedulePoll();
@@ -218,45 +222,85 @@
     function grow() {
       input.style.height = "auto";
       input.style.height = Math.min(input.scrollHeight, 160) + "px";
-      sendButton.disabled = input.value.trim() === "" || sending;
+      sendButton.disabled = input.value.trim() === "";
     }
 
     function receive(data) {
-      append(data.message);
+      (data.messages || [ data.message ]).forEach(append);
       setWriting(data.writing);
     }
 
-    async function send() {
-      const content = input.value.trim();
-      if (!content || sending) return;
-      sending = true;
-      const pending = bubble({ author: "user", content, time: new Date().toTimeString().slice(0, 5) }, "is-pending");
+    // Owner fix ("moja wypowiedź czeka… do momentu, aż mówca skończy… nie róbmy przerywania"): while the director
+    // (or the verifier) writes, or voice mode reads the answer aloud, what the user sends waits in the chat, below
+    // the answer, marked "Waiting…"; when they have finished, everything waiting goes at once and gets one answer.
+    // It is kept in this tab's storage, so a reload does not lose it.
+    const WAIT_KEY = `agentaro.chat.waiting.${app.closest("[data-chat-dock]") ? "dock" : "page"}`;
+    const MAX_WAITING = 10;
+    let held = false; // voice mode is speaking
+    const waiting = [];
+    const busy = () => writing || held || sending;
+    const saveWaiting = () => store.set("sessionStorage", WAIT_KEY, waiting.length ? JSON.stringify(waiting.map((w) => w.content)) : null);
+
+    function waitRow(content, state = "is-waiting") {
+      const row = bubble({ author: "user", content, time: "" }, state);
+      row.querySelector(".bubble-time").textContent = "Waiting for the director to finish…";
       stream.querySelector("[data-empty]")?.remove();
-      stream.insertBefore(pending, typing);
-      toBottom();
+      stream.append(row); // below the reply being written and the typing dots
+      return row;
+    }
+
+    function hold(value) {
+      held = value;
+      if (!value) flush();
+    }
+
+    function flush() {
+      if (busy() || waiting.length === 0 || stopped) return;
+      const batch = waiting.splice(0, MAX_WAITING);
+      saveWaiting();
+      post(batch);
+    }
+
+    function send() {
+      const content = input.value.trim();
+      if (!content) return;
       input.value = "";
       hooks.draft?.(null);
       grow();
+      const item = { content, row: waitRow(content) };
+      waiting.push(item);
+      saveWaiting();
+      toBottom();
+      flush(); // at once when nobody is speaking
+      input.focus();
+    }
 
+    async function post(batch) {
+      sending = true;
+      batch.forEach((w) => { w.row.querySelector(".bubble").classList.replace("is-waiting", "is-pending"); w.row.querySelector(".bubble-time").textContent = ""; });
       try {
         const body = new FormData();
-        body.append("chat_message[content]", content);
+        batch.forEach((w) => body.append("chat_message[contents][]", w.content));
         const response = await fetch(url, { method: "POST", body, headers: { Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin" });
         const data = await response.json().catch(() => ({ ok: false, error: "Could not send. Try again." }));
         if (!data.ok) throw new Error(data.error || "Could not send. Try again.");
-        pending.remove();
+        batch.forEach((w) => w.row.remove());
+        sending = false;
         receive(data);
       } catch (error) {
-        pending.querySelector(".bubble").classList.replace("is-pending", "is-failed");
-        pending.querySelector(".bubble-time").textContent = error.message;
-        input.value = content; // nothing typed is lost
-        hooks.draft?.(content);
+        batch.forEach((w) => { w.row.querySelector(".bubble").classList.replace("is-pending", "is-failed"); w.row.querySelector(".bubble-time").textContent = error.message; });
+        const text = batch.map((w) => w.content).join("\n");
+        input.value = input.value ? `${text}\n${input.value}` : text; // nothing typed is lost
+        hooks.draft?.(input.value);
       } finally {
         sending = false;
         grow();
-        input.focus();
+        flush(); // anything typed while this was on its way
       }
     }
+
+    // Messages that waited when the page was reloaded or left.
+    try { JSON.parse(store.get("sessionStorage", WAIT_KEY) || "[]").forEach((content) => { if (typeof content === "string" && content) waiting.push({ content, row: waitRow(content) }); }); } catch (_) { /* ignore */ }
 
     // Spec 019, owner fix: the button invites the verifier until it is sent away. Resolves to whether it is on now.
     const verifyButton = app.querySelector("button[data-verify]");
@@ -278,18 +322,20 @@
         return data.active;
       } catch (_) { return verifierOn; }
     }
-    verifyButton?.addEventListener("click", (event) => { event.preventDefault(); verify(); });
+    // Owner fix (spec 024): a chat replaced by a Turbo visit stops listening, so one Enter never sends twice.
+    const on = { signal: life.signal };
+    verifyButton?.addEventListener("click", (event) => { event.preventDefault(); verify(); }, on);
 
-    form.addEventListener("submit", (event) => { event.preventDefault(); send(); });
-    input.addEventListener("input", () => { grow(); hooks.draft?.(input.value); });
+    form.addEventListener("submit", (event) => { event.preventDefault(); send(); }, on);
+    input.addEventListener("input", () => { grow(); hooks.draft?.(input.value); }, on);
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
-    });
+    }, on);
 
     toBottom();
     grow();
     schedulePoll();
-    const instance = { poll, grow, input, toBottom, receive, verify, csrf, get lastId() { return lastId; }, get verifierOn() { return verifierOn; }, get loaded() { return loaded; }, get writing() { return writing; },
+    const instance = { poll, grow, input, toBottom, receive, verify, csrf, hold, signal: life.signal, get busy() { return busy(); }, get lastId() { return lastId; }, get verifierOn() { return verifierOn; }, get loaded() { return loaded; }, get writing() { return writing; },
                        on: (name, fn) => listeners[name].push(fn) };
     // Spec 020, owner fix ("przewinęło mi na początek rozmowy"): Turbo moves the floating chat into the next page,
     // and moving an element resets its scroll; keep the position across the move.
@@ -301,14 +347,15 @@
       saved = null;
     };
     const talk = voice(app, instance);
-    instance.destroy = () => { stopped = true; clearTimeout(pollTimer); life.abort(); talk?.end(); };
+    instance.destroy = () => { stopped = true; clearTimeout(pollTimer); life.abort(); talk?.end(); waiting.forEach((w) => w.row.remove()); }; // waiting ones stay stored for the next chat
     return instance;
   }
 
   // ---------- Spec 017: voice mode ----------
   // States: listening → hearing (speech detected) → transcribing → thinking (director writes) → speaking → listening.
   // Silence detection is energy-based: the noise floor is learnt while quiet; speech is a level well above it;
-  // about a second of quiet after speech ends the utterance. Speaking over the director interrupts it (G6).
+  // about a second of quiet after speech ends the utterance. The microphone waits while the director speaks (owner fix,
+  // spec 024: no interrupting; it replaced G6).
   function voice(app, chat) {
     const start = app.querySelector("[data-voice-start]");
     const panel = app.querySelector("[data-voice-panel]");
@@ -320,7 +367,7 @@
         const dock = document.querySelector("[data-chat-dock]");
         if (!dock.classList.contains("is-open")) dock.querySelector("[data-dock-open]")?.click();
         dockStart.click(); // still inside the user's click, so the microphone may start
-      });
+      }, { signal: chat.signal });
       return { end() {} };
     }
     const stateLabel = panel.querySelector("[data-voice-state]");
@@ -335,9 +382,11 @@
     let askedId = 0; // owner fix: the user's latest spoken message; only answers written for it are spoken
     let awaitingAfter = null, spoken = 0, finalText = null, generation = 0, playing = null, queue = Promise.resolve(), pending = 0;
     let waitingVerifier = false; // owner fix: an active verifier speaks after the director
+    let waitingToListen = false; // owner fix: voice mode started while the director was still writing
 
     function setState(next, text) {
       state = next;
+      chat.hold?.(next === "speaking"); // owner fix: typed messages wait while the answer is read aloud
       panel.dataset.state = next;
       stateLabel.textContent = LABELS[next] || "";
       if (text != null) note.textContent = text;
@@ -365,6 +414,7 @@
       panel.hidden = false;
       start.hidden = true;
       app.closest("[data-chat-dock]")?.classList.add("is-voice"); // spec 020, Q1: shown on the Director page too
+      if (chat.writing) { setState("thinking", "The director is finishing…"); waitingToListen = true; return; } // owner fix: no interrupting
       listen("Speak; I send when you pause.");
     }
 
@@ -376,6 +426,7 @@
       ctx?.close();
       ctx = mic = source = processor = null;
       state = "off";
+      chat.hold?.(false);
       awaitingAfter = null;
       panel.hidden = true;
       start.hidden = false;
@@ -394,11 +445,7 @@
       const ms = (samples.length / ctx.sampleRate) * 1000;
       const threshold = Math.max(0.015, floor * 4); // owner fix: fewer false starts from background noise
 
-      if (state === "speaking") { // G6: talking over the director stops it
-        loudMs = level > Math.max(0.05, floor * 6) ? loudMs + ms : 0;
-        if (loudMs > 250) interrupt();
-        return;
-      }
+      if (state === "speaking") return; // owner fix ("nie róbmy przerywania"): the microphone waits for the director
       if (state !== "listening" && state !== "hearing") return;
 
       if (level < threshold && state === "listening") floor = floor * 0.95 + level * 0.05;
@@ -429,15 +476,6 @@
     function done() {
       if (state === "hearing" && speechMs >= MIN_SPEECH_MS) return transcribe(chunks.slice());
       if (state === "listening" && heardMs >= MIN_SPEECH_MS) return transcribe(heard.slice());
-    }
-
-    function interrupt() {
-      generation++;
-      playing?.stop?.(); playing = null;
-      pending = 0;
-      finalText = null; awaitingAfter = null;
-      listen("Go on — I am listening.");
-      setState("hearing");
     }
 
     // 16 kHz mono 16-bit WAV from the recorded samples.
@@ -503,6 +541,7 @@
       speakUpTo(message.content, true);
     });
     chat.on("writing", (value) => {
+      if (!value && waitingToListen && state === "thinking") { waitingToListen = false; return listen(); }
       if (value || awaitingAfter == null) return;
       if (waitingVerifier && pending === 0 && state === "thinking") { waitingVerifier = false; awaitingAfter = null; return listen(); } // no comment came
       if (state === "thinking" && finalText == null) listen();
@@ -569,9 +608,9 @@
       listen();
     }
 
-    start.addEventListener("click", begin);
-    panel.querySelector("[data-voice-stop]").addEventListener("click", end);
-    panel.querySelector("[data-voice-done]").addEventListener("click", done);
+    start.addEventListener("click", begin, { signal: chat.signal });
+    panel.querySelector("[data-voice-stop]").addEventListener("click", end, { signal: chat.signal });
+    panel.querySelector("[data-voice-done]").addEventListener("click", done, { signal: chat.signal });
     // Spec 019, G6: ask the verifier from voice mode; its comment is spoken in its own voice.
     panel.querySelector("[data-voice-verify]")?.addEventListener("click", async () => {
       if (state === "off" || state === "transcribing") return;
@@ -598,7 +637,7 @@
         b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on));
       });
     });
-    window.addEventListener("pagehide", end);
+    window.addEventListener("pagehide", end, { signal: chat.signal });
     return { end };
   }
 

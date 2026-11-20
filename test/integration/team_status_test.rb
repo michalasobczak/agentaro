@@ -93,6 +93,11 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
       assert_select ".team-chip[data-team-agent='#{@evidence.id}'] [data-team-label]", text: "busy · World review · step 2/4: Collect evidence · for 3 min"
       assert_select ".team-chip[data-team-agent='#{@analyst.id}'] .status-dot.is-free"
       assert_select ".team-chip[data-team-agent='#{@analyst.id}'] [data-team-label]", text: "free"
+      # Spec 024: initials only, the state as the ring's colour; name and state for screen readers and the tooltip.
+      assert_select ".team-chip.is-busy[data-team-agent='#{@evidence.id}'][title^='Evidence Agent: busy']"
+      assert_select ".team-chip.is-free[data-team-agent='#{@analyst.id}']"
+      assert_select ".team-chip .team-name.visually-hidden", text: "Evidence Agent"
+      assert_select ".team-chip .team-label.visually-hidden", 2
       assert_select ".team-chip[data-team-agent='#{@director.id}']", 0, "members only"
     end
     get team_path # the floating chat on every other page has the strip too

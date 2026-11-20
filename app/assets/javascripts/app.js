@@ -112,6 +112,8 @@ window.agentaroTeamStatus = (() => {
       });
       root.querySelectorAll(`[data-team-agent="${agent.id}"]`).forEach((chip) => {
         chip.title = `${agent.name}: ${agent.label}`;
+        chip.classList.toggle("is-busy", agent.status === "busy"); // spec 024: the ring's colour
+        chip.classList.toggle("is-free", agent.status !== "busy");
         const label = chip.querySelector("[data-team-label]");
         if (label) label.textContent = stripText(agent);
       });
