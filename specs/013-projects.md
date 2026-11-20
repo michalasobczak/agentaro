@@ -1,8 +1,8 @@
-# 012 — Projects
+# 013 — Projects
 
 Status: **draft**
 Date: 2026-11-20
-Depends on: [011](011-list-and-management.md)
+Depends on: [011](011-list-and-management.md), [012](012-remove-managers.md)
 
 ## 1. TL;DR
 
@@ -18,7 +18,7 @@ Every user groups their work into **projects** (e.g. "company X", "house renovat
 - Projects are the user's own; shared projects later (Q1).
 - The user talks only to the director (spec 011, Q7; confirmed 2026-11-20).
 - Memory, when it comes, is **per project** (what the user wants to achieve in it) and **per agent** (what each agent remembers itself); no memory of the user's preferences (owner: "istotne jest co chcę uzyskać na poziomie projektu, i co każdy z agentów sam pamięta"). Memory itself is a later spec.
-- Projects come first as spec 012; the feedback loop, isolation of agents, memory and self-improvement follow later. The memory draft (old spec 014) was dropped.
+- Projects come first as spec 012, then 013 after the owner put the removal of managers first (2026-11-20); the feedback loop, isolation of agents, memory and self-improvement follow later. The memory draft (old spec 014) was dropped.
 
 ## 3. Objective
 

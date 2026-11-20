@@ -82,17 +82,27 @@ module ApplicationHelper
 
   # Spec 011: states of work items.
   def item_state_badge(item)
-    kind = { "planned" => "accent", "done" => "ok", "blocked" => "bad", "with_manager" => "warn", "cancelled" => nil, "new" => nil }[item.state]
+    kind = { "planned" => "accent", "done" => "ok", "blocked" => "bad", "cancelled" => nil, "new" => nil }[item.state]
     badge(item.state_label, kind)
   end
 
-  # Spec 011: a chat message as the chat page shows it (rendered by the server and by chat.js alike).
+  # Spec 011/012: what a management run did. Before spec 012 a "director" run of an item chose a manager.
+  def run_purpose_label(run)
+    case run.purpose
+    when "chat" then "chat"
+    when "director" then run.work_item&.runs&.exists?(purpose: "manager") ? "director chose a manager" : "director planned"
+    when "manager" then "manager planned (before spec 012)"
+    when "review" then "director reviewed the plan (before spec 012)"
+    end
+  end
+
   # The floating chat (owner fix after spec 011): on every page except the director's own, for users with a director.
   def chat_dock_director
     return unless signed_in? && !controller_path.in?(%w[directors chat_messages])
     current_user.director_role&.agent
   end
 
+  # Spec 011: a chat message as the chat page shows it (rendered by the server and by chat.js alike).
   def chat_message_json(message)
     director = message.user.director_role&.agent
     { id: message.id, author: message.author,

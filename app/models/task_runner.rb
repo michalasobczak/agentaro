@@ -32,7 +32,7 @@ class TaskRunner
               "When: #{starts.strftime("%A %-d %B %Y, %H:%M")} – #{ends.strftime(starts.to_date == ends.to_date ? "%H:%M" : "%A %-d %B %Y, %H:%M")} (#{Time.zone.name})" ]
     lines << "Location: #{task.location}" if task.location.present?
     lines << "\nDetails:\n#{task.description}" if task.description.present?
-    lines << "\nThis is one step of the work item \"#{task.work_item.title}\" planned by your manager." if task.work_item # spec 011
+    lines << "\nThis is one step of the work item \"#{task.work_item.title}\" planned by your director." if task.work_item # spec 011, 012
     lines << "\nDo the task now and answer with the result."
     Prompt.new(system: agent.master_prompt, user: lines.join("\n"))
   end

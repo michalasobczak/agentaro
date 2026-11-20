@@ -6,7 +6,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     @user = create_user
     @executor = Executor.create!(name: "Claude", preset: "claude_code")
     @director = Agent.create!(user: @user, name: "Dyrektor", master_prompt: "x", executor: @executor)
-    @manager = Agent.create!(user: @user, name: "Kierownik", master_prompt: "x", executor: @executor)
+    @member = Agent.create!(user: @user, name: "Badacz", master_prompt: "x", executor: @executor)
     sign_in(@user)
   end
 
@@ -14,19 +14,23 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     get team_path
     assert_select ".org", 0
     post team_roles_path, params: { team_role: { role: "director", agent_id: @director.id } }
-    post team_roles_path, params: { team_role: { role: "manager", agent_id: @manager.id } }
-    manager_role = @user.team_roles.managers.sole
-    post team_roles_path, params: { team_role: { role: "member", agent_id: @director.id, parent_id: manager_role.id, role_text: "reviewer" } }
+    post team_roles_path, params: { team_role: { role: "member", agent_id: @member.id, role_text: "researcher" } }
+    post team_roles_path, params: { team_role: { role: "member", agent_id: @director.id, role_text: "reviewer" } }
     get team_path
     assert_select ".org-node.is-director", text: /Dyrektor/
-    assert_select ".org-node.is-manager", text: /Kierownik/
-    assert_select ".org ul ul .org-node", text: /reviewer.*Dyrektor/m
+    assert_select ".org > li > ul > li > .org-node", 2, "spec 012: members directly under the director"
+    assert_select ".org-node", text: /researcher.*Badacz/m
+    assert_select ".org-node", text: /reviewer.*Dyrektor/m
+    assert_select ".org ul ul", 0, "two levels only"
+    assert_no_match(/manager/i, response.body)
     assert_select "[style]", 0
 
-    post team_roles_path, params: { team_role: { role: "director", agent_id: @manager.id } }
+    post team_roles_path, params: { team_role: { role: "director", agent_id: @member.id } }
     assert_equal "You already have a director", flash[:alert]
-    delete team_role_path(manager_role)
-    assert_equal 1, @user.team_roles.count, "a manager leaves with their team"
+    post team_roles_path, params: { team_role: { role: "manager", agent_id: @member.id } }
+    assert_match "Role is not included", flash[:alert], "spec 012: no managers"
+    delete team_role_path(@user.team_roles.members.find_by(agent: @member))
+    assert_equal 2, @user.team_roles.count
   end
 
   test "G1: writing to the director queues one chat run; the chat shows messages and actions as text" do

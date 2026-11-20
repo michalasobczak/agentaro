@@ -1,14 +1,14 @@
-# Spec 011: the management — director and managers — runs like any agent (spec 010) but answers in JSON.
+# Spec 011, corrected by spec 012: the director runs like any agent (spec 010) but answers in JSON.
 # Agents propose, Agentaro applies (R1): every answer is parsed, checked against the user's own list, team
 # and the rules, and only then applied. An invalid answer is retried once with the errors.
 #
-# Purposes: "chat" (director answers the user, G1), "director" (picks a manager, G5), "manager" (plans
-# steps, G6), "review" (director approves or rejects the plan, G7).
+# Purposes: "chat" (the director answers the user, spec 011 G1) and "director" (the director plans a due item
+# for its members, spec 012 G2). "manager" and "review" exist only in runs from before spec 012.
 class ManagementRunner
   MAX_STEPS = 10
   HORIZON = 14.days
-  MAX_REPLANS = 3
   MAX_ACTIONS = 20
+  LEGACY = %w[manager review].freeze
   HISTORY = 30 # chat messages the director sees
 
   Invalid = Class.new(StandardError)
@@ -31,7 +31,8 @@ class ManagementRunner
     queue!(user: user, purpose: "chat", agent: director)
   end
 
-  # Items whose time has come go to the director (G5); called by the scheduler and after chat actions.
+  # Items whose time has come go to the director to be planned (spec 012, G2); called by the scheduler and
+  # after chat actions.
   def self.dispatch_due(now: Time.current, user: nil)
     scope = WorkItem.due(now)
     scope = scope.where(user: user) if user
@@ -55,6 +56,10 @@ class ManagementRunner
   end
 
   def perform!
+    if LEGACY.include?(@run.purpose)
+      return TaskRunner.finish!(@run, AgentCall::Outcome.new("skipped", nil, "Managers were removed (spec 012).", nil))
+    end
+
     agent = @run.agent
     return fail!("The #{role_name} is no longer set.") unless agent
 
@@ -96,7 +101,7 @@ class ManagementRunner
     self.class.chat!(@user) if @user.chat_messages.where(author: "user").where("created_at > ?", @run.started_at).exists?
   end
 
-  def role_name = { "chat" => "director", "director" => "director", "review" => "director", "manager" => "manager" }[@run.purpose]
+  def role_name = "director"
 
   # The answer is the first JSON object in the output (models sometimes wrap it in code fences).
   def parse(output)
@@ -113,9 +118,7 @@ class ManagementRunner
   def apply!(data)
     case @run.purpose
     when "chat" then apply_chat!(data)
-    when "director" then apply_pick!(data)
-    when "manager" then apply_plan!(data)
-    when "review" then apply_review!(data)
+    when "director" then apply_plan!(data)
     end
   end
 
@@ -140,9 +143,7 @@ class ManagementRunner
   def prompt_for(agent)
     rules = case @run.purpose
             when "chat" then chat_prompt
-            when "director" then pick_prompt
-            when "manager" then plan_prompt
-            when "review" then review_prompt
+            when "director" then plan_prompt
             end
     AgentCall::Prompt.new(system: agent.master_prompt, user: [ context_header, rules ].join("\n\n"))
   end
@@ -152,16 +153,17 @@ class ManagementRunner
     "You work in Agentaro for #{@user.username}. Now: #{now.strftime("%A %-d %B %Y, %H:%M")} (#{Time.zone.name}).\nMode: #{@run.purpose}"
   end
 
+  def team_members = @user.team_roles.members.includes(agent: :executor).order(:id).to_a
+
+  def member_line(member)
+    agent = member.agent
+    "- Member id #{agent.id}: #{agent.name}, role: #{member.role_text || "-"}#{" — #{agent.description}" if agent.description.present?}#{" (not available)" unless agent.usable?}"
+  end
+
   def team_text
-    director = @user.director_role
-    managers = @user.team_roles.managers.includes(:agent, members: :agent).order(:id)
-    lines = [ "Team:", "- Director: #{director&.agent&.name || "none"}" ]
-    managers.each do |m|
-      lines << "- Manager id #{m.agent_id}: #{m.agent.name}#{" — #{m.agent.description}" if m.agent.description}#{" (not available)" unless m.agent.usable?}"
-      m.members.each { |member| lines << "  - Member id #{member.agent_id}: #{member.agent.name}, role: #{member.role_text || "-"}#{" (not available)" unless member.agent.usable?}" }
-    end
-    lines << "  (no managers yet)" if managers.empty?
-    lines.join("\n")
+    members = team_members
+    [ "Team:", "- Director: #{@user.director_role&.agent&.name || "none"} (you)",
+      *members.map { |m| member_line(m) }, ("  (no members yet)" if members.empty?) ].compact.join("\n")
   end
 
   def item_line(item)
@@ -183,7 +185,7 @@ class ManagementRunner
     list = @user.work_items.where(state: WorkItem::OPEN + %w[planned]).listed.limit(50).map { |i| item_line(i) }
     history = @user.chat_messages.ordered.last(HISTORY).map { |m| "#{m.author == "user" ? @user.username : m.author.capitalize}: #{m.content}" }
     <<~PROMPT
-      You are the director. #{@user.username} talks only to you. Keep their work list from the conversation; your managers will plan the items.
+      You are the director. #{@user.username} talks only to you. Keep their work list from the conversation; when an item's time comes, you will plan it for your team members.
 
       #{team_text}
 
@@ -204,38 +206,16 @@ class ManagementRunner
     PROMPT
   end
 
-  def pick_prompt
-    <<~PROMPT
-      You are the director. Choose the manager who should plan this work item.
-
-      #{item_text(@item)}
-
-      #{team_text}
-
-      Reply with ONLY one JSON object, no other text:
-      {"manager": <manager id from the team>, "note": "what the manager should know"}
-      or, if no manager fits or you need #{@user.username}'s decision:
-      {"blocked": "your question to #{@user.username}"}
-    PROMPT
-  end
-
-  def manager_members
-    role = @user.team_roles.managers.find_by(agent_id: @item.manager_agent_id)
-    role ? role.members.includes(agent: :executor).to_a : []
-  end
-
   def plan_prompt
     now = Time.current
     busy = Task.occurrences_for(@user, now...(now + HORIZON)).reject(&:all_day?).first(100).map do |o|
       "- #{o.starts_at.in_time_zone.strftime("%a %Y-%m-%d %H:%M")}–#{o.ends_at.in_time_zone.strftime("%H:%M")}"
     end
-    members = manager_members.map { |m| "- id #{m.agent_id}: #{m.agent.name}, role: #{m.role_text || "-"}#{" (not available)" unless m.agent.usable?}" }
+    members = team_members.map { |m| member_line(m) }
     <<~PROMPT
-      You are a manager. Break the work item into steps for your team members and schedule them.
+      You are the director. Break the work item into steps for your team members and schedule them. Agentaro puts your plan in the calendar as it is; nobody reviews it, so make it right.
 
       #{item_text(@item)}
-      Director's note: #{@item.director_note.presence || "-"}
-      #{"The director rejected your previous plan: #{@item.review_comment}" if @item.review_comment.present?}
 
       Your team members (use only these ids):
       #{members.presence&.join("\n") || "(none)"}
@@ -245,27 +225,8 @@ class ManagementRunner
 
       Rules: 1 to #{MAX_STEPS} steps; each step 1 to 5760 minutes; start after now and within 14 days#{", not before the handle-from time" if @item.handle_from}#{", ending by the due date" if @item.due_on}; steps run at their start time, so order them in time.
       Reply with ONLY one JSON object, no other text:
-      {"summary": "the plan in one or two sentences", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>, "starts_at": "YYYY-MM-DDTHH:MM", "minutes": 30}]}
-      or, if you cannot plan it: {"blocked": "why"}
-    PROMPT
-  end
-
-  def review_prompt
-    steps = (@item.plan || {})["steps"].to_a.map do |s|
-      "- #{s["starts_at"]} (#{s["minutes"]} min) #{s["title"]} → #{Agent.find_by(id: s["agent"])&.name}: #{s["description"].to_s.truncate(300)}"
-    end
-    <<~PROMPT
-      You are the director. A manager proposed this plan. Approve it, or reject it with a comment so the manager plans again.
-
-      #{item_text(@item)}
-      Your note to the manager: #{@item.director_note.presence || "-"}
-      Plan summary: #{@item.plan_summary}
-      Steps:
-      #{steps.join("\n")}
-
-      Reply with ONLY one JSON object, no other text:
-      {"approve": true, "note": "short message to #{@user.username} about the plan"}
-      or {"approve": false, "comment": "what the manager must change"}
+      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>, "starts_at": "YYYY-MM-DDTHH:MM", "minutes": 30}]}
+      or, if you cannot plan it or need #{@user.username}'s decision: {"blocked": "your question to #{@user.username}"}
     PROMPT
   end
 
@@ -343,30 +304,15 @@ class ManagementRunner
     raise Invalid, "#{field} is not a date and time"
   end
 
-  def apply_pick!(data)
-    return block_with_question!(data["blocked"]) if data["blocked"].present?
-
-    role = @user.team_roles.managers.find_by(agent_id: data["manager"])
-    raise Invalid, "\"manager\" must be the id of one of the managers in the team" unless role
-    raise Invalid, "manager #{role.agent.name} is not available" unless role.agent.usable?
-
-    @item.update!(state: "with_manager", manager_agent: role.agent, director_note: data["note"].to_s.truncate(2000).presence,
-                  replan_count: 0, review_comment: nil, proposed_plan: nil)
-    self.class.queue!(user: @user, purpose: "manager", work_item: @item, agent: role.agent)
-  end
-
   def apply_plan!(data)
     return block_with_question!(data["blocked"]) if data["blocked"].present?
 
     steps = data["steps"]
     raise Invalid, "\"steps\" must be a list of 1 to #{MAX_STEPS} steps" unless steps.is_a?(Array) && steps.size.between?(1, MAX_STEPS)
 
-    members = manager_members.to_h { |m| [ m.agent_id, m.agent ] }
-    checked = steps.each_with_index.map { |step, i| check_step(step, i + 1, members) }
-    @item.update!(proposed_plan: { "summary" => data["summary"].to_s.truncate(2000), "steps" => checked }.to_json,
-                  plan_summary: data["summary"].to_s.truncate(2000).presence)
-    director = @user.director_role&.agent or return @item.block!("No director to review the plan.")
-    self.class.queue!(user: @user, purpose: "review", work_item: @item, agent: director)
+    members = team_members.to_h { |m| [ m.agent_id, m.agent ] }
+    checked = steps.each_with_index.map { |step, i| check_step(step, i + 1, members) } # all checked before any is saved
+    schedule!(checked, data["summary"].to_s.strip.truncate(2000).presence)
   end
 
   def check_step(step, number, members)
@@ -392,39 +338,18 @@ class ManagementRunner
       "starts_at" => starts.iso8601, "minutes" => minutes }
   end
 
-  def apply_review!(data)
-    raise Invalid, "\"approve\" must be true or false" unless [ true, false ].include?(data["approve"])
-
-    if data["approve"]
-      approve_plan!(data["note"])
-    else
-      count = @item.replan_count + 1
-      if count > MAX_REPLANS
-        @item.block!("The director rejected the plan #{MAX_REPLANS} times: #{data["comment"]}")
-        return say("director", "I could not get a good plan for \"#{@item.title}\" after #{MAX_REPLANS} tries: #{data["comment"]}")
-      end
-
-      @item.update!(replan_count: count, review_comment: data["comment"].to_s.truncate(2000))
-      self.class.queue!(user: @user, purpose: "manager", work_item: @item, agent: @item.manager_agent)
-    end
-  end
-
-  # G7: an approved plan becomes calendar tasks. Times are checked again: a step whose time passed while the
-  # plan was reviewed is moved to start one minute from now.
-  def approve_plan!(note)
-    steps = @item.plan&.fetch("steps", []).to_a
-    raise Invalid, "there is no plan to approve" if steps.empty?
-
+  # Spec 012, G3: a checked plan becomes calendar tasks for the members, and the user is told in the chat.
+  def schedule!(steps, summary)
     tasks = Task.transaction do
       steps.map do |step|
-        starts = [ Time.zone.parse(step["starts_at"]), 1.minute.from_now.change(sec: 0) + 1.minute ].max
+        starts = Time.zone.parse(step["starts_at"])
         Task.create!(user: @user, calendar: "private", title: step["title"], description: step["description"].presence,
                      starts_at: starts, ends_at: starts + step["minutes"].to_i.minutes, agent_id: step["agent"], work_item: @item)
       end
     end
-    @item.update!(state: "planned", proposed_plan: nil, review_comment: nil, blocked_reason: nil)
+    @item.update!(state: "planned", plan_summary: summary, blocked_reason: nil)
     first = tasks.min_by(&:starts_at)
-    say("director", "#{note.to_s.strip.presence || "Planned."}\n\nPlanned \"#{@item.title}\": #{tasks.size} step#{"s" unless tasks.size == 1}, first on #{first.starts_at.in_time_zone.strftime("%A %-d %B, %H:%M")}.")
+    say("director", "#{summary || "Planned."}\n\nPlanned \"#{@item.title}\": #{tasks.size} step#{"s" unless tasks.size == 1}, first on #{first.starts_at.in_time_zone.strftime("%A %-d %B, %H:%M")}.")
   end
 
   def block_with_question!(question)

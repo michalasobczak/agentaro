@@ -75,7 +75,7 @@ Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything e
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
-- **Director and management (spec 011):** you talk only to your director in a chat — on the Director page, or from any page in a panel on the right. The director keeps your work list, picks a manager for each item, and approves the manager's plan; the steps go into the calendar for the manager's team members. Your team (director, managers, members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
+- **Director and management (specs 011, 012):** you talk only to your director in a chat — on the Director page, or from any page in a panel on the right. The director keeps your work list and, when an item's time comes, plans it as steps for the members of your team (spec 012: no managers); the steps go into the calendar. Your team (director and members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
 - **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
 - **Executors (spec 008):** the AI tools Agentaro can use, managed by admins from built-in presets — command-line tools logged in on this computer (Claude Code, Codex, Gemini CLI, Grok CLI, Ollama, LM Studio) and local APIs that need no key (Ollama, LM Studio, OpenAI-compatible servers). On-demand check: version of the program, or list of models. Users see the list read-only. No keys or tokens are stored; subscriptions are used by logging in on the host (`claude login`, `codex login`).
@@ -104,7 +104,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-19: spec 011 implemented — chat with the director, work list, managers' plans approved by the director, org chart; verified with Claude. Tests: 175. Security analysis: F14 (no budget yet) and F15 (management runs have full tools) open (feedback loop and isolation specs).
 - 2026-11-20: the chat with the director floats on every page as a panel on the right, opened and hidden by the user.
 - 2026-11-20: roadmap changed by the owner — projects first (spec 012, draft); the memory draft dropped.
-- Next: 012 projects; later, without numbers yet: feedback loop (results back to the management, budgets, stop), isolation of agents (F12, F15), memory (per project and per agent), self-improvement.
+- 2026-11-20: spec 012 implemented — managers removed (owner: "nadmiar struktury"); the director plans for its members, one management run per item; verified with Claude. Tests: 180. Projects move to spec 013.
+- Next: 013 projects; later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per project and per agent), self-improvement.
 
 ## Specifications
 
@@ -120,9 +121,10 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 008 | [Executors](specs/008-executors.md) | implemented |
 | 009 | [Agents and task assignment](specs/009-agents.md) | implemented |
 | 010 | [Running tasks on agents](specs/010-task-execution.md) | implemented (F12 deferred) |
-| 011 | [Director chat, work list and management](specs/011-list-and-management.md) | implemented (F14, F15 open) |
-| 012 | [Projects](specs/012-projects.md) | draft |
-| — | Feedback loop: results back to managers, budgets, stop | not written |
+| 011 | [Director chat, work list and management](specs/011-list-and-management.md) | implemented (F14, F15 open); managers invalidated by 012 |
+| 012 | [Remove managers: the director plans](specs/012-remove-managers.md) | implemented |
+| 013 | [Projects](specs/013-projects.md) | draft |
+| — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per project and per agent | not written |
 | — | Self-improvement | not written |

@@ -1,11 +1,10 @@
 # Spec 011, G2: an item of a user's work list, kept by the director from the chat.
 class WorkItem < ApplicationRecord
-  STATES = %w[new with_manager planned done cancelled blocked].freeze
-  OPEN = %w[new with_manager blocked].freeze
+  STATES = %w[new planned done cancelled blocked].freeze # spec 012: no "with manager"
+  OPEN = %w[new blocked].freeze
   PRIORITIES = %w[normal high].freeze
 
   belongs_to :user
-  belongs_to :manager_agent, class_name: "Agent", optional: true
   has_many :tasks, dependent: :nullify # steps; cancelling removes the ones not started (see #cancel!)
   has_many :runs, class_name: "TaskRun", dependent: :nullify
 
@@ -21,8 +20,6 @@ class WorkItem < ApplicationRecord
 
   def state_label = state.tr("_", " ")
   def open? = OPEN.include?(state)
-
-  def plan = proposed_plan.present? ? JSON.parse(proposed_plan) : nil
 
   def active_run? = runs.where(state: %w[queued running]).exists?
 

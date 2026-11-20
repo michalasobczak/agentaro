@@ -12,7 +12,7 @@
           <%= link_to work_item_path(item), class: "row-link" do %>
             <span class="row-main">
               <strong><%= item.title %></strong>
-              <span class="muted small"><%= [ ("high priority" if item.priority == "high"), ("from #{l item.handle_from, format: :short}" if item.handle_from), ("due #{l item.due_on, format: :long}" if item.due_on), (item.manager_agent && "manager: #{item.manager_agent.name}") ].compact.join(" · ") %></span>
+              <span class="muted small"><%= [ ("high priority" if item.priority == "high"), ("from #{l item.handle_from, format: :short}" if item.handle_from), ("due #{l item.due_on, format: :long}" if item.due_on) ].compact.join(" · ") %></span>
             </span>
             <span class="row-meta"><%= item_state_badge(item) %></span>
           <% end %>

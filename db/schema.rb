@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_180000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -156,13 +156,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
     t.integer "user_id", null: false
     t.integer "agent_id", null: false
     t.string "role", null: false
-    t.integer "parent_id"
     t.string "role_text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_team_roles_on_agent_id"
-    t.index ["parent_id"], name: "index_team_roles_on_parent_id"
-    t.index ["user_id", "role", "parent_id", "agent_id"], name: "index_team_roles_unique", unique: true
+    t.index ["user_id", "role", "agent_id"], name: "index_team_roles_unique", unique: true
     t.index ["user_id"], name: "index_team_roles_on_user_id"
   end
 
@@ -189,16 +187,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
     t.string "priority", default: "normal", null: false
     t.integer "position", default: 0, null: false
     t.string "state", default: "new", null: false
-    t.integer "manager_agent_id"
-    t.text "director_note"
-    t.text "proposed_plan"
     t.text "plan_summary"
-    t.text "review_comment"
-    t.integer "replan_count", default: 0, null: false
     t.text "blocked_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["manager_agent_id"], name: "index_work_items_on_manager_agent_id"
     t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"
     t.index ["user_id"], name: "index_work_items_on_user_id"
   end
@@ -219,8 +211,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
   add_foreign_key "tasks", "users"
   add_foreign_key "tasks", "work_items"
   add_foreign_key "team_roles", "agents"
-  add_foreign_key "team_roles", "team_roles", column: "parent_id"
   add_foreign_key "team_roles", "users"
-  add_foreign_key "work_items", "agents", column: "manager_agent_id"
   add_foreign_key "work_items", "users"
 end

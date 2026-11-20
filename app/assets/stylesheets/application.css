@@ -309,7 +309,6 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .org ul > li::before { content: ""; position: absolute; left: -1.1rem; top: 1.4rem; width: 1rem; border-top: 2px solid var(--line-strong); }
 .org-node { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-2); max-width: 100%; }
 .org-node.is-director { border-color: var(--accent); background: var(--accent-soft); }
-.org-node.is-manager { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .org-role { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 650; }
 .inline-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .inline-form input[type=text], .inline-form select { width: auto; flex: 1 1 12rem; min-width: 0; }

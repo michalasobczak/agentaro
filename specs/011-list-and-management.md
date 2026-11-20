@@ -1,6 +1,6 @@
 # 011 — Director chat, work list and management
 
-Status: **implemented** 2026-11-19, F14 and F15 open (closed by owner: "Akceptuję, buduj" — Q5 and Q6 proposals accepted)
+Status: **implemented** 2026-11-19, F14 and F15 open (closed by owner: "Akceptuję, buduj" — Q5 and Q6 proposals accepted). **Partly invalidated 2026-11-20 by [spec 012](012-remove-managers.md):** managers are gone — G3–G7, S2, S5, Q2 and the 3 re-plans of R2 no longer hold; the director plans for its members.
 Date: 2026-11-19
 Depends on: [007](007-calendar.md), [009](009-agents.md), [010](010-task-execution.md)
 
@@ -35,7 +35,7 @@ With no human approval, these checks are the only brake until a later spec adds 
 - Feedback loop — step results go back to the manager and director, follow-up steps, *done*, and reports in the chat; budgets and stop.
 - Isolation of agents (F12).
 - Memory, then self-improvement.
-- Renumbered 2026-11-20: the owner put projects first as spec 012; the rest comes later, without numbers yet.
+- Renumbered 2026-11-20: the owner put the removal of managers first (spec 012) and projects next (spec 013); the rest comes later, without numbers yet.
 
 ## 3. Objective
 

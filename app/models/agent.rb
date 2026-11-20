@@ -64,6 +64,5 @@ class Agent < ApplicationRecord
   def unassign_tasks
     tasks.find_each { |task| task.update_attribute(:agent_id, nil) } # runs callbacks: recorded in the changelog
     TaskRun.where(agent_id: id).find_each { |run| run.update_attribute(:agent_id, nil) } # runs keep the agent's name
-    WorkItem.where(manager_agent_id: id).find_each { |item| item.update_attribute(:manager_agent_id, nil) }
   end
 end

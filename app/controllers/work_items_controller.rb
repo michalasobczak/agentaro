@@ -17,7 +17,7 @@ class WorkItemsController < ApplicationController
     item = current_user.work_items.find(params[:id])
     return redirect_to(work_item_path(item), alert: "Only blocked items can be tried again.") unless item.state == "blocked"
 
-    item.update!(state: "new", blocked_reason: nil, manager_agent: nil, proposed_plan: nil, review_comment: nil, replan_count: 0)
+    item.update!(state: "new", blocked_reason: nil)
     ManagementRunner.dispatch_due(user: current_user)
     redirect_to work_item_path(item), notice: item.reload.state == "blocked" ? item.blocked_reason : "Sent to the director again."
   end
