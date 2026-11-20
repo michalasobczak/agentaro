@@ -455,7 +455,13 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
   .kanban { grid-template-columns: 1fr; overflow-x: visible; }
   .kanban-card { cursor: default; }
 }
-.filter-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
-.filter-pills a { padding: 0.3rem 0.8rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-weight: 600; font-size: 0.875rem; }
-.filter-pills a:hover { text-decoration: none; color: var(--fg); }
-.filter-pills a.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Breadcrumbs: Projects › project › epic › step › run (owner fix after spec 013) */
+.breadcrumbs { margin: -0.75rem 0 0.9rem; font-size: 0.85rem; }
+.breadcrumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0; }
+.breadcrumbs li { display: inline-flex; align-items: center; min-width: 0; color: var(--muted); }
+.breadcrumbs li + li::before { content: "›"; margin: 0 0.45rem; color: var(--line-strong); }
+.breadcrumbs a { color: var(--muted); font-weight: 600; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.breadcrumbs a:hover { color: var(--accent); }
+.breadcrumbs [aria-current] { color: var(--fg); font-weight: 600; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 639px) { .breadcrumbs { margin-top: -0.25rem; } .breadcrumbs a, .breadcrumbs [aria-current] { max-width: 10rem; } }

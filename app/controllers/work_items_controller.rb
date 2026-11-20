@@ -1,13 +1,7 @@
-# Spec 011, G2/G8: the user's work list (kept by the director) and each item's history. Read-only, except Try again.
+# Spec 011, G2/G8: an epic's page and history (owner fix after spec 013: no list page — epics live on their
+# project boards). Try again, and Done and Cancel (spec 013, Q10).
 class WorkItemsController < ApplicationController
   rescue_from(ActiveRecord::RecordNotFound) { head :not_found }
-
-  def index
-    @projects = current_user.projects.ordered
-    @project = @projects.find { |p| p.id == params[:project].to_i } # spec 013: filter by project
-    @items = current_user.work_items.includes(:project).listed
-    @items = @items.where(project: @project) if @project
-  end
 
   def show
     @item = current_user.work_items.find(params[:id])

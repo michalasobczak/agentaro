@@ -76,19 +76,26 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_content
     get projects_path
     assert_no_match "Secret", response.body
-    get work_items_path(project: theirs.id)
-    assert_no_match "Bob's epic", response.body
     assert_equal "new", item.reload.state
   end
 
-  test "the epics list filters by project" do
-    house, work = make_project("House"), make_project("Work")
-    @user.work_items.create!(title: "Tiles", project: house)
-    @user.work_items.create!(title: "Report", project: work)
-    get work_items_path(project: house.id)
-    assert_select ".row-link", 1
-    assert_select ".row-link", text: /Tiles.*House/m
-    assert_select ".filter-pills a.active", text: "House"
+  test "owner fix: breadcrumbs from projects down to a step's run" do
+    project = make_project("House")
+    epic = @user.work_items.create!(title: "Kitchen", project: project, state: "planned")
+    step = Task.create!(user: @user, title: "Measure", starts_at: 1.day.from_now, ends_at: 1.day.from_now + 1.hour, agent: @agent, work_item: epic)
+    run = TaskRun.create!(task: step, user: @user, occurrence_start: step.starts_at, trigger: "manual", state: "succeeded")
+    get project_path(project)
+    assert_select ".breadcrumbs li", 2
+    get edit_task_path(step)
+    assert_select ".breadcrumbs a", [ "Projects", "House", "Kitchen" ].size
+    assert_select ".breadcrumbs [aria-current=page]", text: "Measure"
+    get task_run_path(run)
+    assert_select ".breadcrumbs a", 4
+    assert_select ".breadcrumbs a[href='#{edit_task_path(step)}']", text: "Measure"
+    assert_select ".breadcrumbs [aria-current=page]", text: /Run/
+    plain = Task.create!(user: @user, title: "Dentist", starts_at: 1.day.from_now, ends_at: 1.day.from_now + 1.hour)
+    get edit_task_path(plain)
+    assert_select ".breadcrumbs", 0, "ordinary tasks have none"
   end
 
   test "G9, S5: the calendar shows epics as bars and hides agents' steps unless asked" do

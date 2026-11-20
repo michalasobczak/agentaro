@@ -20,7 +20,7 @@ Rails.application.routes.draw do
     get :stamp
   end
   resources :chat_messages, only: %i[index create], path: "director/messages"
-  resources :work_items, only: %i[index show], path: "list" do
+  resources :work_items, only: :show, path: "epics" do # owner fix after spec 013: no list page; epics live on their project boards
     member do
       post :retry
       post :done # spec 013, Q10

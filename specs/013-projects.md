@@ -31,7 +31,8 @@ Every user groups their work into **projects** (e.g. "company X", "house renovat
   - a card is a work item: title, priority, due date, its steps and their last results;
   - columns are the item states: *New*, *Planned*, *Blocked*, *Done*; cancelled items are folded under the board;
   - cards can be dragged only within a column, to set their order (the order the director sees); states are changed by the director, and by the user with **Done** and **Cancel** on a card (cancel removes steps not started, spec 011);
-  - the work list filters by project.
+  - ~~the work list filters by project~~ — **invalidated** by the owner after release ("no need to have epics list i think when i can see projects"): the list page is removed; epics live on their project boards.
+- G10. **Breadcrumbs** (owner fix after release): Projects › project › epic › step › run on the project, epic, step and run pages; ordinary calendar tasks have none.
 - G8. **Epics.** In the interface the work items are called **epics** (owner's word): the director's units of work; agents' calendar tasks are their **steps**.
 - G9. **Calendar depth** (Q11, Q12): a switch *Epics* / *Epics + steps*, remembered per browser session.
   - *Epics* (default): the user's own tasks as before, agents' steps hidden, and each epic with steps as one bar from the start of its first step to the end of its last, in the all-day row (and in the month view), coloured by its state; a click opens the epic;

@@ -1,5 +1,6 @@
 <div hidden data-refresh-url="<%= stamp_task_path(@task) %>" data-refresh-stamp="<%= ChangeStamp.task(@task) %>"></div>
 <p class="flash notice" hidden data-refresh-notice><span>This task has changed or has new runs. <a href="<%= request.fullpath %>">Reload</a> to see them (unsaved changes in the form are lost).</span></p>
+<% if (crumbs = step_crumbs(@task)) %><%= breadcrumbs(*crumbs) %><% end %>
 <%= page_header @task.title, (@task.recurring? ? "Repeating task" : nil) %>
 <div class="task-layout">
   <div class="card task-card">

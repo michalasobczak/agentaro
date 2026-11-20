@@ -1,5 +1,6 @@
 <% content_for :content_class, "full" %>
 <% content_for :scripts do %><%= javascript_include_tag "kanban", defer: true %><% end %>
+<%= breadcrumbs(*project_crumbs(@project)) %>
 <%= page_header @project.name, @project.goal do %>
   <%= link_to "Edit", edit_project_path(@project), class: "button secondary" %>
   <% if @project.active? %>

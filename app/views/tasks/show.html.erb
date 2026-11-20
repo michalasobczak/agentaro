@@ -1,5 +1,6 @@
 <div hidden data-refresh-url="<%= stamp_task_path(@task) %>" data-refresh-stamp="<%= ChangeStamp.task(@task) %>"></div>
 <% shown = @occurrence || @task %>
+<% if (crumbs = step_crumbs(@task)) %><%= breadcrumbs(*crumbs) %><% end %>
 <%= page_header @task.title, "System-wide task — read only" %>
 <div class="card task-card">
   <dl class="facts">

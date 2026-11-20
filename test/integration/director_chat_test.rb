@@ -71,13 +71,19 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_equal "Write a message.", JSON.parse(response.body)["error"]
   end
 
-  test "G2, G8: the list and an item's history; Try again on a blocked item" do
+  test "G2, G8: an epic's history with breadcrumbs; Try again on a blocked epic; no list page (owner fix)" do
     @user.team_roles.create!(agent: @director, role: "director")
     item = @user.work_items.create!(title: "Backup summary", state: "blocked", blocked_reason: "Which tools?", priority: "high")
-    get work_items_path
-    assert_select ".row-link", text: /Backup summary.*high priority/m
+    get project_path(item.project)
+    assert_select ".kanban-card", text: /Backup summary.*high/m
     get work_item_path(item)
     assert_select "dd", text: "Which tools?"
+    assert_select ".breadcrumbs li", 3
+    assert_select ".breadcrumbs a[href='#{projects_path}']", text: "Projects"
+    assert_select ".breadcrumbs a[href='#{project_path(item.project)}']", text: "General"
+    assert_select ".breadcrumbs [aria-current=page]", text: "Backup summary"
+    assert_select "nav.nav a", text: "Epics", count: 0
+    assert_not Rails.application.routes.url_helpers.respond_to?(:work_items_path), "no list route"
     post retry_work_item_path(item)
     assert_equal "new", item.reload.state
     assert_equal 1, item.runs.where(purpose: "director", state: "queued").count
@@ -98,7 +104,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_no_match "bob writes", response.body
     get chat_messages_path, headers: { "Accept" => "application/json" }
     assert_empty JSON.parse(response.body)["messages"]
-    get work_items_path
+    get projects_path
     assert_no_match "Bob's secret", response.body
     delete team_role_path(bob.team_roles.create!(agent: Agent.create!(user: bob, name: "B", master_prompt: "x", executor: @executor), role: "director"))
     assert_response :not_found

@@ -1,3 +1,4 @@
+<%= breadcrumbs(*epic_crumbs(@item)) %>
 <%= page_header @item.title, "Epic in #{@item.project.name}" do %>
   <%= link_to "Project board", project_path(@item.project), class: "button secondary" %>
 <% end %>

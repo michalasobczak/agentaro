@@ -74,6 +74,24 @@ module ApplicationHelper
     end
   end
 
+  # Owner fix after spec 013: where a page sits — Projects › project › epic › step › run. Crumbs are
+  # [label, path] pairs; the last one is the current page and is not a link.
+  def breadcrumbs(*crumbs)
+    *links, current = crumbs.compact
+    items = links.map { |label, path| tag.li(link_to(label, path)) } + [ tag.li(current.first, "aria-current": "page") ]
+    tag.nav(tag.ol(safe_join(items)), class: "breadcrumbs", "aria-label": "Breadcrumb")
+  end
+
+  def project_crumbs(project) = [ [ "Projects", projects_path ], [ project.name, project_path(project) ] ]
+  def epic_crumbs(item) = [ *project_crumbs(item.project), [ item.title, work_item_path(item) ] ]
+
+  # A step of an epic (calendar task with a work item): its crumbs, or nil for an ordinary task.
+  def step_crumbs(task)
+    return unless task.work_item && task.work_item.user_id == current_user.id
+
+    [ *epic_crumbs(task.work_item), [ task.title, edit_task_path(task) ] ]
+  end
+
   # Admin tools are for desktop and tablet; phones get this note instead (spec 006, G5).
   def desktop_only_note
     tag.div(class: "callout mobile-note") do

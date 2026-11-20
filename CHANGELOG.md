@@ -86,3 +86,4 @@
 - Security analysis (B20) after spec 013: projects separated in prompts (test with a confidential project), other users' projects 404, ordering only within one project and column; F16 (low, open) no limit on the number of projects. Brakeman: no warnings; `bundle-audit`: no vulnerabilities.
 - Gates: 189 tests, `bin/ci` passed.
 - The owner's instance migrated on restart (backup taken first in `storage/`, not tracked): 12 existing epics in "General".
+- Fix (owner: "breadcrumbs at projects-epics-tasks"; "no need to have epics list i think when i can see projects"): breadcrumbs Projects › project › epic › step › run on the project (and its edit and new pages), epic, step and run pages; ordinary calendar tasks have none. The Epics list page and its menu item are removed — epics live on their project boards; the director chat links to Projects; epic pages move from `/list/:id` to `/epics/:id`. Spec 013 updated (G5 list invalidated, G10). Tests updated and added.
