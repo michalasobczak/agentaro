@@ -1,10 +1,11 @@
-<%= page_header @item.title, "Item on your list" do %>
-  <%= link_to "Your list", work_items_path, class: "button secondary" %>
+<%= page_header @item.title, "Epic in #{@item.project.name}" do %>
+  <%= link_to "Project board", project_path(@item.project), class: "button secondary" %>
 <% end %>
 <div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
 <div class="grid grid-2">
   <div class="card">
     <dl class="facts">
+      <dt>Project</dt><dd><%= link_to @item.project.name, project_path(@item.project) %></dd>
       <dt>State</dt><dd><%= item_state_badge(@item) %></dd>
       <dt>Priority</dt><dd><%= @item.priority %></dd>
       <% if @item.handle_from %><dt>Handle from</dt><dd><%= l @item.handle_from, format: :long %></dd><% end %>
@@ -13,8 +14,12 @@
       <% if @item.plan_summary.present? %><dt>Plan</dt><dd class="pre"><%= @item.plan_summary %></dd><% end %>
       <% if @item.blocked_reason.present? && @item.state == "blocked" %><dt>Blocked</dt><dd class="pre"><%= @item.blocked_reason %></dd><% end %>
     </dl>
-    <% if @item.state == "blocked" %>
-      <div class="actions spaced"><%= button_to "Try again", retry_work_item_path(@item), class: "secondary" %></div>
+    <% unless %w[done cancelled].include?(@item.state) %>
+      <div class="actions spaced">
+        <% if @item.state == "blocked" %><%= button_to "Try again", retry_work_item_path(@item), class: "secondary" %><% end %>
+        <%= button_to "Done", done_work_item_path(@item), class: "secondary" %>
+        <%= button_to "Cancel epic", cancel_work_item_path(@item), class: "link", form: { data: { confirm: "Cancel \"#{@item.title}\"? Its steps that have not started are removed." } } %>
+      </div>
     <% end %>
   </div>
   <div class="card">

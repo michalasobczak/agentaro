@@ -75,6 +75,7 @@ Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything e
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
+- **Projects and epics (spec 013):** your work is split into projects, each with a goal and a kanban board of its epics (the director's units of work): New, Planned, Blocked, Done; drag cards to set their order, mark them Done or Cancel. Agents working on an epic see only its project. The calendar shows epics as bars from their first step to their last; a switch shows agents' steps too.
 - **Director and management (specs 011, 012):** you talk only to your director in a chat — on the Director page, or from any page in a panel on the right. The director keeps your work list and, when an item's time comes, plans it as steps for the members of your team (spec 012: no managers); the steps go into the calendar. Your team (director and members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
 - **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
@@ -105,7 +106,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-20: the chat with the director floats on every page as a panel on the right, opened and hidden by the user.
 - 2026-11-20: roadmap changed by the owner — projects first (spec 012, draft); the memory draft dropped.
 - 2026-11-20: spec 012 implemented — managers removed (owner: "nadmiar struktury"); the director plans for its members, one management run per item; verified with Claude. Tests: 180. Projects move to spec 013.
-- Next: 013 projects; later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per project and per agent), self-improvement.
+- 2026-11-20: spec 013 implemented — projects with a goal and a kanban board of epics, knowledge kept per project, calendar depth switch (epics / + steps); verified with Claude (it asked which project when unclear). Tests: 189. Security analysis: F16 (no limit on projects) open.
+- Next: later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per project and per agent), self-improvement.
 
 ## Specifications
 
@@ -123,7 +125,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 010 | [Running tasks on agents](specs/010-task-execution.md) | implemented (F12 deferred) |
 | 011 | [Director chat, work list and management](specs/011-list-and-management.md) | implemented (F14, F15 open); managers invalidated by 012 |
 | 012 | [Remove managers: the director plans](specs/012-remove-managers.md) | implemented |
-| 013 | [Projects](specs/013-projects.md) | draft |
+| 013 | [Projects, kanban and calendar depth](specs/013-projects.md) | implemented (F16 open) |
 | — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per project and per agent | not written |

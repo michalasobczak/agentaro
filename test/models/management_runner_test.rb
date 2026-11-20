@@ -181,3 +181,79 @@ class ManagementRunnerTest < ActiveSupport::TestCase
     assert_equal "planned", item.reload.state
   end
 end
+
+class ManagementRunnerProjectsTest < ActiveSupport::TestCase
+  # Spec 013: projects in the director's chat actions (G4, G6, Q5) and in prompts (G3, S1, S3, S4).
+  setup do
+    @user = create_user
+    executor = Executor.create!(name: "Claude", preset: "claude_code")
+    @director = Agent.create!(user: @user, name: "Dyrektor", master_prompt: "x", executor: executor)
+    @writer = Agent.create!(user: @user, name: "Pisarz", master_prompt: "x", executor: executor)
+    @user.team_roles.create!(agent: @director, role: "director")
+    @user.team_roles.create!(agent: @writer, role: "member", role_text: "writer")
+  end
+
+  def runner(item: nil, purpose: "chat") = ManagementRunner.new(TaskRun.new(user: @user, work_item: item, purpose: purpose))
+  def apply(data) = runner.send(:apply_chat!, data.deep_stringify_keys)
+  def try_apply(data) = (apply(data); nil) rescue $!
+
+  test "G6: the director adds a project and its epics in one reply" do
+    apply(reply: "OK", actions: [ { type: "add_project", name: "House", goal: "New kitchen" },
+                                  { type: "add_item", project: "House", title: "Measure the room" } ])
+    project = @user.projects.sole
+    assert_equal [ "House", "New kitchen" ], [ project.name, project.goal ]
+    assert_equal [ "Measure the room" ], project.work_items.pluck(:title)
+    assert_match "New project: House", @user.chat_messages.last.actions_summary
+  end
+
+  test "S3: with several projects an epic must name one; the only active project or General otherwise" do
+    apply(reply: "OK", actions: [ { type: "add_item", title: "First" } ])
+    assert_equal "General", @user.work_items.sole.project.name, "no projects yet: General"
+    @user.projects.create!(name: "Work", goal: "Ship it")
+    error = try_apply(reply: "OK", actions: [ { type: "add_item", title: "Second" } ])
+    assert_match "\"project\" is required", error.message
+    work = @user.projects.find_by(name: "Work")
+    apply(reply: "OK", actions: [ { type: "add_item", project: work.id, title: "Second" } ])
+    assert_equal work, @user.work_items.find_by(title: "Second").project
+  end
+
+  test "S4, R2: no epics in archived projects or other users' projects; only unplanned epics move" do
+    archived = @user.projects.create!(name: "Old", goal: "x", state: "archived")
+    assert_match "is archived", try_apply(reply: "OK", actions: [ { type: "add_item", project: archived.id, title: "X" } ]).message
+    bobs = create_user(username: "bob").projects.create!(name: "Bob's", goal: "x")
+    assert_match "no project", try_apply(reply: "OK", actions: [ { type: "add_item", project: bobs.id, title: "X" } ]).message
+
+    home, work = @user.projects.create!(name: "Home", goal: "x"), @user.projects.create!(name: "Work", goal: "y")
+    planned = @user.work_items.create!(title: "Planned", project: home, state: "planned")
+    assert_match "only new or blocked", try_apply(reply: "OK", actions: [ { type: "update_item", id: planned.id, project: work.id } ]).message
+    fresh = @user.work_items.create!(title: "Fresh", project: home)
+    apply(reply: "OK", actions: [ { type: "update_item", id: fresh.id, project: work.id } ])
+    assert_equal work, fresh.reload.project
+
+    item = @user.work_items.create!(title: "Waits", project: home)
+    home.update!(state: "archived")
+    assert_not_includes ManagementRunner.dispatch_due.map(&:work_item), item, "S4: archived projects are not taken up"
+  end
+
+  test "S1, G3: the plan prompt and the step prompt contain their own project only; the chat only names and titles" do
+    house = @user.projects.create!(name: "House", goal: "New kitchen", description: "Budget 20k")
+    secret = @user.projects.create!(name: "Startup", goal: "Raise a seed round", description: "Investor list: confidential")
+    epic = @user.work_items.create!(title: "Measure", project: house)
+    @user.work_items.create!(title: "Pitch deck", description: "Burn rate 50k", project: secret)
+
+    plan = runner(item: epic, purpose: "director").send(:plan_prompt)
+    assert_match "Project goal: New kitchen", plan
+    assert_match "Budget 20k", plan
+    [ "Startup", "Raise a seed round", "Investor list", "Pitch deck", "Burn rate" ].each { |text| assert_no_match text, plan }
+
+    step = Task.create!(user: @user, title: "Measure", starts_at: 1.day.from_now, ends_at: 1.day.from_now + 1.hour, agent: @writer, work_item: epic)
+    step_prompt = TaskRunner.prompt_for(step, @writer, step.starts_at).user
+    assert_match "in the project \"House\" (goal: New kitchen)", step_prompt
+    assert_no_match "Startup", step_prompt
+
+    chat = runner.send(:chat_prompt)
+    assert_match "\"Startup\" — goal: Raise a seed round", chat
+    assert_match "\"Pitch deck\", project #{secret.id}", chat
+    [ "Investor list", "Burn rate", "Budget 20k" ].each { |text| assert_no_match text, chat }
+  end
+end

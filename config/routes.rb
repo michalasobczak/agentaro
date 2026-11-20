@@ -21,7 +21,19 @@ Rails.application.routes.draw do
   end
   resources :chat_messages, only: %i[index create], path: "director/messages"
   resources :work_items, only: %i[index show], path: "list" do
-    post :retry, on: :member
+    member do
+      post :retry
+      post :done # spec 013, Q10
+      post :cancel
+    end
+  end
+  # Spec 013: projects with a kanban board of their epics
+  resources :projects do
+    member do
+      patch :archive
+      patch :activate
+      patch :order
+    end
   end
   resource :team, only: :show
   resources :team_roles, only: %i[create update destroy], path: "team/roles"

@@ -1,0 +1,22 @@
+<%= page_header "Projects", "Your work, kept apart: each project has its goal and a board of epics. Agents working on an epic see only its project." do %>
+  <%= link_to new_project_path, class: "button" do %><%= icon(:plus) %> New project<% end %>
+<% end %>
+<div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
+<% if @projects.empty? %>
+  <div class="card"><p class="muted">No projects yet. Create one, or tell the director what you are working on — it can set up projects too.</p></div>
+<% else %>
+  <div class="grid grid-2 project-grid">
+    <% @projects.each do |project| %>
+      <%= link_to project_path(project), class: ["card", "project-card", ("is-archived" unless project.active?)].compact.join(" ") do %>
+        <div class="project-card-head"><strong><%= project.name %></strong><% unless project.active? %> <%= badge("archived") %><% end %></div>
+        <p class="muted small project-goal"><%= project.goal %></p>
+        <div class="project-counts">
+          <% WorkItem::STATE_ORDER.each do |state| %>
+            <% n = @counts[[ project.id, state ]].to_i %>
+            <span class="count <%= "is-zero" if n.zero? %> s-<%= state %>"><strong><%= n %></strong> <%= state %></span>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>

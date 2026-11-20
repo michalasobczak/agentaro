@@ -18,6 +18,10 @@
         <%= f.date_field :date, value: @date.iso8601, "aria-label": "Go to date" %>
         <%= f.submit "Go", name: nil, class: "secondary" %>
       <% end %>
+      <nav class="segmented" aria-label="Depth">
+        <%= link_to "Epics", calendar_path(view: @view, date: @date.iso8601, depth: "epics"), class: ("active" if @depth == "epics"), "aria-current": (@depth == "epics" ? "page" : nil), title: "Your tasks and your epics; agents' steps hidden" %>
+        <%= link_to "+ steps", calendar_path(view: @view, date: @date.iso8601, depth: "steps"), class: ("active" if @depth == "steps"), "aria-current": (@depth == "steps" ? "page" : nil), title: "Also every step the agents run" %>
+      </nav>
       <nav class="segmented" aria-label="View">
         <% { "day" => "Day", "4days" => "4 days", "week" => "Week", "month" => "Month" }.each do |key, label| %>
           <%= link_to label, calendar_path(view: key, date: @date.iso8601), class: [("active" if @view == key), ("desktop-only" unless key == "day")].compact.join(" "), "aria-current": (@view == key ? "page" : nil) %>
@@ -37,14 +41,17 @@
       <div class="month-grid">
         <% @days.each do |day| %>
           <% items = day_occurrences(day, @occurrences) %>
+          <% epics = day_epics(day, @epics) %>
+          <% room = [ 4 - epics.size, 1 ].max %>
           <div class="month-day <%= "other-month" if day.month != @date.month %> <%= "today" if day == Time.zone.today %>" data-date="<%= day.iso8601 %>">
             <%= link_to day.day, calendar_path(view: "day", date: day.iso8601), class: "month-date" %>
-            <% items.first(4).each do |o| %>
+            <% epics.each do |epic| %><%= epic_chip(epic, day) %><% end %>
+            <% items.first(room).each do |o| %>
               <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: [ o.task.title, agent_label(o.task) ].compact.join(" · ") do %>
                 <span class="task-time"><%= o.all_day? ? "" : l(o.starts_at.in_time_zone, format: "%H:%M") %></span><span class="task-title"><%= o.task.title %></span>
               <% end %>
             <% end %>
-            <% if items.size > 4 %><%= link_to "+#{items.size - 4} more", calendar_path(view: "day", date: day.iso8601), class: "more" %><% end %>
+            <% if items.size > room %><%= link_to "+#{items.size - room} more", calendar_path(view: "day", date: day.iso8601), class: "more" %><% end %>
           </div>
         <% end %>
       </div>
@@ -63,6 +70,7 @@
         <div class="gutter small muted">all day</div>
         <% @days.each do |day| %>
           <div class="allday-cell" data-date="<%= day.iso8601 %>">
+            <% day_epics(day, @epics).each do |epic| %><%= epic_chip(epic, day) %><% end %>
             <% all_day_occurrences(day, @occurrences).each do |o| %>
               <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: [ o.task.title, agent_label(o.task) ].compact.join(" · ") do %>
                 <span class="task-title"><%= o.task.title %></span>
@@ -97,6 +105,7 @@
 
   <p class="cal-legend small muted">
     <span class="legend t-private"></span> Private <span class="legend t-system"></span> System-wide
+    <span class="legend epic-legend"></span> Epic (from its first step to its last)
     <span class="legend run-ok"></span> Ran <span class="legend run-bad"></span> Failed <span class="legend run-missed"></span> Missed
     <span class="desktop-only">· Click a task to edit it, drag to move, drag its edges to resize. Right-click or hover + ⌘/Ctrl C, X, V, D for copy, cut, paste, duplicate.</span>
   </p>

@@ -184,3 +184,14 @@ details.card[open] > summary { margin-bottom: 0.75rem; }
 .legend.run-bad { background: var(--bad); border-radius: 50%; }
 .legend.run-missed { border: 1.5px solid var(--muted); border-radius: 50%; background: transparent; }
 
+
+/* Epics in the calendar (spec 013, G9): one bar per epic, from its first step to its last */
+.epic.chip { display: flex; align-items: center; gap: 0.35rem; min-width: 0; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.78rem; font-weight: 650;
+  color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); text-decoration: none; }
+.epic.chip .task-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.epic.chip:hover { border-color: var(--accent); text-decoration: none; }
+.epic.chip.cont-before { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -0.3rem; border-left-style: dashed; }
+.epic.chip.cont-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -0.3rem; border-right-style: dashed; }
+.epic.chip.e-done { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+.epic.chip.e-blocked { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+.legend.epic-legend { background: var(--accent-soft); border: 1px solid var(--accent); margin-left: 0.6rem; }

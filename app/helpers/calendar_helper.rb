@@ -39,6 +39,22 @@ module CalendarHelper
     occurrences.select { |o| o.all_day? && o.starts_at < to && o.ends_at > from }
   end
 
+  # Spec 013, G9: epics whose span touches a day.
+  def day_epics(day, epics)
+    from, to = day_start(day), day_start(day) + 1.day
+    epics.select { |e| e.starts_at < to && e.ends_at > from }
+  end
+
+  def epic_chip(epic, day)
+    item = epic.item
+    from, to = day_start(day), day_start(day) + 1.day
+    classes = [ "epic", "chip", "e-#{item.state}", ("cont-before" if epic.starts_at < from), ("cont-after" if epic.ends_at > to) ].compact.join(" ")
+    title = "Epic: #{item.title} · #{item.project.name} · #{item.state_label} · #{l(epic.starts_at.in_time_zone, format: "%-d %b %H:%M")} – #{l(epic.ends_at.in_time_zone, format: "%-d %b %H:%M")}"
+    link_to work_item_path(item), class: classes, title: title do
+      tag.span(item.title, class: "task-title")
+    end
+  end
+
   # Everything touching a day, for the month view: all-day first, then by start.
   def day_occurrences(day, occurrences)
     from, to = day_start(day), day_start(day) + 1.day
@@ -92,6 +108,12 @@ module CalendarHelper
     return unless task.agent && task.agent_assigned_at && occurrence.original_start >= task.agent_assigned_at
 
     "run-missed" if occurrence.starts_at < Agentaro::TaskScheduler::GRACE.seconds.ago
+  end
+
+  # Spec 013: a step's dot on a kanban card — its latest run, or scheduled.
+  def run_class_for_step(task)
+    state = task.runs.max_by(&:id)&.state
+    state ? "run-#{state.tr("_", "-")}" : (task.starts_at < Time.current ? "run-missed" : "run-none")
   end
 
   def run_badge(run)

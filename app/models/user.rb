@@ -15,6 +15,7 @@ class User < ApplicationRecord
   has_many :agents, dependent: :destroy # spec 009
   has_many :team_roles, dependent: :destroy # spec 011
   has_many :work_items, dependent: :destroy
+  has_many :projects, dependent: :destroy # spec 013 (after work_items, which need them)
   has_many :chat_messages, dependent: :destroy
 
   def director_role = team_roles.directors.includes(agent: :executor).first

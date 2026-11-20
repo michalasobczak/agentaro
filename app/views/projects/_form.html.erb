@@ -1,0 +1,17 @@
+<% if project.errors.any? %><ul class="errors"><% project.errors.full_messages.each do |e| %><li><%= e %></li><% end %></ul><% end %>
+<%= form_with model: project, class: "form project-form" do |f| %>
+  <div class="field">
+    <%= f.label :name %>
+    <%= f.text_field :name, required: true, maxlength: 60, placeholder: "e.g. House renovation" %>
+  </div>
+  <div class="field">
+    <%= f.label :goal %>
+    <%= f.text_area :goal, rows: 3, required: true, maxlength: 2000, placeholder: "What you want to achieve in this project." %>
+    <span class="hint">Every agent working on an epic of this project reads its goal — and nothing from your other projects.</span>
+  </div>
+  <div class="field">
+    <%= f.label :description, "Description (optional)" %>
+    <%= f.text_area :description, rows: 6, maxlength: 5000, placeholder: "Background, constraints, people, links: what the agents should know." %>
+  </div>
+  <div class="actions"><%= f.submit project.persisted? ? "Save changes" : "Create project" %><%= link_to "Cancel", (project.persisted? ? project_path(project) : projects_path), class: "button secondary" %></div>
+<% end %>

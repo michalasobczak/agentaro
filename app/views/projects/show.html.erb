@@ -1,0 +1,56 @@
+<% content_for :content_class, "full" %>
+<% content_for :scripts do %><%= javascript_include_tag "kanban", defer: true %><% end %>
+<%= page_header @project.name, @project.goal do %>
+  <%= link_to "Edit", edit_project_path(@project), class: "button secondary" %>
+  <% if @project.active? %>
+    <%= button_to "Archive", archive_project_path(@project), method: :patch, class: "secondary", form: { data: { confirm: "Archive #{@project.name}? The director will take up none of its epics until you make it active again." } } %>
+  <% else %>
+    <%= button_to "Make active", activate_project_path(@project), method: :patch, class: "secondary" %>
+  <% end %>
+  <% if @project.work_items.none? %>
+    <%= button_to "Delete", project_path(@project), method: :delete, class: "danger", form: { data: { confirm: "Delete #{@project.name}?" } } %>
+  <% end %>
+<% end %>
+<div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
+<% unless @project.active? %><div class="callout"><%= icon(:info) %><div>This project is archived: no new epics, and the director takes up none of its epics.</div></div><% end %>
+<% if @project.description.present? %>
+  <details class="card project-about"><summary>About this project</summary><p class="pre"><%= @project.description %></p></details>
+<% end %>
+
+<div class="kanban" data-order-url="<%= order_project_path(@project) %>">
+  <% { "new" => "New", "planned" => "Planned", "blocked" => "Blocked", "done" => "Done" }.each do |state, label| %>
+    <section class="kanban-col s-<%= state %>" aria-label="<%= label %>">
+      <header class="kanban-col-head"><span><%= label %></span><span class="count-pill"><%= @columns[state].size %></span></header>
+      <ol class="kanban-cards" data-state="<%= state %>">
+        <% @columns[state].each do |item| %>
+          <% steps = item.tasks.sort_by(&:starts_at) %>
+          <% ran = steps.count { |t| t.runs.max_by(&:id)&.state == "succeeded" } %>
+          <li class="kanban-card<%= " is-high" if item.priority == "high" %>" data-id="<%= item.id %>" draggable="true" tabindex="0" aria-label="<%= item.title %>">
+            <%= link_to item.title, work_item_path(item), class: "kanban-title", draggable: "false" %>
+            <div class="kanban-meta small muted">
+              <% if item.priority == "high" %><%= badge("high", "warn") %><% end %>
+              <% if item.due_on %><span>due <%= l item.due_on, format: :short %></span><% end %>
+              <% if steps.any? %><span><%= ran %>/<%= steps.size %> steps done</span><% end %>
+              <% if item.state == "planned" && (next_step = steps.find { |t| t.starts_at > Time.current }) %><span>next <%= l next_step.starts_at, format: :short %></span><% end %>
+            </div>
+            <% if steps.any? %><div class="kanban-progress" aria-hidden="true"><% steps.each do |t| %><span class="<%= run_class_for_step(t) %>"></span><% end %></div><% end %>
+            <% if item.state == "blocked" && item.blocked_reason.present? %><p class="kanban-note small"><%= item.blocked_reason.truncate(160) %></p><% end %>
+            <% unless item.state == "done" %>
+              <div class="kanban-actions">
+                <%= button_to "Done", done_work_item_path(item), class: "secondary small" %>
+                <%= button_to "Cancel", cancel_work_item_path(item), class: "link small", form: { data: { confirm: "Cancel \"#{item.title}\"? Its steps that have not started are removed." } } %>
+              </div>
+            <% end %>
+          </li>
+        <% end %>
+      </ol>
+      <% if @columns[state].empty? %><p class="kanban-empty small muted"><%= { "new" => "Tell the director what needs doing.", "planned" => "Nothing scheduled.", "blocked" => "Nothing stuck.", "done" => "Nothing finished yet." }[state] %></p><% end %>
+    </section>
+  <% end %>
+</div>
+<p class="small muted desktop-only kanban-hint">Drag cards up and down to set their order (or focus a card and press Alt + ↑ / ↓). New epics come from your chat with the director.</p>
+<% if @cancelled.any? %>
+  <details class="card kanban-cancelled"><summary>Cancelled (<%= @cancelled.size %>)</summary>
+    <ul class="rows"><% @cancelled.each do |item| %><li><%= link_to item.title, work_item_path(item), class: "row-link" %></li><% end %></ul>
+  </details>
+<% end %>
