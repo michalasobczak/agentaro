@@ -548,3 +548,12 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .chat-head .chat-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-head .lang-switch { margin-left: 0; }
 .space-folder { margin: -0.75rem 0 1rem; } .space-folder code, .facts code { overflow-wrap: anywhere; }
+/* Working folder suggestions (owner fix after spec 018) */
+.folder-picker { position: relative; display: grid; gap: 0.3rem; }
+.folder-suggestions { position: absolute; z-index: 20; top: 2.9rem; left: 0; right: 0; max-height: 16rem; overflow-y: auto; margin: 0; padding: 0.3rem; list-style: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: 0 12px 32px rgba(16, 24, 40, 0.18); }
+.folder-suggestions li { padding: 0.4rem 0.6rem; border-radius: 6px; cursor: pointer; font-family: var(--mono); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-suggestions li:hover, .folder-suggestions li[aria-selected="true"] { background: var(--accent-soft); }
+.folder-suggestions .folder-parent { color: var(--muted); }
+.folder-status[data-state="ok"] { color: var(--ok); }
+.folder-status[data-state="missing"] { color: var(--muted); }

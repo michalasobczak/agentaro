@@ -2,7 +2,15 @@
 # the director may also add and change them from the chat (Q3).
 class SpacesController < ApplicationController
   rescue_from(ActiveRecord::RecordNotFound) { head :not_found }
-  before_action :set_space, except: %i[index new create]
+  before_action :set_space, except: %i[index new create folders]
+  rate_limit to: 300, within: 1.minute, only: :folders, by: -> { current_user.id }, store: RATE_LIMIT_STORE,
+             with: -> { render json: { exists: false, folders: [] }, status: :too_many_requests }
+
+  # Owner fix after spec 018: folders under the typed path, for the working-folder field.
+  def folders
+    result = FolderSuggestions.for(params[:path], current_user)
+    render json: { exists: result.exists, folders: result.folders }
+  end
 
   def index
     @spaces = current_user.spaces.ordered

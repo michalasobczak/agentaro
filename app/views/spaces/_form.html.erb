@@ -20,7 +20,12 @@
   </div>
   <div class="field">
     <%= f.label :working_dir, "Working folder (optional)" %>
-    <%= f.text_field :working_dir, maxlength: 1000, autocapitalize: "none", spellcheck: false, placeholder: "/Users/you/Code/project" %>
+    <div class="folder-picker" data-folders-url="<%= folders_spaces_path %>">
+      <%= f.text_field :working_dir, maxlength: 1000, autocapitalize: "none", autocomplete: "off", spellcheck: false, placeholder: "~/Code/project — start typing",
+                       role: "combobox", "aria-autocomplete": "list", "aria-expanded": "false", "aria-controls": "folder-suggestions" %>
+      <ul class="folder-suggestions" id="folder-suggestions" role="listbox" hidden></ul>
+      <span class="folder-status small" data-folder-status aria-live="polite"></span>
+    </div>
     <span class="hint">A folder on this computer. Every step of this space runs there: agents edit its files, run tools (git, Docker) and use the network. They cannot read other spaces' folders. Agents on Codex can read other folders.</span>
   </div>
   <div class="actions"><%= f.submit space.persisted? ? "Save changes" : "Create space" %><%= link_to "Cancel", (space.persisted? ? space_path(space) : spaces_path), class: "button secondary" %></div>

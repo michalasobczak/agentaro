@@ -1,3 +1,4 @@
+<% content_for :scripts do %><%= javascript_include_tag "folder_picker", defer: true %><% end %>
 <%= breadcrumbs([ "Spaces", spaces_path ], [ "New space" ]) %>
 <%= page_header "New space", "A project space works towards a goal; a team space takes care of ongoing work. Agents see only the space they work on." %>
 <div class="card"><%= render "form", space: @space %></div>

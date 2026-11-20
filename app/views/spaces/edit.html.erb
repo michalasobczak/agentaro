@@ -1,3 +1,4 @@
+<% content_for :scripts do %><%= javascript_include_tag "folder_picker", defer: true %><% end %>
 <%= breadcrumbs(*space_crumbs(@space), [ "Edit" ]) %>
 <%= page_header "Edit #{@space.name}" %>
 <div class="card"><%= render "form", space: @space %></div>

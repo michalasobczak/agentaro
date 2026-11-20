@@ -36,6 +36,7 @@ Rails.application.routes.draw do
   end
   # Spec 013: spaces with a kanban board of their epics
   resources :spaces do
+    get :folders, on: :collection # owner fix after spec 018: folder suggestions while typing
     member do
       patch :archive
       patch :activate

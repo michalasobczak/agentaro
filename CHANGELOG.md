@@ -132,3 +132,4 @@
 - Also fixed: dates written as 2026-11-21 in the docs of the voice fixes and spec 018 were corrected to 2026-11-20.
 - Gates: 224 tests, `bin/ci` passed.
 - The owner's instance migrated on restart (backup taken first in `storage/`, not tracked).
+- Fix (owner: "daj dynamiczny podgląd ścieżek podczas pisania w Working folder input box… nie znam dokładnej nazwy katalogu"): the working-folder field suggests folders while typing (`FolderSuggestions`, `GET /spaces/folders?path=`, first-party `folder_picker.js`): case-insensitive prefix, `~` for home, arrows and Enter or Tab or a click take a folder and show its subfolders, a note says whether the folder exists. Folder names only; hidden folders only when typing a dot; nothing inside Agentaro's storage and runs or other users' space folders; signed-in users only, rate-limited. Tests added; checked in the browser. Tests: 226.

@@ -104,4 +104,31 @@ class WorkingFolderTest < ActiveSupport::TestCase
     assert_equal [ "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=true" ], args[3, 4]
     assert_equal File.realpath(@project), args[args.index("-C") + 1]
   end
+
+  test "owner fix: folder suggestions — folders only, by prefix, no hidden ones, nothing inside protected or other users' folders" do
+    root = File.realpath(@dirs)
+    %w[Agentaro agents archive .secret].each { |d| FileUtils.mkdir_p(File.join(root, d)) }
+    File.write(File.join(root, "agenda.txt"), "file")
+    found = ->(input, user = @user) { FolderSuggestions.for(input, user).folders }
+    assert_equal [ "#{root}/Agentaro/", "#{root}/agents/" ], found.("#{root}/ag"), "case-insensitive, folders only, sorted"
+    assert_includes found.("#{root}/"), "#{root}/archive/"
+    assert_not found.("#{root}/").any? { |p| p.include?(".secret") }, "hidden folders only when asked for"
+    assert_equal [ "#{root}/.secret/" ], found.("#{root}/.se")
+    assert FolderSuggestions.for(root, @user).exists
+    assert_not FolderSuggestions.for("#{root}/nope", @user).exists
+
+    storage = File.realpath(Rails.root.join("storage"))
+    assert_empty found.("#{storage}/"), "Agentaro's storage is never listed"
+    assert_not FolderSuggestions.for(storage, @user).exists
+
+    space(File.join(root, "agents"), user: create_user(username: "bob"), name: "Bob's")
+    FileUtils.mkdir_p(File.join(root, "agents", "inside"))
+    assert_empty found.("#{root}/agents/"), "another user's space folder is not listed"
+    assert_not_includes found.("#{root}/"), "#{root}/agents/"
+    space(File.join(root, "archive"))
+    FileUtils.mkdir_p(File.join(root, "archive", "2026"))
+    assert_equal [ "#{root}/archive/2026/" ], found.("#{root}/archive/"), "my own space folder is listed"
+    assert found.("~/").all? { |p| p.start_with?(Dir.home) }, "~ is the home folder"
+    assert_equal [], found.("relative")
+  end
 end

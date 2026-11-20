@@ -122,6 +122,10 @@ Column and validation → sandbox settings per run (Claude Code, Codex) → work
     - Writes outside the folder and the temp folders are refused, so e.g. global package installs fail: **accepted**.
     - `.git/config` and `.git/hooks` stay protected: **accepted**.
 
+## Owner fix after release (2026-11-20)
+
+- "daj dynamiczny podgląd ścieżek podczas pisania w Working folder… nie znam dokładnej nazwy katalogu": while typing, a list under the field shows matching folders (case-insensitive prefix; `~` is the home folder). Arrows with Enter or Tab, or a click, take a folder and show its subfolders. A note says whether the typed folder exists. The list shows folder names only, never files. Hidden folders appear only when the typed name starts with a dot. Nothing inside Agentaro's `storage/` and runs, or inside other users' space folders, is listed (G4). Endpoint `GET /spaces/folders?path=…`, signed-in users only, at most 300 requests a minute.
+
 ## Security analysis (B20), after spec 018
 
 Scope: this spec and specs 001–017.
@@ -134,4 +138,5 @@ Scope: this spec and specs 001–017.
 - **Prompt injection.** An agent with network, git push and Docker that reads hostile text can act on it within its folder and the network; nothing in Agentaro can stop that, only the read limit keeps other projects and Agentaro's secrets out.
 - **Validation (R1).** Folders are resolved (no symlink tricks) and may not be `/`, `storage/` or the runs folder (tests). The director can set a folder with `update_space`, with the same checks.
 - **Host setup.** Colima (Docker VM: 2 CPUs, 4 GB, 30 GB) was installed and started with the owner's consent; it does not start by itself after a reboot unless enabled (`brew services start colima`).
+- **Folder suggestions.** They reveal folder names on the host to signed-in users. This follows from Q2 (any user, any path) and is no more than the folder field already allows. Contents of protected folders and of other users' space folders are not listed (test).
 - **Regressions in 001–017.** Brakeman: no warnings. `bundle-audit`: no vulnerabilities. Spaces without a folder run exactly as before (test).

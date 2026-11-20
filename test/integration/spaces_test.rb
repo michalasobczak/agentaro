@@ -185,4 +185,18 @@ class SpacesTest < ActionDispatch::IntegrationTest
       assert_select ".errors", text: /must be an absolute path/
     end
   end
+
+  test "owner fix after spec 018: folder suggestions as JSON for signed-in users; the form loads the picker" do
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "project"))
+      get folders_spaces_path(path: "#{dir}/pro"), headers: { "Accept" => "application/json" }
+      assert_equal [ "#{File.realpath(dir)}/project/" ], JSON.parse(response.body)["folders"]
+    end
+    get new_space_path
+    assert_select ".folder-picker[data-folders-url='#{folders_spaces_path}'] input[role=combobox][autocomplete=off]"
+    assert_select "script[src*=folder_picker]"
+    delete session_path
+    get folders_spaces_path(path: "/")
+    assert_response :redirect
+  end
 end
