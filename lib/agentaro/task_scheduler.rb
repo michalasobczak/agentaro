@@ -34,7 +34,8 @@ module Agentaro
 
       # Creates scheduled runs for due occurrences; returns them. Called by the ticker and by tests.
       def tick(now: Time.current)
-        ManagementRunner.dispatch_due(now: now) # spec 011: work items whose time has come go to the director
+        ManagementRunner.dispatch_due(now: now) # spec 011: new work items go to the director (spec 016: at once)
+        StepChain.start_due(now: now)          # spec 016: epics whose start has come run their first step
         due(now).filter_map do |occurrence|
           run = TaskRun.create!(task: occurrence.task, occurrence_start: occurrence.original_start, trigger: "scheduled")
           enqueue(run.id)
@@ -59,6 +60,7 @@ module Agentaro
         Rails.application.executor.wrap do
           TaskRun.where(state: "running").find_each do |run|
             run.update!(state: "failed", error: "Interrupted: Agentaro stopped while this run was in progress.", finished_at: Time.current)
+            StepChain.after_run(run) if run.purpose == "epic_step" # spec 016: the epic stops here; Try again resumes
           end
           TaskRun.where(state: "queued").order(:id).pluck(:id).each { |id| @queue << id }
         end
@@ -84,7 +86,10 @@ module Agentaro
             run = TaskRun.find_by(id: id, state: "queued")
             next unless run
 
-            run.step? ? TaskRunner.new(run).perform! : ManagementRunner.new(run).perform!
+            if run.purpose == "epic_step" then StepChain.new(run).perform! # spec 016
+            elsif run.step? then TaskRunner.new(run).perform!
+            else ManagementRunner.new(run).perform!
+            end
           end
         rescue StandardError => e
           Rails.logger.error("[runs] worker failed on run #{id}: #{e.class}: #{e.message}")

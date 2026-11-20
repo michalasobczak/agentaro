@@ -45,12 +45,26 @@ module CalendarHelper
     epics.select { |e| e.starts_at < to && e.ends_at > from }
   end
 
+  # Spec 016, G8: an epic in the time grid, placed like a task segment (not draggable: it is no calendar task).
+  def epic_block(seg)
+    item = seg.occurrence.item
+    classes = [ "epic", "epic-block", "e-#{item.state}", ("is-running" if item.running?), seg.placement_classes,
+                ("cont-before" if seg.continues_before), ("cont-after" if seg.continues_after) ].compact.join(" ")
+    link_to work_item_path(item), class: classes, title: epic_title(seg.occurrence) do
+      safe_join([ tag.span(item.title, class: "task-title"), tag.span("#{item.space.name} · #{item.running? ? "running" : item.state_label}", class: "task-time") ])
+    end
+  end
+
+  def epic_title(epic)
+    item = epic.item
+    "Epic: #{item.title} · #{item.space.name} · #{item.running? ? "running" : item.state_label} · #{l(epic.starts_at.in_time_zone, format: "%-d %b %H:%M")} – #{l(epic.ends_at.in_time_zone, format: "%-d %b %H:%M")}"
+  end
+
   def epic_chip(epic, day)
     item = epic.item
     from, to = day_start(day), day_start(day) + 1.day
     classes = [ "epic", "chip", "e-#{item.state}", ("cont-before" if epic.starts_at < from), ("cont-after" if epic.ends_at > to) ].compact.join(" ")
-    title = "Epic: #{item.title} · #{item.space.name} · #{item.state_label} · #{l(epic.starts_at.in_time_zone, format: "%-d %b %H:%M")} – #{l(epic.ends_at.in_time_zone, format: "%-d %b %H:%M")}"
-    link_to work_item_path(item), class: classes, title: title do
+    link_to work_item_path(item), class: classes, title: epic_title(epic) do
       tag.span(item.title, class: "task-title")
     end
   end
@@ -114,6 +128,20 @@ module CalendarHelper
   def run_class_for_step(task)
     state = task.runs.max_by(&:id)&.state
     state ? "run-#{state.tr("_", "-")}" : (task.starts_at < Time.current ? "run-missed" : "run-none")
+  end
+
+  # Spec 016: when an epic starts — its start time, "at once", or when it actually started.
+  def epic_start_label(item, short: false)
+    format = short ? :short : :long
+    return "started #{l(item.started_at, format: format)}" if item.started_at
+    return l(item.starts_at, format: format) if item.starts_at
+
+    "at once, when planned"
+  end
+
+  def step_state_badge(step)
+    kind = { "succeeded" => "ok", "failed" => "bad", "timed_out" => "bad", "skipped" => "warn", "running" => "accent", "queued" => "accent" }[step.state]
+    badge(step.state_label, kind)
   end
 
   def run_badge(run)

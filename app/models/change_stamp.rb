@@ -10,7 +10,8 @@ module ChangeStamp
     digest(tasks.count, tasks.maximum(:updated_at),
            TaskException.where(task_id: ids).count, TaskException.where(task_id: ids).maximum(:updated_at),
            TaskRun.where(task_id: ids).count, TaskRun.where(task_id: ids).maximum(:updated_at),
-           Agent.visible_to(user).maximum(:updated_at), user.work_items.maximum(:updated_at), user.spaces.maximum(:updated_at)) # spec 013: epics
+           Agent.visible_to(user).maximum(:updated_at), user.work_items.maximum(:updated_at), user.spaces.maximum(:updated_at), # spec 013: epics
+           EpicStep.where(work_item_id: user.work_items.select(:id)).maximum(:updated_at)) # spec 016: steps
   end
 
   # Spec 011: chat, list and management runs of the user.
@@ -18,7 +19,8 @@ module ChangeStamp
     runs = TaskRun.where(user: user)
     digest(user.chat_messages.count, user.chat_messages.maximum(:updated_at), user.work_items.count, user.work_items.maximum(:updated_at),
            runs.count, runs.maximum(:updated_at), Task.where(work_item_id: user.work_items.select(:id)).maximum(:updated_at),
-           TaskRun.where(task_id: Task.where(work_item_id: user.work_items.select(:id)).select(:id)).maximum(:updated_at))
+           TaskRun.where(task_id: Task.where(work_item_id: user.work_items.select(:id)).select(:id)).maximum(:updated_at),
+           EpicStep.where(work_item_id: user.work_items.select(:id)).maximum(:updated_at))
   end
 
   def task(task)

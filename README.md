@@ -75,7 +75,7 @@ Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything e
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
-- **Spaces and epics (specs 013, 014):** your work is split into spaces — project spaces work towards a goal, team spaces take care of ongoing work without one. Each space has a kanban board of its epics (the director's units of work): New, Planned, Blocked, Done; drag cards to set their order, mark them Done or Cancel. Breadcrumbs lead from Spaces down to an epic, its steps and their runs. Agents working on an epic see only its space. The calendar shows epics as bars from their first step to their last; a switch shows agents' steps too.
+- **Spaces and epics (specs 013, 014):** your work is split into spaces — project spaces work towards a goal, team spaces take care of ongoing work without one. Each space has a kanban board of its epics (the director's units of work): New, Planned, Blocked, Done; drag cards to set their order, mark them Done or Cancel. Breadcrumbs lead from Spaces down to an epic, its steps and their runs. Agents working on an epic see only its space. An epic starts at the time you give (or at once); its steps then run one after another, each with the earlier answers, and a failed step stops it until you press Try again (spec 016). The calendar shows each epic as a bar from its start to its end; steps are not in the calendar.
 - **Director and management (specs 011, 012):** you talk only to your director in a chat — on the Director page, or from any page in a panel on the right; "New conversation" starts fresh and keeps the old one in an archive (spec 015). The director keeps your work list and, when an item's time comes, plans it as steps for the members of your team (spec 012: no managers); the steps go into the calendar. Your team (director and members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
 - **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
@@ -110,6 +110,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-20: spec 014 drafted — projects become spaces: project spaces (with a goal) and team spaces (no goal), same board.
 - 2026-11-20: spec 014 implemented — spaces of two kinds: project (with a goal) and team (no goal); "General" became a team space. Tests: 194.
 - 2026-11-20: spec 015 implemented — "New conversation" in the chat header (page and floating chat) archives the current conversation; earlier conversations are readable in the archive. Tests: 197.
+- 2026-11-20: spec 016 drafted — an epic starts at a time; its steps run back to back with the earlier results, no times in the calendar.
+- 2026-11-20: spec 016 implemented — epics start at a time and run their steps back to back with chained results; failure blocks, Try again resumes; calendar bars from start to end; verified with Claude (2 steps in 22 s). Tests: 206.
 - Next: later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per space and per agent), self-improvement.
 
 ## Specifications
@@ -131,6 +133,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 013 | [Projects, kanban and calendar depth](specs/013-projects.md) | implemented (F16 open); projects renamed to spaces by 014 |
 | 014 | [Spaces: project spaces and team spaces](specs/014-spaces.md) | implemented |
 | 015 | [New conversation with the director](specs/015-new-conversation.md) | implemented |
+| 016 | [Epics start at a time; steps run one after another](specs/016-sequential-steps.md) | implemented |
 | — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per space and per agent | not written |

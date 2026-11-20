@@ -6,13 +6,19 @@ class WorkItemsController < ApplicationController
   def show
     @item = current_user.work_items.find(params[:id])
     @runs = @item.runs.recent.limit(20)
-    @steps = @item.tasks.includes(:agent, :runs).order(:starts_at)
+    @steps = @item.tasks.includes(:agent, :runs).order(:starts_at) # calendar steps from before spec 016 (Q7)
+    @epic_steps = @item.epic_steps.includes(:agent, :runs).to_a
   end
 
   # A blocked item starts again from the director.
   def retry
     item = current_user.work_items.find(params[:id])
     return redirect_to(work_item_path(item), alert: "Only blocked items can be tried again.") unless item.state == "blocked"
+
+    if item.epic_steps.any? # spec 016, G5: resume from the step that stopped
+      StepChain.resume(item)
+      return redirect_to(work_item_path(item), notice: "Resumed from the step that stopped.")
+    end
 
     item.update!(state: "new", blocked_reason: nil)
     ManagementRunner.dispatch_due(user: current_user)

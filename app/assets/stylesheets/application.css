@@ -489,3 +489,16 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .content > .flash:has(~ .chat-app) { max-width: 60rem; width: 100%; margin-left: auto; margin-right: auto; }
 @media (max-width: 639px) { .main:has(> .content > .chat-app) > .content { height: calc(100dvh - 3.9rem); } }
 .archive-stream .bubble { animation: none; }
+
+/* Epic steps in order (spec 016) */
+.epic-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 0.6rem; }
+.epic-step { counter-increment: step; position: relative; padding: 0.6rem 0.75rem 0.6rem 2.6rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.epic-step::before { content: counter(step); position: absolute; left: 0.7rem; top: 0.6rem; width: 1.4rem; height: 1.4rem; border-radius: 50%; display: grid; place-items: center;
+  font-size: 0.75rem; font-weight: 700; background: var(--surface-2); color: var(--muted); }
+.epic-step.s-succeeded::before { background: var(--ok-soft); color: var(--ok); }
+.epic-step.s-running::before, .epic-step.s-queued::before { background: var(--accent-soft); color: var(--accent); }
+.epic-step.s-failed::before, .epic-step.s-timed_out::before, .epic-step.s-skipped::before { background: var(--bad-soft); color: var(--bad); }
+.epic-step-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 0.75rem; }
+.epic-step p { margin: 0.35rem 0 0; }
+.kanban-now { color: var(--accent); font-weight: 600; }
+.kanban-progress .run-pending, .kanban-progress .run-cancelled { background: var(--line-strong); }

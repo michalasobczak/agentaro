@@ -2,11 +2,10 @@
 # Agents propose, Agentaro applies (R1): every answer is parsed, checked against the user's own list, team
 # and the rules, and only then applied. An invalid answer is retried once with the errors.
 #
-# Purposes: "chat" (the director answers the user, spec 011 G1) and "director" (the director plans a due item
-# for its members, spec 012 G2). "manager" and "review" exist only in runs from before spec 012.
+# Purposes: "chat" (the director answers the user, spec 011 G1) and "director" (the director plans a new epic
+# for its members, spec 012 G2; spec 016: at once, as an ordered list of steps without times). "manager" and "review" exist only in runs from before spec 012.
 class ManagementRunner
   MAX_STEPS = 10
-  HORIZON = 14.days
   MAX_ACTIONS = 20
   LEGACY = %w[manager review].freeze
   HISTORY = 30 # chat messages the director sees
@@ -169,7 +168,7 @@ class ManagementRunner
   # Spec 013, G3/G4: in the chat, spaces meet only as names, goals and epic titles — no descriptions or plans.
   def item_line(item)
     parts = [ "id #{item.id}", "\"#{item.title}\"", "space #{item.space_id}", "state #{item.state}", "priority #{item.priority}" ]
-    parts << "handle from #{item.handle_from.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.handle_from
+    parts << "starts #{item.starts_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.starts_at
     parts << "due #{item.due_on.iso8601}" if item.due_on
     "- " + parts.join(", ")
   end
@@ -192,7 +191,7 @@ class ManagementRunner
   def item_text(item)
     lines = [ "Work item (epic): \"#{item.title}\" (priority #{item.priority})" ]
     lines << "Details: #{item.description}" if item.description.present?
-    lines << "Handle from: #{item.handle_from.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.handle_from
+    lines << "Starts: #{item.starts_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.starts_at
     lines << "Due: #{item.due_on.iso8601} (end of day)" if item.due_on
     lines.join("\n")
   end
@@ -217,26 +216,25 @@ class ManagementRunner
       Answer #{@user.username}'s latest messages. Reply with ONLY one JSON object, no other text:
       {"reply": "your message to #{@user.username}", "actions": [ ... ]}
       Actions (at most #{MAX_ACTIONS}, may be empty):
-      {"type": "add_item", "space": <space id, or the name of a space added in this reply>, "title": "...", "description": "...", "handle_from": "YYYY-MM-DDTHH:MM" or null, "due_on": "YYYY-MM-DD" or null, "priority": "normal" or "high"}
-      {"type": "update_item", "id": 1, "space": ..., "title": "...", "description": "...", "handle_from": ..., "due_on": ..., "priority": ...} (only items in state new or blocked; give only fields to change)
+      {"type": "add_item", "space": <space id, or the name of a space added in this reply>, "title": "...", "description": "...", "starts_at": "YYYY-MM-DDTHH:MM" or null, "due_on": "YYYY-MM-DD" or null, "priority": "normal" or "high"}
+      {"type": "update_item", "id": 1, "space": ..., "title": "...", "description": "...", "starts_at": ..., "due_on": ..., "priority": ...} (give only fields to change; items in state new or blocked can change everything, planned items that have not started only title, starts_at and priority)
       {"type": "add_space", "kind": "project" or "team", "name": "...", "goal": "what #{@user.username} wants to achieve (project spaces only)", "description": "what the space is about; for a team space, what it takes care of"}
       {"type": "update_space", "id": 1, "kind": ..., "name": "...", "goal": "...", "description": "..."} (give only fields to change; a project space needs a goal)
       A project space works towards a goal; a team space has no goal and takes care of ongoing work.
       {"type": "cancel_item", "id": 1}
       {"type": "reprioritize", "id": 1, "priority": "normal" or "high"}
-      Items without handle_from are handled at once. Times are in #{Time.zone.name}.
+      You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
       Every item belongs to a space. When it is not clear which space a new item belongs to, do not guess: ask in your reply and add nothing.
     PROMPT
   end
 
+  # Spec 016, G2: an ordered list of steps without times; they run one after another from the epic's start.
   def plan_prompt
-    now = Time.current
-    busy = Task.occurrences_for(@user, now...(now + HORIZON)).reject(&:all_day?).first(100).map do |o|
-      "- #{o.starts_at.in_time_zone.strftime("%a %Y-%m-%d %H:%M")}–#{o.ends_at.in_time_zone.strftime("%H:%M")}"
-    end
     members = team_members.map { |m| member_line(m) }
+    start = @item.starts_at ? "at #{@item.starts_at.in_time_zone.strftime("%A %-d %B %Y, %H:%M")}" : "at once"
     <<~PROMPT
-      You are the director. Break the work item into steps for your team members and schedule them. Agentaro puts your plan in the calendar as it is; nobody reviews it, so make it right.
+      You are the director. Break the work item into steps for your team members. Agentaro runs your plan as it is; nobody reviews it, so make it right.
+      The item starts #{start}. Its steps run one after another, each as soon as the previous one has finished, and each step receives the answers of the earlier steps. So order them so that each step builds on the ones before.
 
       #{item_text(@item)}
 
@@ -245,12 +243,9 @@ class ManagementRunner
       Your team members (use only these ids):
       #{members.presence&.join("\n") || "(none)"}
 
-      Busy times in the calendar (next 14 days):
-      #{busy.presence&.join("\n") || "(none)"}
-
-      Rules: 1 to #{MAX_STEPS} steps; each step 1 to 5760 minutes; start after now and within 14 days#{", not before the handle-from time" if @item.handle_from}#{", ending by the due date" if @item.due_on}; steps run at their start time, so order them in time.
+      Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member.
       Reply with ONLY one JSON object, no other text:
-      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>, "starts_at": "YYYY-MM-DDTHH:MM", "minutes": 30}]}
+      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>}]}
       or, if you cannot plan it or need #{@user.username}'s decision: {"blocked": "your question to #{@user.username}"}
     PROMPT
   end
@@ -287,10 +282,18 @@ class ManagementRunner
       -> { item.save!; "Added to the list: #{item.title}" }
     when "update_item"
       item = own_item(action)
-      raise Invalid, "update_item: item #{item.id} is #{item.state_label}; only new or blocked items can be changed" unless %w[new blocked].include?(item.state)
+      waiting = item.state == "planned" && item.started_at.nil? # spec 016: a planned epic that has not started yet
+      raise Invalid, "update_item: item #{item.id} is #{item.state_label}#{" and has started" if item.state == "planned"}; it cannot be changed" unless %w[new blocked].include?(item.state) || waiting
 
-      item.assign_attributes(item_attributes(action).merge(state: "new", blocked_reason: nil))
-      item.space = find_space(action["space"], "update_item") if action.key?("space") # Q5: only new or blocked items move
+      if waiting
+        extra = action.keys - %w[type id title starts_at priority]
+        raise Invalid, "update_item: item #{item.id} is planned; only title, starts_at and priority can change (not #{extra.join(", ")})" if extra.any?
+
+        item.assign_attributes(item_attributes(action))
+      else
+        item.assign_attributes(item_attributes(action).merge(state: "new", blocked_reason: nil))
+        item.space = find_space(action["space"], "update_item") if action.key?("space") # spec 013, Q5: only new or blocked items move
+      end
       raise Invalid, "update_item: #{item.errors.full_messages.to_sentence}" unless item.valid?
 
       -> { item.save!; "Updated: #{item.title}" }
@@ -343,8 +346,9 @@ class ManagementRunner
     attrs[:description] = action["description"].to_s.presence if action.key?("description")
     attrs[:priority] = action["priority"] if action.key?("priority") && action["priority"]
     raise Invalid, "priority must be normal or high" if attrs[:priority] && !WorkItem::PRIORITIES.include?(attrs[:priority])
-    if action.key?("handle_from")
-      attrs[:handle_from] = action["handle_from"].present? ? parse_time(action["handle_from"], "handle_from") : nil
+    key = action.key?("starts_at") ? "starts_at" : ("handle_from" if action.key?("handle_from")) # handle_from: the name before spec 016
+    if key
+      attrs[:starts_at] = action[key].present? ? parse_time(action[key], "starts_at") : nil
     end
     if action.key?("due_on")
       attrs[:due_on] = action["due_on"].present? ? (Date.iso8601(action["due_on"].to_s) rescue raise(Invalid, "due_on must be YYYY-MM-DD")) : nil
@@ -378,32 +382,22 @@ class ManagementRunner
     agent = members[step["agent"].to_i] or raise Invalid, "step #{number}: agent #{step["agent"].inspect} is not one of your team members"
     raise Invalid, "step #{number}: #{agent.name} is not available" unless agent.usable?
 
-    starts = parse_time(step["starts_at"], "step #{number}: starts_at")
-    minutes = Integer(step["minutes"], exception: false)
-    raise Invalid, "step #{number}: minutes must be 1 to 5760" unless minutes&.between?(1, 5760)
-
-    now = Time.current
-    raise Invalid, "step #{number}: starts_at must be in the future" if starts <= now
-    raise Invalid, "step #{number}: starts_at must be within 14 days" if starts > now + HORIZON
-    raise Invalid, "step #{number}: starts before the handle-from time" if @item.handle_from && starts < @item.handle_from
-    raise Invalid, "step #{number}: ends after the due date" if @item.due_on && starts + minutes.minutes > @item.due_on.in_time_zone.end_of_day
-
-    { "title" => title, "description" => step["description"].to_s.truncate(5000), "agent" => agent.id,
-      "starts_at" => starts.iso8601, "minutes" => minutes }
+    { "title" => title, "description" => step["description"].to_s.truncate(5000), "agent" => agent.id }
   end
 
-  # Spec 012, G3: a checked plan becomes calendar tasks for the members, and the user is told in the chat.
+  # Spec 016, G2: a checked plan becomes the epic's ordered steps; the epic is planned and starts at its time.
   def schedule!(steps, summary)
-    tasks = Task.transaction do
-      steps.map do |step|
-        starts = Time.zone.parse(step["starts_at"])
-        Task.create!(user: @user, calendar: "private", title: step["title"], description: step["description"].presence,
-                     starts_at: starts, ends_at: starts + step["minutes"].to_i.minutes, agent_id: step["agent"], work_item: @item)
+    EpicStep.transaction do
+      @item.epic_steps.where(state: "pending").destroy_all # a re-plan replaces steps that never ran
+      base = @item.epic_steps.maximum(:position).to_i
+      steps.each_with_index do |step, i|
+        @item.epic_steps.create!(position: base + i + 1, title: step["title"], description: step["description"].presence, agent_id: step["agent"])
       end
+      @item.update!(state: "planned", plan_summary: summary, blocked_reason: nil, finished_at: nil)
     end
-    @item.update!(state: "planned", plan_summary: summary, blocked_reason: nil)
-    first = tasks.min_by(&:starts_at)
-    say("director", "#{summary || "Planned."}\n\nPlanned \"#{@item.title}\": #{tasks.size} step#{"s" unless tasks.size == 1}, first on #{first.starts_at.in_time_zone.strftime("%A %-d %B, %H:%M")}.")
+    start = @item.starts_at && @item.starts_at > Time.current ? "starts #{@item.starts_at.in_time_zone.strftime("%A %-d %B, %H:%M")}" : "starting now"
+    say("director", "#{summary || "Planned."}\n\nPlanned \"#{@item.title}\": #{steps.size} step#{"s" unless steps.size == 1}, #{start}; they run one after another.")
+    StepChain.start_due(user: @user)
   end
 
   def block_with_question!(question)

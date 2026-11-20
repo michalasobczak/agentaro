@@ -3,7 +3,7 @@ class TaskRun < ApplicationRecord
   STATES = %w[queued running succeeded failed timed_out skipped].freeze
   FINISHED = %w[succeeded failed timed_out skipped].freeze
   TRIGGERS = %w[scheduled manual].freeze
-  PURPOSES = %w[step chat director manager review].freeze # spec 011: management runs have no calendar task; spec 012: manager and review only in old runs
+  PURPOSES = %w[step epic_step chat director manager review].freeze # spec 016: epic_step — a step of an epic, run in sequence # spec 011: management runs have no calendar task; spec 012: manager and review only in old runs
   MAX_OUTPUT = 200 * 1024 # bytes kept of an answer (G4)
   MAX_ERROR = 20 * 1024
 
@@ -12,7 +12,8 @@ class TaskRun < ApplicationRecord
   belongs_to :task, optional: true
   belongs_to :user, optional: true      # owner of a management run
   belongs_to :work_item, optional: true
-  belongs_to :agent, optional: true     # agent of a management run
+  belongs_to :agent, optional: true     # agent of a management run or an epic step
+  belongs_to :epic_step, optional: true # spec 016
 
   validates :state, inclusion: { in: STATES }
   validates :trigger, inclusion: { in: TRIGGERS }
@@ -20,6 +21,7 @@ class TaskRun < ApplicationRecord
   validates :purpose, inclusion: { in: PURPOSES }
   validates :task, presence: true, if: -> { purpose == "step" }
   validates :user, presence: true, unless: -> { purpose == "step" }
+  validates :epic_step, presence: true, if: -> { purpose == "epic_step" }, on: :create
 
   scope :recent, -> { order(created_at: :desc, id: :desc) }
   # Runs of tasks the user may see, and the user's own management runs (spec 011).

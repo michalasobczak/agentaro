@@ -1,7 +1,6 @@
 # Spec 007, G1/G2: the calendar — day, 4 days, week (Mon–Sun) and month views.
 class CalendarController < ApplicationController
   VIEWS = %w[day 4days week month].freeze
-  DEPTHS = %w[epics steps].freeze # spec 013, G9: epics only, or epics and agents' steps
 
   def show
     @view = VIEWS.include?(params[:view]) ? params[:view] : (session[:calendar_view] || "week")
@@ -11,10 +10,7 @@ class CalendarController < ApplicationController
     from = Time.zone.local(@days.first.year, @days.first.month, @days.first.day)
     to = Time.zone.local(@days.last.year, @days.last.month, @days.last.day) + 1.day
     range = from...to
-    @depth = DEPTHS.include?(params[:depth]) ? params[:depth] : (session[:calendar_depth] || "epics")
-    session[:calendar_depth] = @depth
     @occurrences = Task.occurrences_for(current_user, range)
-    @occurrences = @occurrences.reject { |o| o.task.work_item_id } if @depth == "epics" # agents' steps hidden
     @epics = epics_in(range)
     # Spec 010, G6: latest run state per occurrence, for the marks on the calendar.
     @run_states = TaskRun.where(task_id: @occurrences.map { |o| o.task.id }.uniq, occurrence_start: (range.begin - Task::MAX_DURATION)...range.end)
@@ -30,13 +26,18 @@ class CalendarController < ApplicationController
 
   private
 
-  # Spec 013, G9: the user's epics whose steps fall in the range, each spanning its first step to its last.
-  Epic = Data.define(:item, :starts_at, :ends_at)
+  # Spec 016, G8: the user's epics in the range, each from its start to its end (spec 013 epics: their steps).
+  # They are laid out in the time grid like tasks, so all_day? is false.
+  Epic = Data.define(:item, :starts_at, :ends_at) do
+    def all_day? = false
+  end
 
   def epics_in(range)
-    current_user.work_items.where.not(state: "cancelled").includes(:space, :tasks).where(id: Task.select(:work_item_id).where.not(work_item_id: nil)).filter_map do |item|
-      span = item.span
-      Epic.new(item: item, starts_at: span.begin, ends_at: span.end) if span && span.begin < range.end && span.end > range.begin
+    now = Time.current
+    current_user.work_items.includes(:space, :tasks).where("started_at IS NOT NULL OR (state = 'planned' AND starts_at IS NOT NULL) OR id IN (?)",
+                                                          Task.where.not(work_item_id: nil).select(:work_item_id)).filter_map do |item|
+      span = item.span(now) or next
+      Epic.new(item: item, starts_at: span.begin, ends_at: span.end) if span.begin < range.end && span.end > range.begin
     end.sort_by(&:starts_at)
   end
 

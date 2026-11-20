@@ -9,7 +9,8 @@
       <dt>Space</dt><dd><%= link_to @item.space.name, space_path(@item.space) %></dd>
       <dt>State</dt><dd><%= item_state_badge(@item) %></dd>
       <dt>Priority</dt><dd><%= @item.priority %></dd>
-      <% if @item.handle_from %><dt>Handle from</dt><dd><%= l @item.handle_from, format: :long %></dd><% end %>
+      <dt>Start</dt><dd><%= epic_start_label(@item) %></dd>
+      <% if @item.finished_at %><dt>Finished</dt><dd><%= l @item.finished_at, format: :long %></dd><% end %>
       <% if @item.due_on %><dt>Due</dt><dd><%= l @item.due_on, format: :long %></dd><% end %>
       <% if @item.description.present? %><dt>Details</dt><dd class="pre"><%= @item.description %></dd><% end %>
       <% if @item.plan_summary.present? %><dt>Plan</dt><dd class="pre"><%= @item.plan_summary %></dd><% end %>
@@ -25,7 +26,21 @@
   </div>
   <div class="card">
     <div class="card-header"><h2>Steps</h2></div>
-    <% if @steps.empty? %>
+    <% if @epic_steps.any? %>
+      <ol class="epic-steps">
+        <% @epic_steps.each do |step| %>
+          <% run = step.last_run %>
+          <li class="epic-step s-<%= step.state %>" id="step-<%= step.position %>">
+            <div class="epic-step-head">
+              <strong><%= step.title %></strong>
+              <%= step_state_badge(step) %>
+            </div>
+            <div class="muted small"><%= step.agent&.name || "agent removed" %><% if run&.duration %> · <%= distance_of_time_in_words(run.duration) %><% end %><% if run %> · <%= link_to "run and answer", task_run_path(run) %><% end %></div>
+            <% if step.description.present? %><p class="small pre"><%= step.description %></p><% end %>
+          </li>
+        <% end %>
+      </ol>
+    <% elsif @steps.empty? %>
       <p class="muted small">No steps yet.</p>
     <% else %>
       <ul class="run-list">

@@ -18,10 +18,6 @@
         <%= f.date_field :date, value: @date.iso8601, "aria-label": "Go to date" %>
         <%= f.submit "Go", name: nil, class: "secondary" %>
       <% end %>
-      <nav class="segmented" aria-label="Depth">
-        <%= link_to "Epics", calendar_path(view: @view, date: @date.iso8601, depth: "epics"), class: ("active" if @depth == "epics"), "aria-current": (@depth == "epics" ? "page" : nil), title: "Your tasks and your epics; agents' steps hidden" %>
-        <%= link_to "+ steps", calendar_path(view: @view, date: @date.iso8601, depth: "steps"), class: ("active" if @depth == "steps"), "aria-current": (@depth == "steps" ? "page" : nil), title: "Also every step the agents run" %>
-      </nav>
       <nav class="segmented" aria-label="View">
         <% { "day" => "Day", "4days" => "4 days", "week" => "Week", "month" => "Month" }.each do |key, label| %>
           <%= link_to label, calendar_path(view: key, date: @date.iso8601), class: [("active" if @view == key), ("desktop-only" unless key == "day")].compact.join(" "), "aria-current": (@view == key ? "page" : nil) %>
@@ -70,7 +66,6 @@
         <div class="gutter small muted">all day</div>
         <% @days.each do |day| %>
           <div class="allday-cell" data-date="<%= day.iso8601 %>">
-            <% day_epics(day, @epics).each do |epic| %><%= epic_chip(epic, day) %><% end %>
             <% all_day_occurrences(day, @occurrences).each do |o| %>
               <%= link_to task_path_for(o, here), class: task_classes(o, "chip"), data: task_data(o), title: [ o.task.title, agent_label(o.task) ].compact.join(" · ") do %>
                 <span class="task-title"><%= o.task.title %></span>
@@ -85,7 +80,8 @@
         </div>
         <% @days.each do |day| %>
           <div class="cal-day <%= "today" if day == Time.zone.today %>" data-date="<%= day.iso8601 %>">
-            <% timed_segments(day, @occurrences).each do |seg| %>
+            <% timed_segments(day, @occurrences + @epics).each do |seg| %>
+              <% if seg.occurrence.is_a?(CalendarController::Epic) %><%= epic_block(seg) %><% next %><% end %>
               <% o = seg.occurrence %>
               <%= link_to task_path_for(o, here), class: task_classes(o, seg.placement_classes, ("cont-before" if seg.continues_before), ("cont-after" if seg.continues_after)), data: task_data(o), title: [ o.task.title, task_time_label(o), agent_label(o.task) ].compact.join(" · ") do %>
                 <% if o.task.editable_by?(current_user) && !seg.continues_before %><span class="handle handle-top" aria-hidden="true"></span><% end %>
@@ -105,7 +101,7 @@
 
   <p class="cal-legend small muted">
     <span class="legend t-private"></span> Private <span class="legend t-system"></span> System-wide
-    <span class="legend epic-legend"></span> Epic (from its first step to its last)
+    <span class="legend epic-legend"></span> Epic (from its start to its end)
     <span class="legend run-ok"></span> Ran <span class="legend run-bad"></span> Failed <span class="legend run-missed"></span> Missed
     <span class="desktop-only">· Click a task to edit it, drag to move, drag its edges to resize. Right-click or hover + ⌘/Ctrl C, X, V, D for copy, cut, paste, duplicate.</span>
   </p>

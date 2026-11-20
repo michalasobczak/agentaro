@@ -46,57 +46,59 @@ class ManagementRunnerTest < ActiveSupport::TestCase
 
   def in_days(days, hour) = (Time.zone.now.to_date + days).in_time_zone.change(hour: hour).strftime("%Y-%m-%dT%H:%M")
 
-  test "S1, S2: a chat message becomes a planned item, end to end" do
+  test "S1, S2: a chat message becomes a planned epic with ordered steps (spec 016: no times)" do
     @user.chat_messages.create!(author: "user", content: "Research backups and write a summary by Friday")
     with_management(
-      "chat" => { reply: "On it.", actions: [ { type: "add_item", title: "Backup summary", description: "Compare 3 tools", due_on: (Date.current + 10).iso8601, priority: "high" } ] },
-      "director" => { summary: "Research then write", steps: [ { title: "Research", description: "Find 3 tools", agent: @writer.id, starts_at: in_days(1, 9), minutes: 60 },
-                                                               { title: "Write", description: "One page", agent: @writer.id, starts_at: in_days(1, 11), minutes: 30 } ] }
+      "chat" => { reply: "On it.", actions: [ { type: "add_item", title: "Backup summary", description: "Compare 3 tools", due_on: (Date.current + 10).iso8601, priority: "high", starts_at: in_days(2, 9) } ] },
+      "director" => { summary: "Research then write", steps: [ { title: "Research", description: "Find 3 tools", agent: @writer.id },
+                                                               { title: "Write", description: "One page", agent: @writer.id } ] }
     ) do
       ManagementRunner.chat!(@user)
       run_all
     end
     item = @user.work_items.sole
     assert_equal [ "Backup summary", "high", "planned", "Research then write" ], [ item.title, item.priority, item.state, item.plan_summary ]
-    assert_equal [ "Research", "Write" ], item.tasks.order(:starts_at).pluck(:title)
-    assert item.tasks.all? { |t| t.agent == @writer && t.calendar == "private" && t.user == @user }
+    assert_equal [ [ 1, "Research", "pending" ], [ 2, "Write", "pending" ] ], item.epic_steps.map { |s| [ s.position, s.title, s.state ] }
+    assert item.epic_steps.all? { |s| s.agent == @writer }
+    assert_equal 0, Task.count, "spec 016: no calendar tasks for steps"
+    assert_nil item.started_at, "it starts at its start time, in two days"
     messages = @user.chat_messages.ordered.map { |m| [ m.author, m.content ] }
     assert_equal [ "director", "On it." ], messages[1]
     assert_match "Added to the list: Backup summary", @user.chat_messages.where(author: "director").first.actions_summary
-    assert_match(/\AResearch then write\n\nPlanned "Backup summary": 2 steps, first on/, messages.last[1])
+    assert_match(/\AResearch then write\n\nPlanned "Backup summary": 2 steps, starts .*; they run one after another\./, messages.last[1])
     assert_match "Member id #{@writer.id}: Pisarz, role: writer", prompt("director")
-    assert_match "You are the director. Break the work item into steps", prompt("director")
+    assert_match "Its steps run one after another", prompt("director")
+    assert_no_match "Busy times", prompt("director")
     assert_equal %w[chat director], TaskRun.where(user: @user).order(:id).pluck(:purpose), "spec 012: one management run per item"
   end
 
   test "R1, S3: invalid steps change nothing; one retry with the errors, then blocked and told in the chat" do
     item = @user.work_items.create!(title: "Plan a trip")
     outsider = Agent.create!(user: @user, name: "Outsider", master_prompt: "x", executor: @executor)
-    bad = { summary: "x", steps: [ { title: "Book", agent: outsider.id, starts_at: in_days(1, 9), minutes: 30 } ] }
-    with_management("director" => bad, "director.retry" => { summary: "x", steps: [ { title: "Book", agent: @writer.id, starts_at: "2020-01-01T09:00", minutes: 30 } ] }) do
+    bad = { summary: "x", steps: [ { title: "Book", agent: outsider.id } ] }
+    with_management("director" => bad, "director.retry" => { summary: "x", steps: [] }) do
       run = ManagementRunner.queue!(user: @user, purpose: "director", work_item: item, agent: @director)
       ManagementRunner.new(run).perform!
       assert_match "agent #{outsider.id} is not one of your team members", prompt("director"), "the retry tells the errors"
       assert_equal "failed", run.reload.state
     end
-    assert_equal 0, Task.count
+    assert_equal 0, EpicStep.count
     assert_equal "blocked", item.reload.state
-    assert_match "starts_at must be in the future", item.blocked_reason
+    assert_match "1 to 10 steps", item.blocked_reason
     assert_match "\"Plan a trip\" is blocked", @user.chat_messages.last.content
   end
 
-  test "R2: limits on steps, horizon, due date and handle-from" do
-    travel_to Time.zone.parse("2026-11-20 10:00") # the checks are relative to now; a fixed time keeps the test stable
-    item = @user.work_items.create!(title: "Limits", due_on: Date.current + 2, handle_from: Time.zone.now + 1.day)
-    step = ->(**over) { { title: "S", agent: @writer.id, starts_at: in_days(1, 23), minutes: 30 }.merge(over) }
+  test "R2: limits on steps — count, title, members, available agents" do
+    item = @user.work_items.create!(title: "Limits")
+    step = ->(**over) { { title: "S", agent: @writer.id }.merge(over) }
     runner = ManagementRunner.new(TaskRun.new(user: @user, work_item: item, purpose: "director"))
     check = ->(data) { runner.send(:apply_plan!, data.deep_stringify_keys) rescue $! }
     assert_match "1 to 10 steps", check.({ steps: Array.new(11) { step.() } }).message
-    assert_match "within 14 days", check.({ steps: [ step.(starts_at: in_days(20, 9)) ] }).message
-    assert_match "ends after the due date", check.({ steps: [ step.(starts_at: in_days(2, 23), minutes: 120) ] }).message
-    assert_match "before the handle-from time", check.({ steps: [ step.(starts_at: in_days(0, 23)) ] }).message
-    assert_match "minutes must be 1 to 5760", check.({ steps: [ step.(minutes: 0) ] }).message
-    assert_equal 0, Task.count
+    assert_match "title is missing", check.({ steps: [ step.(title: " ") ] }).message
+    assert_match "not one of your team members", check.({ steps: [ step.(agent: 999_999) ] }).message
+    @writer.update!(enabled: false)
+    assert_match "Pisarz is not available", check.({ steps: [ step.() ] }).message
+    assert_equal 0, EpicStep.count
   end
 
   test "chat actions are checked together: one bad action applies none" do
@@ -113,12 +115,11 @@ class ManagementRunnerTest < ActiveSupport::TestCase
     assert_match "no item with id #{other.id}", @user.chat_messages.last.content
   end
 
-  test "Q4, S1: items wait for their handle-from time" do
-    later = @user.work_items.create!(title: "Later", handle_from: 2.hours.from_now)
+  test "spec 016, G2: new epics are planned at once, whatever their start time" do
+    later = @user.work_items.create!(title: "Later", starts_at: 2.days.from_now)
     now = @user.work_items.create!(title: "Now")
-    assert_equal [ now ], ManagementRunner.dispatch_due.map(&:work_item)
+    assert_equal [ later, now ].sort_by(&:id), ManagementRunner.dispatch_due.map(&:work_item).sort_by(&:id)
     assert_empty ManagementRunner.dispatch_due, "one management run per item at a time (R3)"
-    assert_equal [ later ], ManagementRunner.dispatch_due(now: 3.hours.from_now).map(&:work_item)
   end
 
   test "the director can ask the user instead of planning" do
@@ -173,11 +174,11 @@ class ManagementRunnerTest < ActiveSupport::TestCase
   test "spec 012: only members get steps; the director only when it is a member too" do
     item = @user.work_items.create!(title: "Self")
     runner = ManagementRunner.new(TaskRun.new(user: @user, work_item: item, purpose: "director"))
-    plan = { "steps" => [ { "title" => "S", "agent" => @director.id, "starts_at" => in_days(1, 9), "minutes" => 30 } ] }
+    plan = { "steps" => [ { "title" => "S", "agent" => @director.id } ] }
     assert_match "is not one of your team members", (runner.send(:apply_plan!, plan) rescue $!).message
     @user.team_roles.create!(agent: @director, role: "member", role_text: "editor")
     runner.send(:apply_plan!, plan)
-    assert_equal [ @director ], item.tasks.map(&:agent)
+    assert_equal [ @director ], item.epic_steps.map(&:agent)
     assert_equal "planned", item.reload.state
   end
 end
@@ -225,7 +226,7 @@ class ManagementRunnerSpacesTest < ActiveSupport::TestCase
 
     home, work = @user.spaces.create!(name: "Home", goal: "x"), @user.spaces.create!(name: "Work", goal: "y")
     planned = @user.work_items.create!(title: "Planned", space: home, state: "planned")
-    assert_match "only new or blocked", try_apply(reply: "OK", actions: [ { type: "update_item", id: planned.id, space: work.id } ]).message
+    assert_match "is planned; only title, starts_at and priority can change", try_apply(reply: "OK", actions: [ { type: "update_item", id: planned.id, space: work.id } ]).message
     fresh = @user.work_items.create!(title: "Fresh", space: home)
     apply(reply: "OK", actions: [ { type: "update_item", id: fresh.id, space: work.id } ])
     assert_equal work, fresh.reload.space

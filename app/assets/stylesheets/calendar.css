@@ -195,3 +195,15 @@ details.card[open] > summary { margin-bottom: 0.75rem; }
 .epic.chip.e-done { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
 .epic.chip.e-blocked { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
 .legend.epic-legend { background: var(--accent-soft); border: 1px solid var(--accent); margin-left: 0.6rem; }
+
+/* Epics in the time grid (spec 016, G8): from start to end; not draggable */
+.epic-block { position: relative; display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; min-height: 1.15rem; margin: 1px 2px 1px 1px; padding: 0.15rem 0.45rem;
+  overflow: hidden; z-index: 1; border-radius: 7px; border-left: 3px solid var(--accent); background: var(--accent-soft); color: var(--fg); font-size: 0.8rem; line-height: 1.25; }
+.epic-block:hover { text-decoration: none; z-index: 2; box-shadow: 0 4px 14px rgba(16, 24, 40, 0.18); }
+.epic-block .task-title { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.epic-block .task-time { color: var(--muted); font-size: 0.72rem; }
+.epic-block.e-done { border-left-color: var(--ok); background: var(--ok-soft); }
+.epic-block.e-blocked { border-left-color: var(--bad); background: var(--bad-soft); }
+.epic-block.e-cancelled { border-left-color: var(--line-strong); background: var(--surface-2); opacity: 0.75; }
+.epic-block.is-running { background-image: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--accent) 10%, transparent) 8px 16px); }
+.epic-block.tiny .task-time, .epic-block.short .task-time { display: none; }

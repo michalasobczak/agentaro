@@ -1,6 +1,6 @@
 # 013 — Projects
 
-Status: **implemented** 2026-11-20, F16 open. **Renamed by [spec 014](014-spaces.md):** projects are now spaces (project spaces with a goal, team spaces without); everything here applies to spaces (closed by owner: "to robimy projekty" after the proposals for Q3–Q7; kanban added: "i zadania mają być w ramach projektów jako tablica kanban"; calendar depth added: "kalendarz to jest dla mnie dla epiców … powinien być przełącznik głębokości widoczności zadań"; Q8, Q11, Q12 answered by the owner, Q9 and Q10 recommended options)
+Status: **implemented** 2026-11-20, F16 open. **Renamed by [spec 014](014-spaces.md):** projects are now spaces (project spaces with a goal, team spaces without); everything here applies to spaces. **Spec 016** replaces the timed steps and the calendar depth switch (G9): steps run in sequence and epics are bars from start to end (closed by owner: "to robimy projekty" after the proposals for Q3–Q7; kanban added: "i zadania mają być w ramach projektów jako tablica kanban"; calendar depth added: "kalendarz to jest dla mnie dla epiców … powinien być przełącznik głębokości widoczności zadań"; Q8, Q11, Q12 answered by the owner, Q9 and Q10 recommended options)
 Date: 2026-11-20
 Depends on: [011](011-list-and-management.md), [012](012-remove-managers.md)
 

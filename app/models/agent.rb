@@ -64,5 +64,6 @@ class Agent < ApplicationRecord
   def unassign_tasks
     tasks.find_each { |task| task.update_attribute(:agent_id, nil) } # runs callbacks: recorded in the changelog
     TaskRun.where(agent_id: id).find_each { |run| run.update_attribute(:agent_id, nil) } # runs keep the agent's name
+    EpicStep.where(agent_id: id).find_each { |step| step.update_attribute(:agent_id, nil) } # spec 016: such a step is skipped
   end
 end

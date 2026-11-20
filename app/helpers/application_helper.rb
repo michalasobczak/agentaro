@@ -110,6 +110,7 @@ module ApplicationHelper
   def run_purpose_label(run)
     case run.purpose
     when "chat" then "chat"
+    when "epic_step" then run.epic_step ? "step #{run.epic_step.position}: #{run.epic_step.title}" : "step" # spec 016
     when "director" then run.work_item&.runs&.exists?(purpose: "manager") ? "director chose a manager" : "director planned"
     when "manager" then "manager planned (before spec 012)"
     when "review" then "director reviewed the plan (before spec 012)"

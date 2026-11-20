@@ -98,23 +98,25 @@ class SpacesTest < ActionDispatch::IntegrationTest
     assert_select ".breadcrumbs", 0, "ordinary tasks have none"
   end
 
-  test "G9, S5: the calendar shows epics as bars and hides agents' steps unless asked" do
+  test "spec 016, G8: the calendar shows epics from start to end in the time grid; no depth switch" do
     space = make_space("House")
-    epic = @user.work_items.create!(title: "Kitchen", space: space, state: "planned")
-    Task.create!(user: @user, title: "Measure", starts_at: Time.zone.parse("2026-11-23 09:00"), ends_at: Time.zone.parse("2026-11-23 10:00"), agent: @agent, work_item: epic)
-    Task.create!(user: @user, title: "Order tiles", starts_at: Time.zone.parse("2026-11-25 09:00"), ends_at: Time.zone.parse("2026-11-25 10:00"), agent: @agent, work_item: epic)
+    done = @user.work_items.create!(title: "Kitchen", space: space, state: "done", started_at: Time.zone.parse("2026-11-23 09:00"), finished_at: Time.zone.parse("2026-11-23 09:40"))
+    waiting = @user.work_items.create!(title: "Tiles", space: space, state: "planned", starts_at: Time.zone.parse("2026-11-24 08:00"))
+    waiting.epic_steps.create!(position: 1, title: "Measure", agent: @agent)
+    legacy = @user.work_items.create!(title: "Old epic", space: space, state: "planned")
+    Task.create!(user: @user, title: "Old step", starts_at: Time.zone.parse("2026-11-25 09:00"), ends_at: Time.zone.parse("2026-11-25 10:00"), agent: @agent, work_item: legacy)
     Task.create!(user: @user, title: "Dentist", starts_at: Time.zone.parse("2026-11-24 15:00"), ends_at: Time.zone.parse("2026-11-24 16:00"))
 
     get calendar_path(view: "week", date: "2026-11-23")
-    assert_select ".epic.chip.e-planned[href='#{work_item_path(epic)}']", 3, "one bar piece per day: Monday to Wednesday"
-    assert_select ".task", text: /Measure/, count: 0
+    assert_select ".cal-day .epic-block.e-done[href='#{work_item_path(done)}'].r108", 1, "Monday 9:00 (row 108)"
+    assert_select ".cal-day .epic-block.e-planned[href='#{work_item_path(waiting)}'].r96", 1, "a waiting epic is a mark at its start"
+    assert_select ".cal-day .epic-block[href='#{work_item_path(legacy)}']", 1, "Q7: an epic from before spans its calendar steps"
+    assert_select ".task", { text: /Old step/, count: 1 }, "Q7: old steps stay calendar tasks"
+    assert_select ".task", { text: /Measure/, count: 0 }, "new steps are not in the calendar"
     assert_select ".task", text: /Dentist/
-    get calendar_path(view: "week", date: "2026-11-23", depth: "steps")
-    assert_select ".task", text: /Measure/
-    assert_select ".epic.chip", 3
+    assert_select "nav[aria-label=Depth]", 0, "Q6: no depth switch"
     get calendar_path(view: "month", date: "2026-11-23")
-    assert_select ".month-day .epic.chip", 3, "the switch is remembered (steps): epics stay in the month view"
-    assert_select ".task", text: /Measure/
+    assert_select ".month-day .epic.chip", 3
   end
 
   test "spec 014: the form offers both kinds; the list groups spaces by kind" do
@@ -133,5 +135,38 @@ class SpacesTest < ActionDispatch::IntegrationTest
     assert_select ".space-card.k-project", text: /House.*project.*Goal of House/m
     get space_path(@user.spaces.find_by!(name: "Household"))
     assert_select ".page-header p", text: "Team space · Bills"
+  end
+
+  test "spec 016, G9: the epic page lists steps in order; Try again resumes; the step run has breadcrumbs" do
+    space = make_space("House")
+    epic = @user.work_items.create!(title: "Kitchen", space: space, state: "blocked", blocked_reason: "Step 2 failed", started_at: 1.hour.ago, finished_at: 30.minutes.ago)
+    first = epic.epic_steps.create!(position: 1, title: "Measure", agent: @agent, state: "succeeded")
+    epic.epic_steps.create!(position: 2, title: "Order <b>tiles</b>", agent: @agent, state: "failed")
+    run = TaskRun.create!(user: @user, work_item: epic, epic_step: first, agent: @agent, purpose: "epic_step", trigger: "scheduled",
+                          occurrence_start: 1.hour.ago, state: "succeeded", output: "Kitchen is 9 m2")
+    get work_item_path(epic)
+    assert_select ".epic-steps li.epic-step", 2
+    assert_select ".epic-step.s-failed strong", text: "Order <b>tiles</b>"
+    assert_select ".epic-step a[href='#{task_run_path(run)}']"
+    get task_run_path(run)
+    assert_select ".breadcrumbs a", [ "Spaces", "House", "Kitchen" ].size
+    assert_select "h1", text: /step 1: Measure/
+    get space_path(space)
+    assert_select ".kanban-card", text: /1\/2 steps done/
+
+    post retry_work_item_path(epic)
+    assert_equal [ "planned", "succeeded", "queued" ], [ epic.reload.state, *epic.epic_steps.reload.map(&:state) ]
+    assert_equal 1, TaskRun.where(epic_step: epic.epic_steps.last, state: "queued").count, "resumed from the failed step"
+  end
+
+  test "spec 016: other users' epic steps and their runs are not reachable" do
+    bob = create_user(username: "bob")
+    theirs = bob.work_items.create!(title: "Secret", state: "planned")
+    step = theirs.epic_steps.create!(position: 1, title: "Hidden", agent: Agent.create!(user: bob, name: "B", master_prompt: "x", executor: @executor))
+    run = TaskRun.create!(user: bob, work_item: theirs, epic_step: step, purpose: "epic_step", trigger: "scheduled", occurrence_start: Time.current, output: "bob's answer")
+    get task_run_path(run)
+    assert_response :not_found
+    post retry_work_item_path(theirs)
+    assert_response :not_found
   end
 end

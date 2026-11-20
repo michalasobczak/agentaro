@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_090000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -39,6 +39,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_230000) do
     t.index ["task_run_id"], name: "index_chat_messages_on_task_run_id"
     t.index ["user_id", "archived_at"], name: "index_chat_messages_on_user_id_and_archived_at"
     t.index ["user_id"], name: "index_chat_messages_on_user_id"
+  end
+
+  create_table "epic_steps", force: :cascade do |t|
+    t.integer "work_item_id", null: false
+    t.integer "position", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.integer "agent_id"
+    t.string "state", default: "pending", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_epic_steps_on_agent_id"
+    t.index ["work_item_id", "position"], name: "index_epic_steps_on_work_item_id_and_position", unique: true
+    t.index ["work_item_id"], name: "index_epic_steps_on_work_item_id"
   end
 
   create_table "executors", force: :cascade do |t|
@@ -133,7 +147,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_230000) do
     t.integer "user_id"
     t.integer "work_item_id"
     t.integer "agent_id"
+    t.integer "epic_step_id"
     t.index ["agent_id"], name: "index_task_runs_on_agent_id"
+    t.index ["epic_step_id"], name: "index_task_runs_on_epic_step_id"
     t.index ["state", "created_at"], name: "index_task_runs_on_state_and_created_at"
     t.index ["task_id", "occurrence_start"], name: "index_task_runs_one_scheduled_per_occurrence", unique: true, where: "\"trigger\" = 'scheduled'"
     t.index ["task_id"], name: "index_task_runs_on_task_id"
@@ -197,7 +213,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_230000) do
     t.integer "user_id", null: false
     t.string "title", null: false
     t.text "description"
-    t.datetime "handle_from"
+    t.datetime "starts_at"
     t.date "due_on"
     t.string "priority", default: "normal", null: false
     t.integer "position", default: 0, null: false
@@ -207,6 +223,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_230000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "space_id", null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
     t.index ["space_id"], name: "index_work_items_on_space_id"
     t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"
     t.index ["user_id"], name: "index_work_items_on_user_id"
@@ -216,12 +234,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_230000) do
   add_foreign_key "agents", "users"
   add_foreign_key "chat_messages", "task_runs"
   add_foreign_key "chat_messages", "users"
+  add_foreign_key "epic_steps", "agents"
+  add_foreign_key "epic_steps", "work_items"
   add_foreign_key "password_links", "users"
   add_foreign_key "password_links", "users", column: "created_by_id"
   add_foreign_key "sessions", "users"
   add_foreign_key "spaces", "users"
   add_foreign_key "task_exceptions", "tasks"
   add_foreign_key "task_runs", "agents"
+  add_foreign_key "task_runs", "epic_steps"
   add_foreign_key "task_runs", "tasks"
   add_foreign_key "task_runs", "users"
   add_foreign_key "task_runs", "work_items"

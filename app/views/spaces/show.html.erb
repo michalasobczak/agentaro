@@ -24,17 +24,20 @@
       <header class="kanban-col-head"><span><%= label %></span><span class="count-pill"><%= @columns[state].size %></span></header>
       <ol class="kanban-cards" data-state="<%= state %>">
         <% @columns[state].each do |item| %>
-          <% steps = item.tasks.sort_by(&:starts_at) %>
-          <% ran = steps.count { |t| t.runs.max_by(&:id)&.state == "succeeded" } %>
+          <% chain = item.epic_steps.to_a %>
+          <% steps = chain.presence || item.tasks.sort_by(&:starts_at) %>
+          <% ran = chain.any? ? chain.count { |s| s.state == "succeeded" } : steps.count { |t| t.runs.max_by(&:id)&.state == "succeeded" } %>
+          <% current = chain.find { |s| %w[queued running].include?(s.state) } %>
           <li class="kanban-card<%= " is-high" if item.priority == "high" %>" data-id="<%= item.id %>" draggable="true" tabindex="0" aria-label="<%= item.title %>">
             <%= link_to item.title, work_item_path(item), class: "kanban-title", draggable: "false" %>
             <div class="kanban-meta small muted">
               <% if item.priority == "high" %><%= badge("high", "warn") %><% end %>
               <% if item.due_on %><span>due <%= l item.due_on, format: :short %></span><% end %>
               <% if steps.any? %><span><%= ran %>/<%= steps.size %> steps done</span><% end %>
-              <% if item.state == "planned" && (next_step = steps.find { |t| t.starts_at > Time.current }) %><span>next <%= l next_step.starts_at, format: :short %></span><% end %>
+              <% if current %><span class="kanban-now">step <%= current.position %> of <%= chain.size %> <%= current.state %></span>
+              <% elsif item.state == "planned" && item.started_at.nil? %><span>starts <%= epic_start_label(item, short: true) %></span><% end %>
             </div>
-            <% if steps.any? %><div class="kanban-progress" aria-hidden="true"><% steps.each do |t| %><span class="<%= run_class_for_step(t) %>"></span><% end %></div><% end %>
+            <% if steps.any? %><div class="kanban-progress" aria-hidden="true"><% steps.each do |t| %><span class="<%= t.is_a?(EpicStep) ? "run-#{t.state.tr("_", "-")}" : run_class_for_step(t) %>"></span><% end %></div><% end %>
             <% if item.state == "blocked" && item.blocked_reason.present? %><p class="kanban-note small"><%= item.blocked_reason.truncate(160) %></p><% end %>
             <% unless item.state == "done" %>
               <div class="kanban-actions">
