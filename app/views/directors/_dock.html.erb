@@ -9,6 +9,6 @@
   </button>
   <div class="chat-dock-panel" id="chat-dock-panel">
     <%= render "directors/chat", director: director, messages: [], writing: writing, dock: true,
-               latest_reply_id: current_user.chat_messages.where.not(author: "user").maximum(:id) %>
+               latest_reply_id: current_user.chat_messages.current.where.not(author: "user").maximum(:id) %>
   </div>
 </aside>

@@ -76,7 +76,7 @@ Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything e
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
 - **Spaces and epics (specs 013, 014):** your work is split into spaces — project spaces work towards a goal, team spaces take care of ongoing work without one. Each space has a kanban board of its epics (the director's units of work): New, Planned, Blocked, Done; drag cards to set their order, mark them Done or Cancel. Breadcrumbs lead from Spaces down to an epic, its steps and their runs. Agents working on an epic see only its space. The calendar shows epics as bars from their first step to their last; a switch shows agents' steps too.
-- **Director and management (specs 011, 012):** you talk only to your director in a chat — on the Director page, or from any page in a panel on the right. The director keeps your work list and, when an item's time comes, plans it as steps for the members of your team (spec 012: no managers); the steps go into the calendar. Your team (director and members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
+- **Director and management (specs 011, 012):** you talk only to your director in a chat — on the Director page, or from any page in a panel on the right; "New conversation" starts fresh and keeps the old one in an archive (spec 015). The director keeps your work list and, when an item's time comes, plans it as steps for the members of your team (spec 012: no managers); the steps go into the calendar. Your team (director and members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
 - **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
 - **Executors (spec 008):** the AI tools Agentaro can use, managed by admins from built-in presets — command-line tools logged in on this computer (Claude Code, Codex, Gemini CLI, Grok CLI, Ollama, LM Studio) and local APIs that need no key (Ollama, LM Studio, OpenAI-compatible servers). On-demand check: version of the program, or list of models. Users see the list read-only. No keys or tokens are stored; subscriptions are used by logging in on the host (`claude login`, `codex login`).
@@ -109,6 +109,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-20: spec 013 implemented — projects with a goal and a kanban board of epics, knowledge kept per project, calendar depth switch (epics / + steps); verified with Claude (it asked which project when unclear). Tests: 189. Security analysis: F16 (no limit on projects) open.
 - 2026-11-20: spec 014 drafted — projects become spaces: project spaces (with a goal) and team spaces (no goal), same board.
 - 2026-11-20: spec 014 implemented — spaces of two kinds: project (with a goal) and team (no goal); "General" became a team space. Tests: 194.
+- 2026-11-20: spec 015 implemented — "New conversation" in the chat header (page and floating chat) archives the current conversation; earlier conversations are readable in the archive. Tests: 197.
 - Next: later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per space and per agent), self-improvement.
 
 ## Specifications
@@ -129,6 +130,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 012 | [Remove managers: the director plans](specs/012-remove-managers.md) | implemented |
 | 013 | [Projects, kanban and calendar depth](specs/013-projects.md) | implemented (F16 open); projects renamed to spaces by 014 |
 | 014 | [Spaces: project spaces and team spaces](specs/014-spaces.md) | implemented |
+| 015 | [New conversation with the director](specs/015-new-conversation.md) | implemented |
 | — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per space and per agent | not written |

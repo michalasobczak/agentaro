@@ -11,9 +11,12 @@
     </div>
     <nav class="chat-links">
       <% if dock %>
+        <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>
         <%= link_to director_path, class: "chat-tool", title: "Open the full chat", "aria-label": "Open the full chat" do %><%= icon(:expand) %><% end %>
         <button type="button" class="chat-tool" data-dock-close title="Hide the chat (Esc)" aria-label="Hide the chat"><%= icon(:close) %></button>
       <% else %>
+        <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>
+        <%= link_to archive_director_path, class: "chat-tool", title: "Earlier conversations", "aria-label": "Earlier conversations" do %><%= icon(:history) %><% end %>
         <%= link_to spaces_path, class: "button secondary small" do %><%= icon(:board) %> Spaces<% end %>
         <%= link_to team_path, class: "button secondary small" do %><%= icon(:org) %> Team<% end %>
       <% end %>

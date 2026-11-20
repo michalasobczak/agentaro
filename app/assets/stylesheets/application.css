@@ -476,3 +476,16 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .space-form:has(input[value="team"]:checked) .goal-field { display: none; }
 .space-group { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 1.5rem 0 0.75rem; }
 .space-group:first-of-type { margin-top: 0; }
+
+/* New conversation and archive (spec 015) */
+.chat-links form { margin: 0; }
+.chat-links { align-items: center; }
+.archive-conversation summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
+.archive-conversation + .archive-conversation { margin-top: 1rem; }
+.archive-stream { min-height: 0; padding: 1rem 0 0; background: none; }
+/* The full-page chat takes the space left under a flash message instead of a fixed height (found with spec 015). */
+.main:has(> .content > .chat-app) > .content { display: flex; flex-direction: column; height: calc(100dvh - 2rem); }
+.content > .chat-app { flex: 1 1 auto; height: auto; min-height: 20rem; width: 100%; }
+.content > .flash:has(~ .chat-app) { max-width: 60rem; width: 100%; margin-left: auto; margin-right: auto; }
+@media (max-width: 639px) { .main:has(> .content > .chat-app) > .content { height: calc(100dvh - 3.9rem); } }
+.archive-stream .bubble { animation: none; }

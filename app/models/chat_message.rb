@@ -11,4 +11,6 @@ class ChatMessage < ApplicationRecord
   validates :content, presence: true, length: { maximum: 20_000 }
 
   scope :ordered, -> { order(:created_at, :id) }
+  scope :current, -> { where(archived_at: nil) } # spec 015: the conversation going on now
+  scope :archived, -> { where.not(archived_at: nil) }
 end

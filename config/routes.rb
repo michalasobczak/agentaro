@@ -18,6 +18,8 @@ Rails.application.routes.draw do
   # Spec 011: chat with the director, the work list, the team
   resource :director, only: :show do
     get :stamp
+    post :new_conversation # spec 015
+    get :archive
   end
   resources :chat_messages, only: %i[index create], path: "director/messages"
   resources :work_items, only: :show, path: "epics" do # owner fix after spec 013: no list page; epics live on their space boards

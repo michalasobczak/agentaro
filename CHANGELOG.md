@@ -94,3 +94,7 @@
 - Security analysis (B20) after spec 014: no new findings; F16 carries over. Brakeman: no warnings; `bundle-audit`: no vulnerabilities.
 - Gates: 194 tests, `bin/ci` passed.
 - The owner's instance migrated on restart (backup taken first in `storage/`, not tracked): "General" is a team space.
+- Spec 015 New conversation (owner: "chcę móc czat z dyrektorem czyścić"; Q1 "Nowa rozmowa", Q2 "W nagłówku czatu"). `chat_messages.archived_at`: "New conversation" (icon button in the chat header on the Director page and in the floating chat, with a confirmation) gives every message of the current conversation the same archive time, through callbacks, so each is in the data changelog. The chat page, the floating chat, the JSON endpoint and the director's prompt use only the current conversation; epics, spaces and plans are untouched. Refused while the director is writing. Archive page (Director › Archive): earlier conversations, newest first, as read-only bubbles.
+- Found on the way: the director's history line was cut off by a comment while editing (caught by the new prompt test before release); a flash message on the Director page pushed the full-height chat below the screen — the chat now fills the space under it.
+- Security analysis (B20) after spec 015: no new findings. Brakeman: no warnings; `bundle-audit`: no vulnerabilities.
+- Gates: 197 tests, `bin/ci` passed.

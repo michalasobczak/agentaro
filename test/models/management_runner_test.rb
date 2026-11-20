@@ -313,3 +313,14 @@ class SpaceKindsTest < ActiveSupport::TestCase
     assert_match "Goal is required for a project space", error.message
   end
 end
+
+class ManagementRunnerConversationTest < ActiveSupport::TestCase
+  test "spec 015: the director's prompt has only the current conversation" do
+    user = create_user
+    user.chat_messages.create!(author: "user", content: "Archived secret topic", archived_at: 1.hour.ago)
+    user.chat_messages.create!(author: "user", content: "Fresh start")
+    prompt = ManagementRunner.new(TaskRun.new(user: user, purpose: "chat")).send(:chat_prompt)
+    assert_match "Fresh start", prompt
+    assert_no_match "Archived secret topic", prompt
+  end
+end

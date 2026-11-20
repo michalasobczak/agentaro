@@ -199,7 +199,8 @@ class ManagementRunner
 
   def chat_prompt
     list = @user.work_items.where(state: WorkItem::OPEN + %w[planned]).listed.limit(50).map { |i| item_line(i) }
-    history = @user.chat_messages.ordered.last(HISTORY).map { |m| "#{m.author == "user" ? @user.username : m.author.capitalize}: #{m.content}" }
+    # Spec 015: archived conversations are left out.
+    history = @user.chat_messages.current.ordered.last(HISTORY).map { |m| "#{m.author == "user" ? @user.username : m.author.capitalize}: #{m.content}" }
     <<~PROMPT
       You are the director. #{@user.username} talks only to you. Keep their work list from the conversation; when an item's time comes, you will plan it for your team members.
 

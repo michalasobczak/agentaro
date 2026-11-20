@@ -10,7 +10,7 @@ class ChatMessagesController < ApplicationController
   # Without an id (the floating chat opening for the first time): the latest 100.
   def index
     after = params[:after].to_i
-    scope = current_user.chat_messages
+    scope = current_user.chat_messages.current # spec 015
     messages = after.positive? ? scope.where("id > ?", after).ordered.limit(100) : scope.ordered.last(100)
     render json: { messages: messages.map { |m| helpers.chat_message_json(m) }, writing: director_writing? }
   end

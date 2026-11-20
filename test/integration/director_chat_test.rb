@@ -137,6 +137,44 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_equal ids[2, 100], JSON.parse(response.body)["messages"].map { |m| m["id"] }
   end
 
+  test "spec 015: a new conversation archives the old one; the chat, JSON and archive follow" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    old = @user.chat_messages.create!(author: "user", content: "Old <b>topic</b>")
+    @user.chat_messages.create!(author: "director", content: "Old answer")
+    get director_path
+    assert_select "form[action='#{new_conversation_director_path}'][data-confirm]"
+    assert_select "a[href='#{archive_director_path}']"
+    post new_conversation_director_path
+    assert_match "New conversation. The previous one (2 messages) is in the archive.", flash[:notice]
+    assert_equal 0, @user.chat_messages.current.count
+    assert_equal 1, @user.chat_messages.archived.distinct.count(:archived_at), "one archived conversation"
+    get director_path
+    assert_select ".bubble-row:not([data-typing])", 0
+    get chat_messages_path, headers: { "Accept" => "application/json" }
+    assert_empty JSON.parse(response.body)["messages"]
+    get archive_director_path
+    assert_select ".archive-conversation", 1
+    assert_select ".archive-conversation .bubble-text", text: "Old <b>topic</b>"
+    assert_select "[style]", 0
+    assert DataChange.where(record_type: "ChatMessage", record_id: old.id).where("changeset LIKE ?", "%archived_at%").exists?, "R2: in the data changelog"
+
+    get calendar_path
+    assert_select "[data-chat-dock] form[action='#{new_conversation_director_path}']", 1, "also in the floating chat"
+  end
+
+  test "spec 015: no new conversation while the director is writing; archives are per user" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    post chat_messages_path, params: { chat_message: { content: "Hi" } }
+    post new_conversation_director_path
+    assert_match "The director is writing", flash[:alert]
+    assert_equal 1, @user.chat_messages.current.count
+
+    bob = create_user(username: "bob")
+    bob.chat_messages.create!(author: "user", content: "bob's archived", archived_at: Time.current)
+    get archive_director_path
+    assert_no_match "bob's archived", response.body
+  end
+
   test "auto refresh stamp changes with new chat messages" do
     get stamp_director_path, headers: { "Accept" => "application/json" }
     first = JSON.parse(response.body)["stamp"]

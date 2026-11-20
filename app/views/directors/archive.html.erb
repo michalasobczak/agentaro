@@ -1,0 +1,29 @@
+<%= breadcrumbs([ "Director", director_path ], [ "Archive" ]) %>
+<%= page_header "Earlier conversations", "Conversations you closed with “New conversation”. Read-only; the director no longer sees them." do %>
+  <%= link_to "Back to the chat", director_path, class: "button secondary" %>
+<% end %>
+<% if @conversations.empty? %>
+  <div class="card"><p class="muted">No earlier conversations yet.</p></div>
+<% else %>
+  <% @conversations.each_with_index do |(archived_at, messages), index| %>
+    <details class="card archive-conversation"<%= " open" if index.zero? %>>
+      <summary>
+        <strong><%= l messages.first.created_at, format: :long %> – <%= l messages.last.created_at, format: :long %></strong>
+        <span class="muted small"><%= pluralize(messages.size, "message") %> · archived <%= l archived_at, format: :short %></span>
+      </summary>
+      <div class="chat-stream archive-stream">
+        <% messages.each do |message| %>
+          <% data = chat_message_json(message) %>
+          <div class="bubble-row from-<%= message.author %>">
+            <div class="bubble">
+              <% unless message.author == "user" %><div class="bubble-name"><%= data[:name] %></div><% end %>
+              <div class="bubble-text"><%= message.content %></div>
+              <% if message.actions_summary %><div class="bubble-actions"><%= message.actions_summary %></div><% end %>
+              <div class="bubble-time"><%= data[:day] %>, <%= data[:time] %></div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </details>
+  <% end %>
+<% end %>
