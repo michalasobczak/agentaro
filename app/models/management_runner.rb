@@ -63,13 +63,14 @@ class ManagementRunner
     return fail!("The #{role_name} is no longer set.") unless agent
 
     prompt = prompt_for(agent)
-    outcome = AgentCall.new(@run, agent, prompt, **@call_options).call
+    outcome = AgentCall.new(@run, agent, prompt, **@call_options).call(on_text: stream_reply)
     if outcome.state == "succeeded"
       begin
         apply!(parse(outcome.output))
       rescue Invalid, JSON::ParserError => e
         retry_prompt = AgentCall::Prompt.new(system: prompt.system, user: "#{prompt.user}\n\nYour previous answer was not accepted: #{e.message}\nAnswer again with only the JSON object.")
-        outcome = AgentCall.new(@run, agent, retry_prompt, **@call_options).call
+        ReplyStream.clear(@run.id)
+        outcome = AgentCall.new(@run, agent, retry_prompt, **@call_options).call(on_text: stream_reply)
         if outcome.state == "succeeded"
           begin
             apply!(parse(outcome.output))
@@ -89,9 +90,19 @@ class ManagementRunner
     Rails.logger.error("[management] run #{@run.id} failed: #{e.class}: #{e.message}")
     TaskRunner.finish!(@run, AgentCall::Outcome.new("failed", nil, "#{e.class}: #{e.message}", nil)) unless @run.finished?
     fail!("something went wrong (#{e.class})")
+  ensure
+    ReplyStream.clear(@run.id) # R4: nothing of the partial reply stays
   end
 
   private
+
+  # Spec 017, G4: while the director answers the user, the "reply" so far is kept in memory for the chat to show.
+  def stream_reply
+    return unless @run.purpose == "chat"
+
+    run_id = @run.id
+    ->(text) { ReplyStream.write(run_id, ReplyStream.partial_reply(text)) }
+  end
 
   # R3: messages written while the director was answering get their own answer.
   def answer_later_messages

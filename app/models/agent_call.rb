@@ -19,7 +19,10 @@ class AgentCall
   end
 
   # Marks the run as running (what ran is kept on the run, spec 010 R3) and returns the outcome.
-  def call
+  # on_text (spec 017): called with the answer so far while it streams — Claude Code, the Ollama API and
+  # OpenAI-compatible APIs; other executors answer once at the end. The returned outcome is the same either way.
+  def call(on_text: nil)
+    @on_text = on_text
     return Outcome.new("skipped", nil, "#{@agent.name} is not available (disabled agent or executor).", nil) unless @agent.usable?
 
     executor = @agent.executor
@@ -52,8 +55,11 @@ class AgentCall
     args, stdin, answer_file = cli_call(preset.key, model, prompt)
     return Outcome.new("failed", nil, "Choose a model for #{executor.name} (agent or executor default).", nil) if args.nil?
 
-    result = HostProcess.run(program, args, stdin: stdin, chdir: work_dir.to_s, timeout: @timeout, max_output: TaskRun::MAX_OUTPUT + 1024) # a bit more, so the cut is marked
-    answer = answer_file && File.exist?(answer_file) ? File.read(answer_file) : result.stdout
+    stream = @on_text && preset.key == "claude_code" ? ClaudeStream.new(@on_text) : nil
+    args = stream.arguments(args) if stream
+    result = HostProcess.run(program, args, stdin: stdin, chdir: work_dir.to_s, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
+                             on_stdout: stream&.method(:feed))
+    answer = answer_file && File.exist?(answer_file) ? File.read(answer_file) : (stream ? stream.answer(result.stdout) : result.stdout)
     if result.timed_out
       Outcome.new("timed_out", ExecutorCheck.clean_text(answer), "Stopped after #{@timeout.to_i / 60} minutes.", nil)
     elsif result.success?
@@ -61,6 +67,42 @@ class AgentCall
     else
       Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, ExecutorCheck.clean_text(result.stderr).presence || "Exited with status #{result.exit_status}.", result.exit_status)
     end
+  end
+
+  # Spec 017: a streamed API answer — Ollama sends JSON lines, OpenAI-compatible servers send "data:" lines.
+  def stream_api(preset, uri, body)
+    text = +""
+    buffer = +""
+    status = nil
+    Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: @timeout, write_timeout: 30) do |http|
+      http.request(Net::HTTP::Post.new(uri, "Content-Type" => "application/json"), body.to_json) do |response|
+        status = response
+        next unless response.is_a?(Net::HTTPSuccess)
+
+        response.read_body do |chunk|
+          buffer << chunk
+          while (line = buffer.slice!(/\A[^\n]*\n/))
+            piece = stream_piece(preset, line.strip) or next
+            text << piece
+            raise IOError, "answer too long" if text.bytesize > TaskRun::MAX_OUTPUT
+            @on_text.call(text)
+          end
+        end
+      end
+    end
+    return Outcome.new("failed", nil, "Answered #{status.code} #{status.message}.", status.code.to_i) unless status.is_a?(Net::HTTPSuccess)
+
+    Outcome.new("succeeded", text, nil, nil)
+  end
+
+  def stream_piece(preset, line)
+    if preset.protocol == "ollama"
+      JSON.parse(line).dig("message", "content") if line.start_with?("{")
+    elsif line.start_with?("data:") && line != "data: [DONE]"
+      JSON.parse(line.delete_prefix("data:").strip).dig("choices", 0, "delta", "content")
+    end
+  rescue JSON::ParserError
+    nil
   end
 
   # [arguments, standard input, answer file]; nil arguments when a needed model is missing.
@@ -98,8 +140,11 @@ class AgentCall
     return Outcome.new("failed", nil, "Choose a model for #{executor.name} (agent or executor default).", nil) unless model
 
     messages = [ { role: "system", content: prompt.system }, { role: "user", content: prompt.user } ]
-    path, body = preset.protocol == "ollama" ? [ "/api/chat", { model: model, messages: messages, stream: false } ] : [ "/chat/completions", { model: model, messages: messages } ]
+    stream = @on_text.present?
+    path, body = preset.protocol == "ollama" ? [ "/api/chat", { model: model, messages: messages, stream: stream } ] : [ "/chat/completions", { model: model, messages: messages, stream: stream } ]
     uri = URI.parse(executor.base_url + path)
+    return stream_api(preset, uri, body) if stream
+
     response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: @timeout, write_timeout: 30) do |http|
       http.request(Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "Accept" => "application/json"), body.to_json)
     end

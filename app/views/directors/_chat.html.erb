@@ -1,7 +1,9 @@
 <%# The director chat (spec 011 G1). Used full page on the Director page and as the floating chat on every other page
     (dock: true). The floating chat loads its messages when first opened; chat.js drives both. %>
 <% dock = local_assigns.fetch(:dock, false) %>
+<% voice_ready = Voice.listening? && Voice.speaking? %>
 <div class="chat-app<%= " is-dock" if dock %>" data-messages-url="<%= chat_messages_path %>" data-last-id="<%= messages.last&.id.to_i %>"
+     data-voice="<%= voice_ready ? "ready" : "missing" %>" data-voice-transcribe-url="<%= voice_transcribe_path %>" data-voice-speak-url="<%= voice_speak_path %>"
      data-writing="<%= writing %>"<% if dock %> data-lazy="true" data-latest-reply-id="<%= latest_reply_id.to_i %>"<% end %>>
   <header class="chat-head">
     <span class="chat-avatar is-director" aria-hidden="true"><%= director.name.first.upcase %></span>
@@ -47,8 +49,18 @@
     </div>
   </div>
 
+  <%# Spec 017: voice mode — listening, thinking, speaking; the dots move with the state. %>
+  <div class="voice-panel" data-voice-panel hidden>
+    <span class="voice-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    <div class="voice-info">
+      <strong data-voice-state>Listening…</strong>
+      <span class="muted small" data-voice-note>Speak; I send when you pause.</span>
+    </div>
+    <button type="button" class="voice-stop" data-voice-stop title="End voice mode" aria-label="End voice mode"><%= icon(:close) %></button>
+  </div>
   <%= form_with model: ChatMessage.new, url: chat_messages_path, class: "chat-composer" do |f| %>
     <%= f.text_area :content, rows: 1, maxlength: 5000, required: true, placeholder: "Message #{director.name}…", "aria-label": "Message", autofocus: !dock, id: (dock ? "chat-dock-input" : "chat-input") %>
+    <button type="button" class="voice-button" data-voice-start title="<%= voice_ready ? "Talk to #{director.name}" : "Voice is not set up on this computer" %>" aria-label="Voice mode"<%= " disabled" unless voice_ready %>><%= icon(:voice) %></button>
     <button type="submit" class="send" aria-label="Send" title="Send (Enter)"><%= icon(:send) %></button>
   <% end %>
   <p class="chat-hint muted small desktop-only">Enter sends · Shift+Enter for a new line</p>

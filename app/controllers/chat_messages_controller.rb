@@ -12,7 +12,7 @@ class ChatMessagesController < ApplicationController
     after = params[:after].to_i
     scope = current_user.chat_messages.current # spec 015
     messages = after.positive? ? scope.where("id > ?", after).ordered.limit(100) : scope.ordered.last(100)
-    render json: { messages: messages.map { |m| helpers.chat_message_json(m) }, writing: director_writing? }
+    render json: { messages: messages.map { |m| helpers.chat_message_json(m) }, writing: director_writing?, streaming: streaming_reply }
   end
 
   def create
@@ -32,6 +32,12 @@ class ChatMessagesController < ApplicationController
   private
 
   def director_writing? = TaskRun.where(user: current_user, purpose: "chat", state: %w[queued running]).exists?
+
+  # Spec 017, G4: the director's reply so far (own chat run only, R4).
+  def streaming_reply
+    run_id = TaskRun.where(user: current_user, purpose: "chat", state: "running").order(:id).pick(:id)
+    run_id && ReplyStream.read(run_id).presence
+  end
 
   def reject(error, status = :unprocessable_content)
     respond_to do |format|

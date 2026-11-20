@@ -21,6 +21,10 @@ Rails.application.routes.draw do
     post :new_conversation # spec 015
     get :archive
   end
+  # Spec 017: voice for the director chat
+  post "director/voice/transcribe", to: "voices#transcribe", as: :voice_transcribe
+  post "director/voice/speak", to: "voices#speak", as: :voice_speak
+  get "director/voice/status", to: "voices#status", as: :voice_status
   resources :chat_messages, only: %i[index create], path: "director/messages"
   resources :work_items, only: :show, path: "epics" do # owner fix after spec 013: no list page; epics live on their space boards
     member do

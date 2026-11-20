@@ -175,6 +175,30 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_no_match "bob's archived", response.body
   end
 
+  test "spec 017: voice endpoints need sign-in, refuse bad input, and the partial reply goes only to its owner" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    get director_path
+    assert_select ".chat-composer [data-voice-start]"
+    assert_select ".chat-app[data-voice-transcribe-url='#{voice_transcribe_path}']"
+    post voice_transcribe_path, params: "OggS".b, headers: { "Content-Type" => "audio/ogg", "X-CSRF-Token" => "x" }
+    assert_response :unprocessable_content
+    post voice_speak_path, params: { text: "x" * 601 }, as: :json
+    assert_response :unprocessable_content
+
+    run = TaskRun.create!(user: @user, agent: @director, purpose: "chat", trigger: "scheduled", occurrence_start: Time.current, state: "running")
+    ReplyStream.write(run.id, "Cześć, już")
+    get chat_messages_path(after: 0), headers: { "Accept" => "application/json" }
+    assert_equal "Cześć, już", JSON.parse(response.body)["streaming"]
+    sign_in(create_user(username: "bob"))
+    get chat_messages_path(after: 0), headers: { "Accept" => "application/json" }
+    assert_nil JSON.parse(response.body)["streaming"], "R4: never another user's reply"
+    delete session_path
+    post voice_speak_path, params: { text: "hi" }, as: :json
+    assert_response :redirect, "signed-out users are sent to sign in"
+  ensure
+    ReplyStream.clear(run.id) if run
+  end
+
   test "auto refresh stamp changes with new chat messages" do
     get stamp_director_path, headers: { "Accept" => "application/json" }
     first = JSON.parse(response.body)["stamp"]

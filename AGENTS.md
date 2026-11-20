@@ -37,4 +37,9 @@ Ruby 4.0.10 must be on `PATH` (on the owner's Mac: `export PATH="/opt/homebrew/o
 - `bin/rails agentaro:admin:create` — first admin (interactive: password, QR code); prefix `RAILS_ENV=production` for production data
 - `bin/rails agentaro:audit:verify` / `agentaro:audit:prune` — audit chains
 
+Voice for the director chat (spec 017), optional — files in `storage/voice/` (not tracked):
+- `brew install whisper-cpp`, then the model `ggml-large-v3-turbo-q5_0.bin` from huggingface.co/ggerganov/whisper.cpp into `storage/voice/`;
+- `python3 -m venv storage/voice/piper-venv && storage/voice/piper-venv/bin/pip install piper-tts`, then the voice `pl_PL-gosia-medium.onnx` (+ `.onnx.json`) from huggingface.co/rhasspy/piper-voices into `storage/voice/`;
+- other paths: `AGENTARO_WHISPER_BIN`, `AGENTARO_WHISPER_MODEL`, `AGENTARO_PIPER_BIN`, `AGENTARO_PIPER_VOICE`. Without them the voice button is disabled; text chat works.
+
 Security tools used in the analysis (not in the Gemfile): `gem install bundler-audit brakeman`, then `bundle-audit check --update` and `brakeman -q`.

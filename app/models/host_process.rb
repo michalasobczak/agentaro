@@ -12,12 +12,13 @@ class HostProcess
     def exit_status = status&.exitstatus
   end
 
-  def self.run(program, args, stdin: nil, chdir: Dir.tmpdir, timeout:, max_output:)
-    new(program, args, stdin:, chdir:, timeout:, max_output:).run
+  # on_stdout: called with each chunk of standard output as it arrives (spec 017: streamed answers).
+  def self.run(program, args, stdin: nil, chdir: Dir.tmpdir, timeout:, max_output:, on_stdout: nil)
+    new(program, args, stdin:, chdir:, timeout:, max_output:, on_stdout:).run
   end
 
-  def initialize(program, args, stdin:, chdir:, timeout:, max_output:)
-    @program, @args, @stdin, @chdir, @timeout, @max_output = program, args, stdin, chdir, timeout, max_output
+  def initialize(program, args, stdin:, chdir:, timeout:, max_output:, on_stdout: nil)
+    @program, @args, @stdin, @chdir, @timeout, @max_output, @on_stdout = program, args, stdin, chdir, timeout, max_output, on_stdout
   end
 
   def run
@@ -51,6 +52,7 @@ class HostProcess
           open.delete(io)
         elsif chunk.is_a?(String) && buffers[io].bytesize < @max_output
           buffers[io] << chunk
+          @on_stdout&.call(chunk) if io == out_r
         end
       end
     end
@@ -74,6 +76,7 @@ class HostProcess
   end
 
   def write_input(io)
+    io.binmode # bytes as they are, whatever the text's encoding (found with spec 017)
     io.write(@stdin) if @stdin
   rescue IOError, Errno::EPIPE
     nil # the program stopped reading
