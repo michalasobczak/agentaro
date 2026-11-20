@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_220000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -67,18 +67,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_200000) do
     t.index ["user_id"], name: "index_password_links_on_user_id"
   end
 
-  create_table "projects", force: :cascade do |t|
-    t.integer "user_id", null: false
-    t.string "name", null: false
-    t.text "goal", null: false
-    t.text "description"
-    t.string "state", default: "active", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["user_id", "name"], name: "index_projects_on_user_id_and_name", unique: true
-    t.index ["user_id"], name: "index_projects_on_user_id"
-  end
-
   create_table "sessions", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "ip_address"
@@ -97,6 +85,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_200000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["username"], name: "index_sign_in_throttles_on_username", unique: true
+  end
+
+  create_table "spaces", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "name", null: false
+    t.text "goal"
+    t.text "description"
+    t.string "state", default: "active", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "kind", default: "project", null: false
+    t.index ["user_id", "name"], name: "index_spaces_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_spaces_on_user_id"
   end
 
   create_table "task_exceptions", force: :cascade do |t|
@@ -203,8 +204,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_200000) do
     t.text "blocked_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "project_id", null: false
-    t.index ["project_id"], name: "index_work_items_on_project_id"
+    t.integer "space_id", null: false
+    t.index ["space_id"], name: "index_work_items_on_space_id"
     t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"
     t.index ["user_id"], name: "index_work_items_on_user_id"
   end
@@ -215,8 +216,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_200000) do
   add_foreign_key "chat_messages", "users"
   add_foreign_key "password_links", "users"
   add_foreign_key "password_links", "users", column: "created_by_id"
-  add_foreign_key "projects", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "spaces", "users"
   add_foreign_key "task_exceptions", "tasks"
   add_foreign_key "task_runs", "agents"
   add_foreign_key "task_runs", "tasks"
@@ -227,6 +228,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_200000) do
   add_foreign_key "tasks", "work_items"
   add_foreign_key "team_roles", "agents"
   add_foreign_key "team_roles", "users"
-  add_foreign_key "work_items", "projects"
+  add_foreign_key "work_items", "spaces"
   add_foreign_key "work_items", "users"
 end

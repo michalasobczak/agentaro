@@ -1,12 +1,12 @@
 <%= breadcrumbs(*epic_crumbs(@item)) %>
-<%= page_header @item.title, "Epic in #{@item.project.name}" do %>
-  <%= link_to "Project board", project_path(@item.project), class: "button secondary" %>
+<%= page_header @item.title, "Epic in #{@item.space.name}" do %>
+  <%= link_to "Space board", space_path(@item.space), class: "button secondary" %>
 <% end %>
 <div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
 <div class="grid grid-2">
   <div class="card">
     <dl class="facts">
-      <dt>Project</dt><dd><%= link_to @item.project.name, project_path(@item.project) %></dd>
+      <dt>Space</dt><dd><%= link_to @item.space.name, space_path(@item.space) %></dd>
       <dt>State</dt><dd><%= item_state_badge(@item) %></dd>
       <dt>Priority</dt><dd><%= @item.priority %></dd>
       <% if @item.handle_from %><dt>Handle from</dt><dd><%= l @item.handle_from, format: :long %></dd><% end %>

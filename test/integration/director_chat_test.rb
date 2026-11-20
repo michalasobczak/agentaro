@@ -74,13 +74,13 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
   test "G2, G8: an epic's history with breadcrumbs; Try again on a blocked epic; no list page (owner fix)" do
     @user.team_roles.create!(agent: @director, role: "director")
     item = @user.work_items.create!(title: "Backup summary", state: "blocked", blocked_reason: "Which tools?", priority: "high")
-    get project_path(item.project)
+    get space_path(item.space)
     assert_select ".kanban-card", text: /Backup summary.*high/m
     get work_item_path(item)
     assert_select "dd", text: "Which tools?"
     assert_select ".breadcrumbs li", 3
-    assert_select ".breadcrumbs a[href='#{projects_path}']", text: "Projects"
-    assert_select ".breadcrumbs a[href='#{project_path(item.project)}']", text: "General"
+    assert_select ".breadcrumbs a[href='#{spaces_path}']", text: "Spaces"
+    assert_select ".breadcrumbs a[href='#{space_path(item.space)}']", text: "General"
     assert_select ".breadcrumbs [aria-current=page]", text: "Backup summary"
     assert_select "nav.nav a", text: "Epics", count: 0
     assert_not Rails.application.routes.url_helpers.respond_to?(:work_items_path), "no list route"
@@ -104,7 +104,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_no_match "bob writes", response.body
     get chat_messages_path, headers: { "Accept" => "application/json" }
     assert_empty JSON.parse(response.body)["messages"]
-    get projects_path
+    get spaces_path
     assert_no_match "Bob's secret", response.body
     delete team_role_path(bob.team_roles.create!(agent: Agent.create!(user: bob, name: "B", master_prompt: "x", executor: @executor), role: "director"))
     assert_response :not_found

@@ -1,0 +1,27 @@
+<%= page_header "Spaces", "Your work, kept apart. Project spaces work towards a goal; team spaces take care of ongoing work. Agents working on an epic see only its space." do %>
+  <%= link_to new_space_path(kind: "project"), class: "button" do %><%= icon(:plus) %> Project space<% end %>
+  <%= link_to new_space_path(kind: "team"), class: "button secondary" do %><%= icon(:plus) %> Team space<% end %>
+<% end %>
+<div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
+<% if @spaces.empty? %>
+  <div class="card"><p class="muted">No spaces yet. Create one, or tell the director what you are working on — it can set up spaces too.</p></div>
+<% end %>
+<% { "project" => "Project spaces", "team" => "Team spaces" }.each do |kind, heading| %>
+  <% spaces = @spaces.select { |s| s.kind == kind } %>
+  <% next if spaces.empty? %>
+  <h2 class="space-group"><%= heading %></h2>
+  <div class="grid grid-2 space-grid">
+    <% spaces.each do |space| %>
+      <%= link_to space_path(space), class: ["card", "space-card", "k-#{space.kind}", ("is-archived" unless space.active?)].compact.join(" ") do %>
+        <div class="space-card-head"><strong><%= space.name %></strong> <%= badge(space.project? ? "project" : "team", space.project? ? "accent" : nil) %><% unless space.active? %> <%= badge("archived") %><% end %></div>
+        <p class="muted small space-goal"><%= space.purpose %></p>
+        <div class="space-counts">
+          <% WorkItem::STATE_ORDER.each do |state| %>
+            <% n = @counts[[ space.id, state ]].to_i %>
+            <span class="count <%= "is-zero" if n.zero? %> s-<%= state %>"><strong><%= n %></strong> <%= state %></span>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>

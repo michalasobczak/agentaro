@@ -49,7 +49,7 @@ module CalendarHelper
     item = epic.item
     from, to = day_start(day), day_start(day) + 1.day
     classes = [ "epic", "chip", "e-#{item.state}", ("cont-before" if epic.starts_at < from), ("cont-after" if epic.ends_at > to) ].compact.join(" ")
-    title = "Epic: #{item.title} · #{item.project.name} · #{item.state_label} · #{l(epic.starts_at.in_time_zone, format: "%-d %b %H:%M")} – #{l(epic.ends_at.in_time_zone, format: "%-d %b %H:%M")}"
+    title = "Epic: #{item.title} · #{item.space.name} · #{item.state_label} · #{l(epic.starts_at.in_time_zone, format: "%-d %b %H:%M")} – #{l(epic.ends_at.in_time_zone, format: "%-d %b %H:%M")}"
     link_to work_item_path(item), class: classes, title: title do
       tag.span(item.title, class: "task-title")
     end

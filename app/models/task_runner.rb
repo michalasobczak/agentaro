@@ -32,9 +32,9 @@ class TaskRunner
               "When: #{starts.strftime("%A %-d %B %Y, %H:%M")} – #{ends.strftime(starts.to_date == ends.to_date ? "%H:%M" : "%A %-d %B %Y, %H:%M")} (#{Time.zone.name})" ]
     lines << "Location: #{task.location}" if task.location.present?
     lines << "\nDetails:\n#{task.description}" if task.description.present?
-    if task.work_item # specs 011–013: a step of an epic, in its project only
-      project = task.work_item.project
-      lines << "\nThis is one step of the epic \"#{task.work_item.title}\" planned by your director, in the project \"#{project.name}\" (goal: #{project.goal})."
+    if task.work_item # specs 011–014: a step of an epic, in its space only
+      space = task.work_item.space
+      lines << "\nThis is one step of the epic \"#{task.work_item.title}\" planned by your director, in the space \"#{space.name}\" (#{space.purpose_line})."
     end
     lines << "\nDo the task now and answer with the result."
     Prompt.new(system: agent.master_prompt, user: lines.join("\n"))

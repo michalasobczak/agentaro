@@ -1,0 +1,22 @@
+<% if space.errors.any? %><ul class="errors"><% space.errors.full_messages.each do |e| %><li><%= e %></li><% end %></ul><% end %>
+<%= form_with model: space, class: "form space-form" do |f| %>
+  <fieldset class="field kind-choice">
+    <legend>Kind</legend>
+    <label class="kind-option"><%= f.radio_button :kind, "project" %><span><strong>Project space</strong><span class="hint">Works towards a goal, e.g. a renovation or a launch.</span></span></label>
+    <label class="kind-option"><%= f.radio_button :kind, "team" %><span><strong>Team space</strong><span class="hint">No goal: takes care of ongoing work, e.g. household or support.</span></span></label>
+  </fieldset>
+  <div class="field">
+    <%= f.label :name %>
+    <%= f.text_field :name, required: true, maxlength: 60, placeholder: "e.g. House renovation" %>
+  </div>
+  <div class="field goal-field">
+    <%= f.label :goal %>
+    <%= f.text_area :goal, rows: 3, maxlength: 2000, placeholder: "What you want to achieve in this space." %>
+    <span class="hint">Required for a project space. Every agent working on an epic of this space reads it — and nothing from your other spaces.</span>
+  </div>
+  <div class="field">
+    <%= f.label :description, "Description" %>
+    <%= f.text_area :description, rows: 6, maxlength: 5000, placeholder: "What this space is about — for a team space, what it takes care of. Background, constraints, people, links." %>
+  </div>
+  <div class="actions"><%= f.submit space.persisted? ? "Save changes" : "Create space" %><%= link_to "Cancel", (space.persisted? ? space_path(space) : spaces_path), class: "button secondary" %></div>
+<% end %>

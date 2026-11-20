@@ -166,27 +166,27 @@ class ManagementRunner
       *members.map { |m| member_line(m) }, ("  (no members yet)" if members.empty?) ].compact.join("\n")
   end
 
-  # Spec 013, G3/G4: in the chat, projects meet only as names, goals and epic titles — no descriptions or plans.
+  # Spec 013, G3/G4: in the chat, spaces meet only as names, goals and epic titles — no descriptions or plans.
   def item_line(item)
-    parts = [ "id #{item.id}", "\"#{item.title}\"", "project #{item.project_id}", "state #{item.state}", "priority #{item.priority}" ]
+    parts = [ "id #{item.id}", "\"#{item.title}\"", "space #{item.space_id}", "state #{item.state}", "priority #{item.priority}" ]
     parts << "handle from #{item.handle_from.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.handle_from
     parts << "due #{item.due_on.iso8601}" if item.due_on
     "- " + parts.join(", ")
   end
 
-  def projects_text
-    projects = @user.projects.active.ordered.to_a
-    return "Projects: (none yet; a new item goes to \"#{Project::DEFAULT_NAME}\")" if projects.empty?
+  def spaces_text
+    spaces = @user.spaces.active.ordered.to_a
+    return "Spaces: (none yet; a new item goes to \"#{Space::DEFAULT_NAME}\")" if spaces.empty?
 
-    [ "Projects (active):", *projects.map { |p| "- id #{p.id}: \"#{p.name}\" — goal: #{p.goal.truncate(300)}" } ].join("\n")
+    [ "Spaces (active):", *spaces.map { |s| "- id #{s.id}: \"#{s.name}\" — #{s.purpose_line.truncate(320)}" } ].join("\n")
   end
 
-  # Spec 013, G3: everything about one epic comes from its own project only.
-  def project_text(item)
-    project = item.project
-    others = project.work_items.where.not(id: item.id).where.not(state: "cancelled").listed.limit(30).map { |i| "- \"#{i.title}\" (#{i.state})" }
-    [ "Project: \"#{project.name}\"", "Project goal: #{project.goal}", ("Project description: #{project.description}" if project.description.present?),
-      "Other epics in this project:", others.presence&.join("\n") || "(none)" ].compact.join("\n")
+  # Spec 013, G3: everything about one epic comes from its own space only.
+  def space_text(item)
+    space = item.space
+    others = space.work_items.where.not(id: item.id).where.not(state: "cancelled").listed.limit(30).map { |i| "- \"#{i.title}\" (#{i.state})" }
+    [ "Space: \"#{space.name}\" (#{space.kind} space)", ("Space goal: #{space.goal}" if space.project?), ("Space description: #{space.description}" if space.description.present?),
+      "Other epics in this space:", others.presence&.join("\n") || "(none)" ].compact.join("\n")
   end
 
   def item_text(item)
@@ -205,7 +205,7 @@ class ManagementRunner
 
       #{team_text}
 
-      #{projects_text}
+      #{spaces_text}
 
       Work list (open and planned):
       #{list.presence&.join("\n") || "(empty)"}
@@ -216,14 +216,15 @@ class ManagementRunner
       Answer #{@user.username}'s latest messages. Reply with ONLY one JSON object, no other text:
       {"reply": "your message to #{@user.username}", "actions": [ ... ]}
       Actions (at most #{MAX_ACTIONS}, may be empty):
-      {"type": "add_item", "project": <project id, or the name of a project added in this reply>, "title": "...", "description": "...", "handle_from": "YYYY-MM-DDTHH:MM" or null, "due_on": "YYYY-MM-DD" or null, "priority": "normal" or "high"}
-      {"type": "update_item", "id": 1, "project": ..., "title": "...", "description": "...", "handle_from": ..., "due_on": ..., "priority": ...} (only items in state new or blocked; give only fields to change)
-      {"type": "add_project", "name": "...", "goal": "what #{@user.username} wants to achieve", "description": "..." or null}
-      {"type": "update_project", "id": 1, "name": "...", "goal": "...", "description": "..."} (give only fields to change)
+      {"type": "add_item", "space": <space id, or the name of a space added in this reply>, "title": "...", "description": "...", "handle_from": "YYYY-MM-DDTHH:MM" or null, "due_on": "YYYY-MM-DD" or null, "priority": "normal" or "high"}
+      {"type": "update_item", "id": 1, "space": ..., "title": "...", "description": "...", "handle_from": ..., "due_on": ..., "priority": ...} (only items in state new or blocked; give only fields to change)
+      {"type": "add_space", "kind": "project" or "team", "name": "...", "goal": "what #{@user.username} wants to achieve (project spaces only)", "description": "what the space is about; for a team space, what it takes care of"}
+      {"type": "update_space", "id": 1, "kind": ..., "name": "...", "goal": "...", "description": "..."} (give only fields to change; a project space needs a goal)
+      A project space works towards a goal; a team space has no goal and takes care of ongoing work.
       {"type": "cancel_item", "id": 1}
       {"type": "reprioritize", "id": 1, "priority": "normal" or "high"}
       Items without handle_from are handled at once. Times are in #{Time.zone.name}.
-      Every item belongs to a project. When it is not clear which project a new item belongs to, do not guess: ask in your reply and add nothing.
+      Every item belongs to a space. When it is not clear which space a new item belongs to, do not guess: ask in your reply and add nothing.
     PROMPT
   end
 
@@ -238,7 +239,7 @@ class ManagementRunner
 
       #{item_text(@item)}
 
-      #{project_text(@item)}
+      #{space_text(@item)}
 
       Your team members (use only these ids):
       #{members.presence&.join("\n") || "(none)"}
@@ -263,7 +264,7 @@ class ManagementRunner
     raise Invalid, "\"actions\" must be a list" unless actions.is_a?(Array)
     raise Invalid, "at most #{MAX_ACTIONS} actions" if actions.size > MAX_ACTIONS
 
-    @new_projects = {} # projects added in this reply, by name, so items of the same reply can name them
+    @new_spaces = {} # spaces added in this reply, by name, so items of the same reply can name them
     planned = actions.map { |action| check_action(action) } # all checked before any is applied
     summary = WorkItem.transaction { planned.map(&:call) }
     say("director", reply, actions_summary: summary.compact.join("\n").presence)
@@ -276,10 +277,10 @@ class ManagementRunner
     case action["type"]
     when "add_item"
       attrs = item_attributes(action, require_title: true)
-      project = action.key?("project") ? find_project(action["project"], "add_item") : (@new_projects["#default"] ||= Project.default_for(@user))
-      raise Invalid, "add_item: \"project\" is required — you have several projects (or ask which one)" unless project
+      space = action.key?("space") ? find_space(action["space"], "add_item") : (@new_spaces["#default"] ||= Space.default_for(@user))
+      raise Invalid, "add_item: \"space\" is required — you have several spaces (or ask which one)" unless space
 
-      item = @user.work_items.new(attrs.merge(project: project, position: @user.work_items.maximum(:position).to_i + 1))
+      item = @user.work_items.new(attrs.merge(space: space, position: @user.work_items.maximum(:position).to_i + 1))
       raise Invalid, "add_item: #{item.errors.full_messages.to_sentence}" unless item.valid?
 
       -> { item.save!; "Added to the list: #{item.title}" }
@@ -288,23 +289,23 @@ class ManagementRunner
       raise Invalid, "update_item: item #{item.id} is #{item.state_label}; only new or blocked items can be changed" unless %w[new blocked].include?(item.state)
 
       item.assign_attributes(item_attributes(action).merge(state: "new", blocked_reason: nil))
-      item.project = find_project(action["project"], "update_item") if action.key?("project") # Q5: only new or blocked items move
+      item.space = find_space(action["space"], "update_item") if action.key?("space") # Q5: only new or blocked items move
       raise Invalid, "update_item: #{item.errors.full_messages.to_sentence}" unless item.valid?
 
       -> { item.save!; "Updated: #{item.title}" }
-    when "add_project"
-      project = @user.projects.new(name: action["name"], goal: action["goal"], description: action["description"])
-      raise Invalid, "add_project: #{project.errors.full_messages.to_sentence}" unless project.valid?
-      raise Invalid, "add_project: \"#{project.name}\" twice in one reply" if @new_projects.key?(project.name.downcase)
+    when "add_space"
+      space = @user.spaces.new(kind: action["kind"].presence || "project", name: action["name"], goal: action["goal"], description: action["description"])
+      raise Invalid, "add_space: #{space.errors.full_messages.to_sentence}" unless space.valid?
+      raise Invalid, "add_space: \"#{space.name}\" twice in one reply" if @new_spaces.key?(space.name.downcase)
 
-      @new_projects[project.name.downcase] = project
-      -> { project.save!; "New project: #{project.name}" }
-    when "update_project"
-      project = @user.projects.find_by(id: action["id"]) or raise Invalid, "update_project: no project with id #{action["id"].inspect}"
-      project.assign_attributes(action.slice("name", "goal", "description"))
-      raise Invalid, "update_project: #{project.errors.full_messages.to_sentence}" unless project.valid?
+      @new_spaces[space.name.downcase] = space
+      -> { space.save!; "New space: #{space.name}" }
+    when "update_space"
+      space = @user.spaces.find_by(id: action["id"]) or raise Invalid, "update_space: no space with id #{action["id"].inspect}"
+      space.assign_attributes(action.slice("kind", "name", "goal", "description"))
+      raise Invalid, "update_space: #{space.errors.full_messages.to_sentence}" unless space.valid?
 
-      -> { project.save!; "Project updated: #{project.name}" }
+      -> { space.save!; "Space updated: #{space.name}" }
     when "cancel_item"
       item = own_item(action)
       raise Invalid, "cancel_item: item #{item.id} is already #{item.state_label}" if %w[done cancelled].include?(item.state)
@@ -320,15 +321,15 @@ class ManagementRunner
     end
   end
 
-  # A project of the user by id, or one added earlier in the same reply by name (spec 013, G6).
-  def find_project(value, action)
-    project = @new_projects[value.to_s.strip.downcase] if value.is_a?(String)
-    project ||= @user.projects.find_by(id: value) if value.to_s.match?(/\A\d+\z/)
-    project ||= @user.projects.find_by("LOWER(name) = ?", value.to_s.strip.downcase) if value.is_a?(String)
-    raise Invalid, "#{action}: no project #{value.inspect} among your projects" unless project
-    raise Invalid, "#{action}: project \"#{project.name}\" is archived" unless project.active?
+  # A space of the user by id, or one added earlier in the same reply by name (spec 013, G6).
+  def find_space(value, action)
+    space = @new_spaces[value.to_s.strip.downcase] if value.is_a?(String)
+    space ||= @user.spaces.find_by(id: value) if value.to_s.match?(/\A\d+\z/)
+    space ||= @user.spaces.find_by("LOWER(name) = ?", value.to_s.strip.downcase) if value.is_a?(String)
+    raise Invalid, "#{action}: no space #{value.inspect} among your spaces" unless space
+    raise Invalid, "#{action}: space \"#{space.name}\" is archived" unless space.active?
 
-    project
+    space
   end
 
   def own_item(action)

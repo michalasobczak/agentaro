@@ -74,7 +74,7 @@ module ApplicationHelper
     end
   end
 
-  # Owner fix after spec 013: where a page sits — Projects › project › epic › step › run. Crumbs are
+  # Owner fix after spec 013: where a page sits — Spaces › space › epic › step › run. Crumbs are
   # [label, path] pairs; the last one is the current page and is not a link.
   def breadcrumbs(*crumbs)
     *links, current = crumbs.compact
@@ -82,8 +82,8 @@ module ApplicationHelper
     tag.nav(tag.ol(safe_join(items)), class: "breadcrumbs", "aria-label": "Breadcrumb")
   end
 
-  def project_crumbs(project) = [ [ "Projects", projects_path ], [ project.name, project_path(project) ] ]
-  def epic_crumbs(item) = [ *project_crumbs(item.project), [ item.title, work_item_path(item) ] ]
+  def space_crumbs(space) = [ [ "Spaces", spaces_path ], [ space.name, space_path(space) ] ]
+  def epic_crumbs(item) = [ *space_crumbs(item.space), [ item.title, work_item_path(item) ] ]
 
   # A step of an epic (calendar task with a work item): its crumbs, or nil for an ordinary task.
   def step_crumbs(task)

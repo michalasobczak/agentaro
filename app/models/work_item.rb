@@ -5,7 +5,7 @@ class WorkItem < ApplicationRecord
   PRIORITIES = %w[normal high].freeze
 
   belongs_to :user
-  belongs_to :project # spec 013
+  belongs_to :space # spec 013
   has_many :tasks, dependent: :nullify # steps; cancelling removes the ones not started (see #cancel!)
   has_many :runs, class_name: "TaskRun", dependent: :nullify
 
@@ -15,13 +15,13 @@ class WorkItem < ApplicationRecord
   validates :description, length: { maximum: 5000 }
   validates :state, inclusion: { in: STATES }
   validates :priority, inclusion: { in: PRIORITIES }
-  validate :project_of_user
-  before_validation(on: :create) { self.project ||= Project.default_for(user) if user } # the only active project, or "General"
+  validate :space_of_user
+  before_validation(on: :create) { self.space ||= Space.default_for(user) if user } # the only active space, or "General"
 
   STATE_ORDER = %w[new planned blocked done].freeze # spec 013: kanban columns; cancelled folded below
 
   scope :listed, -> { order(Arel.sql("CASE state WHEN 'done' THEN 2 WHEN 'cancelled' THEN 3 ELSE 1 END"), Arel.sql("CASE priority WHEN 'high' THEN 0 ELSE 1 END"), :position, :id) }
-  scope :due, ->(now = Time.current) { where(state: "new").where("handle_from IS NULL OR handle_from <= ?", now).where(project_id: Project.active.select(:id)) } # S4
+  scope :due, ->(now = Time.current) { where(state: "new").where("handle_from IS NULL OR handle_from <= ?", now).where(space_id: Space.active.select(:id)) } # S4
 
   def state_label = state.tr("_", " ")
   def open? = OPEN.include?(state)
@@ -50,11 +50,11 @@ class WorkItem < ApplicationRecord
 
   private
 
-  # The project is the user's own; a new epic, or one moved to another project, needs an active project (S4).
-  def project_of_user
-    return unless project
+  # The space is the user's own; a new epic, or one moved to another space, needs an active space (S4).
+  def space_of_user
+    return unless space
 
-    errors.add(:project, "is not one of your projects") if project.user_id != user_id
-    errors.add(:project, "is archived") if (new_record? || project_id_changed?) && !project.active?
+    errors.add(:space, "is not one of your spaces") if space.user_id != user_id
+    errors.add(:space, "is archived") if (new_record? || space_id_changed?) && !space.active?
   end
 end

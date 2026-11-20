@@ -34,7 +34,7 @@ class CalendarController < ApplicationController
   Epic = Data.define(:item, :starts_at, :ends_at)
 
   def epics_in(range)
-    current_user.work_items.where.not(state: "cancelled").includes(:project, :tasks).where(id: Task.select(:work_item_id).where.not(work_item_id: nil)).filter_map do |item|
+    current_user.work_items.where.not(state: "cancelled").includes(:space, :tasks).where(id: Task.select(:work_item_id).where.not(work_item_id: nil)).filter_map do |item|
       span = item.span
       Epic.new(item: item, starts_at: span.begin, ends_at: span.end) if span && span.begin < range.end && span.end > range.begin
     end.sort_by(&:starts_at)

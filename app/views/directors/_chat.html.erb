@@ -14,7 +14,7 @@
         <%= link_to director_path, class: "chat-tool", title: "Open the full chat", "aria-label": "Open the full chat" do %><%= icon(:expand) %><% end %>
         <button type="button" class="chat-tool" data-dock-close title="Hide the chat (Esc)" aria-label="Hide the chat"><%= icon(:close) %></button>
       <% else %>
-        <%= link_to projects_path, class: "button secondary small" do %><%= icon(:board) %> Projects<% end %>
+        <%= link_to spaces_path, class: "button secondary small" do %><%= icon(:board) %> Spaces<% end %>
         <%= link_to team_path, class: "button secondary small" do %><%= icon(:org) %> Team<% end %>
       <% end %>
     </nav>

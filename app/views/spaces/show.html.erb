@@ -1,24 +1,24 @@
 <% content_for :content_class, "full" %>
 <% content_for :scripts do %><%= javascript_include_tag "kanban", defer: true %><% end %>
-<%= breadcrumbs(*project_crumbs(@project)) %>
-<%= page_header @project.name, @project.goal do %>
-  <%= link_to "Edit", edit_project_path(@project), class: "button secondary" %>
-  <% if @project.active? %>
-    <%= button_to "Archive", archive_project_path(@project), method: :patch, class: "secondary", form: { data: { confirm: "Archive #{@project.name}? The director will take up none of its epics until you make it active again." } } %>
+<%= breadcrumbs(*space_crumbs(@space)) %>
+<%= page_header @space.name, [ (@space.project? ? "Project space" : "Team space"), @space.purpose ].compact.join(" · ") do %>
+  <%= link_to "Edit", edit_space_path(@space), class: "button secondary" %>
+  <% if @space.active? %>
+    <%= button_to "Archive", archive_space_path(@space), method: :patch, class: "secondary", form: { data: { confirm: "Archive #{@space.name}? The director will take up none of its epics until you make it active again." } } %>
   <% else %>
-    <%= button_to "Make active", activate_project_path(@project), method: :patch, class: "secondary" %>
+    <%= button_to "Make active", activate_space_path(@space), method: :patch, class: "secondary" %>
   <% end %>
-  <% if @project.work_items.none? %>
-    <%= button_to "Delete", project_path(@project), method: :delete, class: "danger", form: { data: { confirm: "Delete #{@project.name}?" } } %>
+  <% if @space.work_items.none? %>
+    <%= button_to "Delete", space_path(@space), method: :delete, class: "danger", form: { data: { confirm: "Delete #{@space.name}?" } } %>
   <% end %>
 <% end %>
 <div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
-<% unless @project.active? %><div class="callout"><%= icon(:info) %><div>This project is archived: no new epics, and the director takes up none of its epics.</div></div><% end %>
-<% if @project.description.present? %>
-  <details class="card project-about"><summary>About this project</summary><p class="pre"><%= @project.description %></p></details>
+<% unless @space.active? %><div class="callout"><%= icon(:info) %><div>This space is archived: no new epics, and the director takes up none of its epics.</div></div><% end %>
+<% if @space.description.present? %>
+  <details class="card space-about"><summary>About this space</summary><p class="pre"><%= @space.description %></p></details>
 <% end %>
 
-<div class="kanban" data-order-url="<%= order_project_path(@project) %>">
+<div class="kanban" data-order-url="<%= order_space_path(@space) %>">
   <% { "new" => "New", "planned" => "Planned", "blocked" => "Blocked", "done" => "Done" }.each do |state, label| %>
     <section class="kanban-col s-<%= state %>" aria-label="<%= label %>">
       <header class="kanban-col-head"><span><%= label %></span><span class="count-pill"><%= @columns[state].size %></span></header>

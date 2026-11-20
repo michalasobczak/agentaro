@@ -1,5 +1,5 @@
 # Spec 011, G2/G8: an epic's page and history (owner fix after spec 013: no list page — epics live on their
-# project boards). Try again, and Done and Cancel (spec 013, Q10).
+# space boards). Try again, and Done and Cancel (spec 013, Q10).
 class WorkItemsController < ApplicationController
   rescue_from(ActiveRecord::RecordNotFound) { head :not_found }
 

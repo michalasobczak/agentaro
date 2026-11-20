@@ -1,4 +1,4 @@
-// Agentaro — the kanban board of a project (spec 013, Q10). First-party, no libraries.
+// Agentaro — the kanban board of a space (spec 013, Q10). First-party, no libraries.
 // Cards move only up and down within their column; the new order is saved at once. States are changed by the
 // director, or with the Done and Cancel buttons on a card. Without this script the board is simply shown.
 "use strict";

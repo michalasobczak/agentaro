@@ -182,8 +182,8 @@ class ManagementRunnerTest < ActiveSupport::TestCase
   end
 end
 
-class ManagementRunnerProjectsTest < ActiveSupport::TestCase
-  # Spec 013: projects in the director's chat actions (G4, G6, Q5) and in prompts (G3, S1, S3, S4).
+class ManagementRunnerSpacesTest < ActiveSupport::TestCase
+  # Spec 013: spaces in the director's chat actions (G4, G6, Q5) and in prompts (G3, S1, S3, S4).
   setup do
     @user = create_user
     executor = Executor.create!(name: "Claude", preset: "claude_code")
@@ -197,63 +197,119 @@ class ManagementRunnerProjectsTest < ActiveSupport::TestCase
   def apply(data) = runner.send(:apply_chat!, data.deep_stringify_keys)
   def try_apply(data) = (apply(data); nil) rescue $!
 
-  test "G6: the director adds a project and its epics in one reply" do
-    apply(reply: "OK", actions: [ { type: "add_project", name: "House", goal: "New kitchen" },
-                                  { type: "add_item", project: "House", title: "Measure the room" } ])
-    project = @user.projects.sole
-    assert_equal [ "House", "New kitchen" ], [ project.name, project.goal ]
-    assert_equal [ "Measure the room" ], project.work_items.pluck(:title)
-    assert_match "New project: House", @user.chat_messages.last.actions_summary
+  test "G6: the director adds a space and its epics in one reply" do
+    apply(reply: "OK", actions: [ { type: "add_space", name: "House", goal: "New kitchen" },
+                                  { type: "add_item", space: "House", title: "Measure the room" } ])
+    space = @user.spaces.sole
+    assert_equal [ "House", "New kitchen" ], [ space.name, space.goal ]
+    assert_equal [ "Measure the room" ], space.work_items.pluck(:title)
+    assert_match "New space: House", @user.chat_messages.last.actions_summary
   end
 
-  test "S3: with several projects an epic must name one; the only active project or General otherwise" do
+  test "S3: with several spaces an epic must name one; the only active space or General otherwise" do
     apply(reply: "OK", actions: [ { type: "add_item", title: "First" } ])
-    assert_equal "General", @user.work_items.sole.project.name, "no projects yet: General"
-    @user.projects.create!(name: "Work", goal: "Ship it")
+    assert_equal "General", @user.work_items.sole.space.name, "no spaces yet: General"
+    @user.spaces.create!(name: "Work", goal: "Ship it")
     error = try_apply(reply: "OK", actions: [ { type: "add_item", title: "Second" } ])
-    assert_match "\"project\" is required", error.message
-    work = @user.projects.find_by(name: "Work")
-    apply(reply: "OK", actions: [ { type: "add_item", project: work.id, title: "Second" } ])
-    assert_equal work, @user.work_items.find_by(title: "Second").project
+    assert_match "\"space\" is required", error.message
+    work = @user.spaces.find_by(name: "Work")
+    apply(reply: "OK", actions: [ { type: "add_item", space: work.id, title: "Second" } ])
+    assert_equal work, @user.work_items.find_by(title: "Second").space
   end
 
-  test "S4, R2: no epics in archived projects or other users' projects; only unplanned epics move" do
-    archived = @user.projects.create!(name: "Old", goal: "x", state: "archived")
-    assert_match "is archived", try_apply(reply: "OK", actions: [ { type: "add_item", project: archived.id, title: "X" } ]).message
-    bobs = create_user(username: "bob").projects.create!(name: "Bob's", goal: "x")
-    assert_match "no project", try_apply(reply: "OK", actions: [ { type: "add_item", project: bobs.id, title: "X" } ]).message
+  test "S4, R2: no epics in archived spaces or other users' spaces; only unplanned epics move" do
+    archived = @user.spaces.create!(name: "Old", goal: "x", state: "archived")
+    assert_match "is archived", try_apply(reply: "OK", actions: [ { type: "add_item", space: archived.id, title: "X" } ]).message
+    bobs = create_user(username: "bob").spaces.create!(name: "Bob's", goal: "x")
+    assert_match "no space", try_apply(reply: "OK", actions: [ { type: "add_item", space: bobs.id, title: "X" } ]).message
 
-    home, work = @user.projects.create!(name: "Home", goal: "x"), @user.projects.create!(name: "Work", goal: "y")
-    planned = @user.work_items.create!(title: "Planned", project: home, state: "planned")
-    assert_match "only new or blocked", try_apply(reply: "OK", actions: [ { type: "update_item", id: planned.id, project: work.id } ]).message
-    fresh = @user.work_items.create!(title: "Fresh", project: home)
-    apply(reply: "OK", actions: [ { type: "update_item", id: fresh.id, project: work.id } ])
-    assert_equal work, fresh.reload.project
+    home, work = @user.spaces.create!(name: "Home", goal: "x"), @user.spaces.create!(name: "Work", goal: "y")
+    planned = @user.work_items.create!(title: "Planned", space: home, state: "planned")
+    assert_match "only new or blocked", try_apply(reply: "OK", actions: [ { type: "update_item", id: planned.id, space: work.id } ]).message
+    fresh = @user.work_items.create!(title: "Fresh", space: home)
+    apply(reply: "OK", actions: [ { type: "update_item", id: fresh.id, space: work.id } ])
+    assert_equal work, fresh.reload.space
 
-    item = @user.work_items.create!(title: "Waits", project: home)
+    item = @user.work_items.create!(title: "Waits", space: home)
     home.update!(state: "archived")
-    assert_not_includes ManagementRunner.dispatch_due.map(&:work_item), item, "S4: archived projects are not taken up"
+    assert_not_includes ManagementRunner.dispatch_due.map(&:work_item), item, "S4: archived spaces are not taken up"
   end
 
-  test "S1, G3: the plan prompt and the step prompt contain their own project only; the chat only names and titles" do
-    house = @user.projects.create!(name: "House", goal: "New kitchen", description: "Budget 20k")
-    secret = @user.projects.create!(name: "Startup", goal: "Raise a seed round", description: "Investor list: confidential")
-    epic = @user.work_items.create!(title: "Measure", project: house)
-    @user.work_items.create!(title: "Pitch deck", description: "Burn rate 50k", project: secret)
+  test "S1, G3: the plan prompt and the step prompt contain their own space only; the chat only names and titles" do
+    house = @user.spaces.create!(name: "House", goal: "New kitchen", description: "Budget 20k")
+    secret = @user.spaces.create!(name: "Startup", goal: "Raise a seed round", description: "Investor list: confidential")
+    epic = @user.work_items.create!(title: "Measure", space: house)
+    @user.work_items.create!(title: "Pitch deck", description: "Burn rate 50k", space: secret)
 
     plan = runner(item: epic, purpose: "director").send(:plan_prompt)
-    assert_match "Project goal: New kitchen", plan
+    assert_match "Space goal: New kitchen", plan
     assert_match "Budget 20k", plan
     [ "Startup", "Raise a seed round", "Investor list", "Pitch deck", "Burn rate" ].each { |text| assert_no_match text, plan }
 
     step = Task.create!(user: @user, title: "Measure", starts_at: 1.day.from_now, ends_at: 1.day.from_now + 1.hour, agent: @writer, work_item: epic)
     step_prompt = TaskRunner.prompt_for(step, @writer, step.starts_at).user
-    assert_match "in the project \"House\" (goal: New kitchen)", step_prompt
+    assert_match "in the space \"House\" (project space; goal: New kitchen)", step_prompt
     assert_no_match "Startup", step_prompt
 
     chat = runner.send(:chat_prompt)
-    assert_match "\"Startup\" — goal: Raise a seed round", chat
-    assert_match "\"Pitch deck\", project #{secret.id}", chat
+    assert_match "\"Startup\" — project space; goal: Raise a seed round", chat
+    assert_match "\"Pitch deck\", space #{secret.id}", chat
     [ "Investor list", "Burn rate", "Budget 20k" ].each { |text| assert_no_match text, chat }
+  end
+end
+
+class SpaceKindsTest < ActiveSupport::TestCase
+  # Spec 014: project spaces (goal) and team spaces (no goal) — S1–S3.
+  setup do
+    @user = create_user
+    executor = Executor.create!(name: "Claude", preset: "claude_code")
+    @director = Agent.create!(user: @user, name: "Dyrektor", master_prompt: "x", executor: executor)
+    @writer = Agent.create!(user: @user, name: "Pisarz", master_prompt: "x", executor: executor)
+    @user.team_roles.create!(agent: @director, role: "director")
+    @user.team_roles.create!(agent: @writer, role: "member", role_text: "writer")
+  end
+
+  test "S1, R1: a project space needs a goal; a team space has none" do
+    assert_not @user.spaces.new(name: "Launch", kind: "project").valid?
+    team = @user.spaces.create!(name: "Household", kind: "team", goal: "ignored", description: "Bills, shopping, repairs")
+    assert_nil team.goal
+    assert_not @user.spaces.new(name: "X", kind: "club", goal: "y").valid?
+  end
+
+  test "S3: changing the kind keeps the epics; back to a project needs a goal" do
+    space = @user.spaces.create!(name: "Launch", goal: "Ship 1.0")
+    epic = @user.work_items.create!(title: "Beta", space: space)
+    space.update!(kind: "team", description: "Ongoing releases")
+    assert_nil space.reload.goal
+    assert_equal [ epic ], space.work_items.to_a
+    assert_not space.update(kind: "project")
+    assert space.update(kind: "project", goal: "Ship 2.0")
+  end
+
+  test "S2, G3: prompts of a team space have no goal; a new General is a team space" do
+    team = @user.spaces.create!(name: "Household", kind: "team", description: "Bills and repairs")
+    other = @user.spaces.create!(name: "Startup", goal: "Raise a seed round")
+    epic = @user.work_items.create!(title: "Pay the bills", space: team)
+    plan = ManagementRunner.new(TaskRun.new(user: @user, work_item: epic, purpose: "director")).send(:plan_prompt)
+    assert_match "Space: \"Household\" (team space)", plan
+    assert_match "Space description: Bills and repairs", plan
+    assert_no_match "Space goal", plan
+    assert_no_match other.name, plan
+    step = Task.create!(user: @user, title: "Pay", starts_at: 1.day.from_now, ends_at: 1.day.from_now + 1.hour, agent: @writer, work_item: epic)
+    assert_match "(team space (no goal); takes care of: Bills and repairs)", TaskRunner.prompt_for(step, @writer, step.starts_at).user
+
+    fresh = create_user(username: "fresh")
+    general = fresh.work_items.create!(title: "First").space
+    assert_equal [ "General", "team", nil ], [ general.name, general.kind, general.goal ]
+  end
+
+  test "G4: the director adds a team space without a goal; a project space without one is refused" do
+    runner = ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat"))
+    runner.send(:apply_chat!, { "reply" => "OK", "actions" => [ { "type" => "add_space", "kind" => "team", "name" => "Support", "description" => "Answer customers" },
+                                                               { "type" => "add_item", "space" => "Support", "title" => "Inbox zero" } ] })
+    support = @user.spaces.find_by!(name: "Support")
+    assert_equal [ "team", nil, [ "Inbox zero" ] ], [ support.kind, support.goal, support.work_items.pluck(:title) ]
+    error = (runner.send(:apply_chat!, { "reply" => "OK", "actions" => [ { "type" => "add_space", "kind" => "project", "name" => "Launch" } ] }) rescue $!)
+    assert_match "Goal is required for a project space", error.message
   end
 end

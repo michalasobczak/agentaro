@@ -404,22 +404,22 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 }
 @media (prefers-reduced-motion: reduce) { .chat-launcher.is-writing .chat-avatar, .chat-dock.is-open .chat-dock-panel { animation: none; } }
 
-/* Projects and their kanban board (spec 013) */
-.project-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
-.project-card { display: flex; flex-direction: column; gap: 0.5rem; color: inherit; transition: border-color 0.15s, box-shadow 0.15s; }
-.project-card:hover { text-decoration: none; border-color: var(--accent); }
-.project-card.is-archived { opacity: 0.7; }
-.project-card-head { display: flex; align-items: center; gap: 0.5rem; font-size: 1.05rem; }
-.project-goal { margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.project-counts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; }
-.project-counts .count { font-size: 0.8rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
-.project-counts .count.is-zero { opacity: 0.55; }
-.project-counts .s-planned:not(.is-zero) { background: var(--accent-soft); color: var(--accent); }
-.project-counts .s-blocked:not(.is-zero) { background: var(--bad-soft); color: var(--bad); }
-.project-counts .s-done:not(.is-zero) { background: var(--ok-soft); color: var(--ok); }
-.project-about { margin-bottom: 1rem; }
-.project-about summary { cursor: pointer; font-weight: 600; }
-.project-about p { margin: 0.75rem 0 0; }
+/* Spaces and their kanban board (spec 013) */
+.space-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.space-card { display: flex; flex-direction: column; gap: 0.5rem; color: inherit; transition: border-color 0.15s, box-shadow 0.15s; }
+.space-card:hover { text-decoration: none; border-color: var(--accent); }
+.space-card.is-archived { opacity: 0.7; }
+.space-card-head { display: flex; align-items: center; gap: 0.5rem; font-size: 1.05rem; }
+.space-goal { margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.space-counts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; }
+.space-counts .count { font-size: 0.8rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.space-counts .count.is-zero { opacity: 0.55; }
+.space-counts .s-planned:not(.is-zero) { background: var(--accent-soft); color: var(--accent); }
+.space-counts .s-blocked:not(.is-zero) { background: var(--bad-soft); color: var(--bad); }
+.space-counts .s-done:not(.is-zero) { background: var(--ok-soft); color: var(--ok); }
+.space-about { margin-bottom: 1rem; }
+.space-about summary { cursor: pointer; font-weight: 600; }
+.space-about p { margin: 0.75rem 0 0; }
 .pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .page-actions form { margin: 0; }
 
@@ -456,7 +456,7 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
   .kanban-card { cursor: default; }
 }
 
-/* Breadcrumbs: Projects › project › epic › step › run (owner fix after spec 013) */
+/* Breadcrumbs: Spaces › space › epic › step › run (owner fix after spec 013) */
 .breadcrumbs { margin: -0.75rem 0 0.9rem; font-size: 0.85rem; }
 .breadcrumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0; }
 .breadcrumbs li { display: inline-flex; align-items: center; min-width: 0; color: var(--muted); }
@@ -465,3 +465,14 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .breadcrumbs a:hover { color: var(--accent); }
 .breadcrumbs [aria-current] { color: var(--fg); font-weight: 600; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 639px) { .breadcrumbs { margin-top: -0.25rem; } .breadcrumbs a, .breadcrumbs [aria-current] { max-width: 10rem; } }
+
+/* Space kinds (spec 014): the goal field shows only for project spaces (no script: :has on the chosen radio) */
+.kind-choice { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 0.6rem; }
+.kind-choice legend { font-weight: 600; margin-bottom: 0.4rem; padding: 0; }
+.kind-option { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); }
+.kind-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.kind-option input { margin-top: 0.25rem; }
+.kind-option > span { display: grid; gap: 0.15rem; }
+.space-form:has(input[value="team"]:checked) .goal-field { display: none; }
+.space-group { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 1.5rem 0 0.75rem; }
+.space-group:first-of-type { margin-top: 0; }

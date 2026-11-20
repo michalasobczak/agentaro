@@ -10,7 +10,7 @@ module ChangeStamp
     digest(tasks.count, tasks.maximum(:updated_at),
            TaskException.where(task_id: ids).count, TaskException.where(task_id: ids).maximum(:updated_at),
            TaskRun.where(task_id: ids).count, TaskRun.where(task_id: ids).maximum(:updated_at),
-           Agent.visible_to(user).maximum(:updated_at), user.work_items.maximum(:updated_at), user.projects.maximum(:updated_at)) # spec 013: epics
+           Agent.visible_to(user).maximum(:updated_at), user.work_items.maximum(:updated_at), user.spaces.maximum(:updated_at)) # spec 013: epics
   end
 
   # Spec 011: chat, list and management runs of the user.
