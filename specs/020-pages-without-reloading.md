@@ -1,6 +1,6 @@
 # 020 — Pages without reloading: the conversation keeps going
 
-Status: **draft**
+Status: **implemented** 2026-11-20, checked by the owner on their instance (closed by owner: "Akceptuję, buduj" — Q1 and Q2 proposals accepted)
 Date: 2026-11-20
 Depends on: [011](011-list-and-management.md), [017](017-voice-and-streaming.md), [019](019-verifier.md)
 
@@ -24,7 +24,7 @@ Moving between pages (Calendar, Spaces, Team…) no longer reloads the whole pag
   - the auto refresh in `app.js`, which no longer reloads the page but asks Turbo to refresh it, so the chat survives;
   - `chat.js` on the Director page.
 - G4. **Forms** (sign-in, task forms, space forms, confirmations) keep working. Errors render with status 422, redirects use 303, and `data-confirm` keeps asking.
-- G5. **The Director page** (Q1).
+- G5. **The Director page** (Q1): while voice mode runs in the floating chat, the floating chat stays on the Director page too, and the page's own chat is hidden until voice mode ends.
 - G6. **Fallback:** without JavaScript everything works as today, with full page loads.
 
 **Out of scope**
@@ -79,5 +79,13 @@ Add Turbo → permanent floating chat → page scripts on `turbo:load` (calendar
 - **Technical debt:** none known yet.
 - **External dependencies:** turbo-rails (MIT).
 - **Questions:**
-  - Q1. **The Director page while the floating chat is talking.** Proposal: the Director page shows the full chat as today. When voice mode is running in the floating chat, it moves to that page as well, so nothing stops, and the page's own chat is hidden until voice mode ends, so you never see two copies of the conversation. [TO BE DETERMINED]
-  - Q2. **On a phone the floating chat covers the screen while open.** Proposal: unchanged — close it to use the page; voice mode goes on while it is closed, shown by the pulsing button. [TO BE DETERMINED]
+  - Q1. **The Director page while the floating chat is talking.** Proposal: the Director page shows the full chat as today. When voice mode is running in the floating chat, it moves to that page as well, so nothing stops, and the page's own chat is hidden until voice mode ends, so you never see two copies of the conversation. **Accepted** (owner).
+  - Q2. **On a phone the floating chat covers the screen while open.** Proposal: unchanged — close it to use the page; voice mode goes on while it is closed, shown by the pulsing button. **Accepted** (owner).
+
+## Implementation notes
+
+- Turbo 8 (turbo-rails 2.0.23) is loaded as a module from the app's own assets (`turbo.min.js`), with the CSP unchanged.
+- `app.js` defines `agentaroOnPage(start)`. It runs a page script on the first load and on every Turbo visit, and hands it an `AbortSignal` that ends when the page is left; document and window listeners use it, so they never pile up. `agentaroReload()` shows the page again through Turbo (a full reload without Turbo).
+- `calendar.js`, `kanban.js`, `folder_picker.js` and the Director page's chat start through `agentaroOnPage`. The auto refresh watches whichever page is shown.
+- The floating chat is `#chat-dock[data-turbo-permanent]`, started once per window. On the Director page it is rendered but hidden unless voice mode runs in it (`.is-voice`). The voice button of the page's chat starts voice mode in the floating chat (Q1).
+- Sign-out buttons and the sign-in pages (`turbo-visit-control: reload`) make full page loads (R3).

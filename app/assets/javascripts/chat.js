@@ -14,6 +14,7 @@
   const OPEN_KEY = "agentaro.chat.open";
   const SEEN_KEY = "agentaro.chat.seen";
   const DRAFT_KEY = "agentaro.chat.draft";
+  const MAX_KEY = "agentaro.chat.max"; // owner fix: the floating chat maximized
 
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
@@ -57,6 +58,7 @@
     let sending = false;
     let stopped = false;
     let streamRow = null; // spec 017: the reply being written
+    const life = new AbortController(); // spec 020: ended by destroy() when a Turbo visit replaces this chat
     const listeners = { stream: [], message: [], writing: [] };
     const emit = (name, value) => listeners[name].forEach((fn) => fn(value));
     const directorName = app.querySelector(".chat-who strong")?.textContent || "Director";
@@ -166,7 +168,7 @@
       pollTimer = setTimeout(poll, !visible() ? 20000 : writing ? 500 : 8000); // spec 017: often while the reply streams
     }
 
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); }, { signal: life.signal });
 
     // ---------- Sending ----------
     function grow() {
@@ -250,7 +252,17 @@
     schedulePoll();
     const instance = { poll, grow, input, toBottom, send, verify, csrf, get lastId() { return lastId; }, get verifierOn() { return verifierOn; }, get loaded() { return loaded; }, get writing() { return writing; },
                        on: (name, fn) => listeners[name].push(fn) };
-    voice(app, instance);
+    // Spec 020, owner fix ("przewinęło mi na początek rozmowy"): Turbo moves the floating chat into the next page,
+    // and moving an element resets its scroll; keep the position across the move.
+    let saved = null;
+    instance.keepScroll = () => { saved = { stuck, top: scroller.scrollTop }; };
+    instance.restoreScroll = () => {
+      if (!saved) return;
+      if (saved.stuck) toBottom(); else { scroller.scrollTop = saved.top; stuck = false; }
+      saved = null;
+    };
+    const talk = voice(app, instance);
+    instance.destroy = () => { stopped = true; clearTimeout(pollTimer); life.abort(); talk?.end(); };
     return instance;
   }
 
@@ -262,6 +274,16 @@
     const start = app.querySelector("[data-voice-start]");
     const panel = app.querySelector("[data-voice-panel]");
     if (!start || !panel || app.dataset.voice !== "ready") return;
+    // Spec 020, Q1: on the Director page voice mode runs in the floating chat, which survives moving between pages.
+    const dockStart = !app.closest("[data-chat-dock]") && document.querySelector("[data-chat-dock] [data-voice-start]");
+    if (dockStart) {
+      start.addEventListener("click", () => {
+        const dock = document.querySelector("[data-chat-dock]");
+        if (!dock.classList.contains("is-open")) dock.querySelector("[data-dock-open]")?.click();
+        dockStart.click(); // still inside the user's click, so the microphone may start
+      });
+      return { end() {} };
+    }
     const stateLabel = panel.querySelector("[data-voice-state]");
     const note = panel.querySelector("[data-voice-note]");
     const dots = [...panel.querySelectorAll(".voice-dots i")];
@@ -302,6 +324,7 @@
       processor.connect(ctx.destination); // needed for the processor to run; it writes silence
       panel.hidden = false;
       start.hidden = true;
+      app.closest("[data-chat-dock]")?.classList.add("is-voice"); // spec 020, Q1: shown on the Director page too
       listen("Speak; I send when you pause.");
     }
 
@@ -316,6 +339,7 @@
       awaitingAfter = null;
       panel.hidden = true;
       start.hidden = false;
+      app.closest("[data-chat-dock]")?.classList.remove("is-voice");
     }
 
     function listen(text) {
@@ -532,20 +556,30 @@
       });
     });
     window.addEventListener("pagehide", end);
+    return { end };
   }
 
-  // ---------- The full-page chat (Director page) ----------
-  const page = document.querySelector(".chat-app:not(.is-dock)");
-  if (page) {
+  // ---------- The full-page chat (Director page): started on every visit, ended when the page is left ----------
+  window.agentaroOnPage((signal) => {
+    const page = document.querySelector(".chat-app:not(.is-dock)");
+    if (!page) return;
     // Whatever the Director page shows counts as read for the floating chat.
     const markRead = (id) => { if (id > (Number(store.get("localStorage", SEEN_KEY)) || 0)) store.set("localStorage", SEEN_KEY, String(id)); };
     page.querySelectorAll(".bubble-row:not(.from-user)[data-id]").forEach((row) => markRead(Number(row.dataset.id)));
-    chat(page, { reply: markRead });
-  }
+    const instance = chat(page, { reply: markRead });
+    signal.addEventListener("abort", () => instance.destroy());
+  });
 
-  // ---------- The floating chat on every other page ----------
-  const dock = document.querySelector("[data-chat-dock]");
-  if (!dock) return;
+  // ---------- The floating chat: one per window, kept across Turbo visits (spec 020, data-turbo-permanent) ----------
+  const started = new WeakSet();
+  window.agentaroOnPage(() => {
+    const dock = document.querySelector("[data-chat-dock]");
+    if (!dock || started.has(dock)) return;
+    started.add(dock);
+    startDock(dock);
+  });
+
+  function startDock(dock) {
   const app = dock.querySelector(".chat-app");
   const launcher = dock.querySelector("[data-dock-open]");
   const unread = dock.querySelector("[data-unread]");
@@ -561,6 +595,8 @@
     draft: (text) => store.set("sessionStorage", DRAFT_KEY, text || null)
   });
   launcher.classList.toggle("is-writing", app.dataset.writing === "true");
+  document.addEventListener("turbo:before-render", () => instance.keepScroll());
+  document.addEventListener("turbo:render", () => instance.restoreScroll());
 
   const draft = store.get("sessionStorage", DRAFT_KEY);
   if (draft) { instance.input.value = draft; instance.grow(); }
@@ -581,8 +617,22 @@
     }
   }
 
+  // Owner fix ("nie działa maksymalizacja okna rozmowy"): the button grows the panel over the page and back, so a
+  // spoken conversation never leaves the floating chat (the link to the Director page is the fallback).
+  const maxButton = dock.querySelector("[data-dock-max]");
+  function setMax(on) {
+    dock.classList.toggle("is-max", on);
+    maxButton?.setAttribute("aria-pressed", String(on));
+    maxButton?.setAttribute("title", on ? "Back to the side panel" : "Maximize the chat");
+    store.set("localStorage", MAX_KEY, on ? "1" : null);
+    instance.toBottom();
+  }
+  maxButton?.addEventListener("click", (event) => { event.preventDefault(); setMax(!dock.classList.contains("is-max")); });
+  setMax(store.get("localStorage", MAX_KEY) === "1");
+
   launcher.addEventListener("click", () => setOpen(true, true));
   dock.querySelector("[data-dock-close]").addEventListener("click", () => setOpen(false, true));
   dock.addEventListener("keydown", (event) => { if (event.key === "Escape" && isOpen()) setOpen(false, true); });
   setOpen(store.get("localStorage", OPEN_KEY) === "1", false);
+  }
 })();

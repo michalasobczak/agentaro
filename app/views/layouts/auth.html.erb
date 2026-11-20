@@ -7,6 +7,8 @@
     <meta name="color-scheme" content="light dark">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <%# Spec 020, R3: signing in and out are full page loads (the chat and its microphone end with the account). %>
+    <meta name="turbo-visit-control" content="reload">
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <%= stylesheet_link_tag :app %>

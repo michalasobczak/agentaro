@@ -431,3 +431,41 @@ class VerifierTest < ActiveSupport::TestCase
     assert_match "No answer from the verifier", @user.chat_messages.ordered.last.content
   end
 end
+
+class DirectorSeesProgressTest < ActiveSupport::TestCase
+  # Owner fix ("najwyraźniej director nie widzi postępów pracy agentów"): the chat and verifier prompts show each
+  # epic's steps with state, agent, duration and errors, and epics finished in the last day.
+  test "the director sees running and finished steps, errors and recently finished epics" do
+    travel_to Time.zone.parse("2026-11-20 14:00")
+    user = create_user
+    executor = Executor.create!(name: "Claude", preset: "claude_code")
+    discovery = Agent.create!(user: user, name: "Discovery Agent", master_prompt: "x", executor: executor)
+    evidence = Agent.create!(user: user, name: "Evidence Agent", master_prompt: "x", executor: executor)
+    epic = user.work_items.create!(title: "World review", state: "planned", started_at: 3.minutes.ago)
+    one = epic.epic_steps.create!(position: 1, title: "Find topics", agent: discovery, state: "succeeded")
+    two = epic.epic_steps.create!(position: 2, title: "Check sources", agent: evidence, state: "running")
+    epic.epic_steps.create!(position: 3, title: "Summary", agent: evidence)
+    run = ->(step, **attrs) { TaskRun.create!(user: user, work_item: epic, epic_step: step, purpose: "epic_step", trigger: "scheduled", occurrence_start: Time.current, **attrs) }
+    run.(one, state: "succeeded", started_at: 3.minutes.ago, finished_at: 1.minute.ago)
+    run.(two, state: "running", started_at: 1.minute.ago)
+    old = user.work_items.create!(title: "Old done", state: "done")
+    old.update_columns(updated_at: 3.days.ago) # test setup only
+    user.work_items.create!(title: "Fresh done", state: "done")
+    failed = user.work_items.create!(title: "Broken", state: "blocked", blocked_reason: "Step 1 failed")
+    bad = failed.epic_steps.create!(position: 1, title: "Search", agent: discovery, state: "failed")
+    TaskRun.create!(user: user, work_item: failed, epic_step: bad, purpose: "epic_step", trigger: "scheduled", occurrence_start: Time.current,
+                    state: "failed", error: "Interrupted: Agentaro stopped while this run was in progress.", started_at: 5.minutes.ago, finished_at: 4.minutes.ago)
+
+    prompt = ManagementRunner.new(TaskRun.new(user: user, purpose: "chat")).send(:chat_prompt)
+    assert_match "\"World review\", space #{epic.space_id}, state running", prompt
+    assert_match "step 1 \"Find topics\" (Discovery Agent): succeeded in 2 min", prompt
+    assert_match "step 2 \"Check sources\" (Evidence Agent): running for 60 s so far", prompt
+    assert_match "step 3 \"Summary\" (Evidence Agent): pending", prompt
+    assert_match "blocked: Step 1 failed", prompt
+    assert_match "failed in 60 s — Interrupted: Agentaro stopped", prompt
+    assert_match "Fresh done", prompt
+    assert_no_match "Old done", prompt
+    assert_match "do not tell #{user.username} to look it up", prompt
+    assert_match "step 2 \"Check sources\"", ManagementRunner.new(TaskRun.new(user: user, purpose: "verify")).send(:verify_prompt)
+  end
+end

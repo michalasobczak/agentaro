@@ -11,6 +11,8 @@
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <%= stylesheet_link_tag :app %>
+    <%# Spec 020: Turbo swaps page bodies, so the floating chat (and voice mode) survives moving between pages. %>
+    <%= javascript_include_tag "turbo.min", type: "module" %>
     <%= javascript_include_tag "app", defer: true %>
     <%= yield :scripts %>
     <% if (dock_director = chat_dock_director) %><%= javascript_include_tag "chat", defer: true %><% end %>
@@ -44,7 +46,7 @@
           <div class="sidebar-footer">
             <span class="avatar"><%= initials(current_user) %></span>
             <div class="who"><strong><%= current_user.username %></strong><span><%= current_user.role %></span></div>
-            <%= button_to session_path, method: :delete, class: "icon-button", title: "Sign out", "aria-label": "Sign out" do %><%= icon(:logout) %><% end %>
+            <%= button_to session_path, method: :delete, class: "icon-button", title: "Sign out", "aria-label": "Sign out", form: { data: { turbo: false } } do %><%= icon(:logout) %><% end %>
           </div>
         </aside>
 
@@ -55,7 +57,7 @@
             <div class="menu">
               <div class="who"><strong><%= current_user.username %></strong><span><%= current_user.role %></span></div>
               <nav class="nav" aria-label="Main"><%= main_nav %></nav>
-              <%= button_to "Sign out", session_path, method: :delete, class: "secondary" %>
+              <%= button_to "Sign out", session_path, method: :delete, class: "secondary", form: { data: { turbo: false } } %>
             </div>
           </details>
         </header>

@@ -3,7 +3,7 @@
 // director, or with the Done and Cancel buttons on a card. Without this script the board is simply shown.
 "use strict";
 
-(() => {
+window.agentaroOnPage(() => { // spec 020: on every visit
   const board = document.querySelector(".kanban[data-order-url]");
   if (!board) return;
   const url = board.dataset.orderUrl;
@@ -17,7 +17,7 @@
       const response = await fetch(url, { method: "PATCH", body, headers: { "X-CSRF-Token": csrf }, credentials: "same-origin" });
       if (!response.ok) throw new Error(String(response.status));
     } catch (_) {
-      location.reload(); // the board shows the order the server has
+      window.agentaroReload(); // the board shows the order the server has
     }
   }
 
@@ -68,4 +68,4 @@
     card.focus();
     save(card.parentElement);
   });
-})();
+});

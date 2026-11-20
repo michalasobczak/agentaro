@@ -191,7 +191,20 @@ class ManagementRunner
   def reply_language
     name = User::LANGUAGE_NAMES[@user.chat_language]
     text = name ? "Write your reply in #{name}." : "Write your reply in the language of #{@user.username}'s latest message (for example Polish when they write Polish)."
-    spoken? ? "#{text} #{@user.username} is talking by voice and hears your reply read aloud: keep it short — at most #{@run.purpose == "verify" ? 2 : 3} short spoken sentences, no lists, headings, Markdown or emoji." : text
+    spoken? ? "#{text} #{spoken_style}" : text
+  end
+
+  # Owner fixes: short spoken answers ("żeby odpowiadali krócej w rozmowie głosowej"), in a human way ("żeby agent
+  # odpowiadał bardziej po ludzku, jak GPT w rozmowie głosowej").
+  def spoken_style
+    <<~STYLE.squish
+      #{@user.username} is talking by voice and hears your reply read aloud: keep it short — at most #{@run.purpose == "verify" ? 2 : 3} short spoken
+      sentences, no lists, headings, Markdown or emoji. Sound like a person in a relaxed phone call, not like a report: warm and natural,
+      everyday words, contractions and short reactions where they fit ("Jasne", "Mhm, rozumiem", "Dobra"). Answer the point first, then at
+      most one short question back if something is unclear. Never read out ids, numbers of epics or spaces, technical states or time stamps;
+      say times and amounts the way people say them ("za kwadrans druga", "jakieś dwie minuty temu"). Do not repeat what #{@user.username}
+      just said, and do not announce what you are going to say.
+    STYLE
   end
 
   # Owner fix: the latest message of the user came from voice mode.
@@ -212,10 +225,41 @@ class ManagementRunner
 
   # Spec 013, G3/G4: in the chat, spaces meet only as names, goals and epic titles — no descriptions or plans.
   def item_line(item)
-    parts = [ "id #{item.id}", "\"#{item.title}\"", "space #{item.space_id}", "state #{item.state}", "priority #{item.priority}" ]
-    parts << "starts #{item.starts_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.starts_at
+    parts = [ "id #{item.id}", "\"#{item.title}\"", "space #{item.space_id}", "state #{item.running? ? "running" : item.state}", "priority #{item.priority}" ]
+    parts << "starts #{item.starts_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.starts_at && !item.started_at
+    parts << "started #{item.started_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.started_at
+    parts << "finished #{item.finished_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.finished_at
     parts << "due #{item.due_on.iso8601}" if item.due_on
-    "- " + parts.join(", ")
+    lines = [ "- " + parts.join(", ") ]
+    lines << "  blocked: #{item.blocked_reason.truncate(300)}" if item.state == "blocked" && item.blocked_reason.present?
+    lines.concat(step_lines(item))
+    lines.join("\n")
+  end
+
+  # Owner fix ("najwyraźniej director nie widzi postępów pracy agentów"): live progress of an epic's steps — state,
+  # agent, how long, and errors. Titles and states only, like the rest of the chat (spec 013, G3); results stay on
+  # the epic's page.
+  def step_lines(item)
+    now = Time.current
+    item.epic_steps.includes(:agent, :runs).map do |step|
+      run = step.last_run
+      took = if run&.started_at && run.finished_at then " in #{duration(run.finished_at - run.started_at)}"
+             elsif run&.started_at && step.state == "running" then " for #{duration(now - run.started_at)} so far"
+             end
+      error = " — #{run.error.to_s.truncate(200)}" if run && EpicStep::STOPPED.include?(step.state) && run.error.present?
+      "  step #{step.position} \"#{step.title}\" (#{step.agent&.name || "agent removed"}): #{step.state_label}#{took}#{error}"
+    end
+  end
+
+  def duration(seconds)
+    seconds = seconds.to_i
+    seconds < 90 ? "#{seconds} s" : "#{(seconds / 60.0).round} min"
+  end
+
+  # Open and planned epics, and those finished in the last day (so the director can report them).
+  def visible_items
+    recent = @user.work_items.where(state: %w[done cancelled]).where("updated_at > ?", 1.day.ago)
+    @user.work_items.where(state: WorkItem::OPEN + %w[planned]).or(recent).listed.limit(50)
   end
 
   def spaces_text
@@ -242,7 +286,7 @@ class ManagementRunner
   end
 
   def chat_prompt
-    list = @user.work_items.where(state: WorkItem::OPEN + %w[planned]).listed.limit(50).map { |i| item_line(i) }
+    list = visible_items.includes(:space).map { |i| item_line(i) }
     # Spec 015: archived conversations are left out.
     history = @user.chat_messages.current.ordered.last(HISTORY).map { |m| "#{m.author == "user" ? @user.username : m.author.capitalize}: #{m.content}" }
     <<~PROMPT
@@ -252,7 +296,7 @@ class ManagementRunner
 
       #{spaces_text}
 
-      Work list (open and planned):
+      Work list (open, planned and running, and finished in the last day), with the live progress of each step — this is current; report it, do not tell #{@user.username} to look it up:
       #{list.presence&.join("\n") || "(empty)"}
 
       Conversation (latest last; "Verifier" is a second model #{@user.username} may ask to check you — take its comments seriously, answer them honestly):
@@ -277,7 +321,7 @@ class ManagementRunner
   # Spec 019, G3: the conversation, the director's latest answer with what Agentaro applied, and the user's spaces
   # and open epics (names, goals, titles only — spec 013, G3).
   def verify_prompt
-    list = @user.work_items.where(state: WorkItem::OPEN + %w[planned]).listed.limit(50).map { |i| item_line(i) }
+    list = visible_items.includes(:space).map { |i| item_line(i) }
     history = @user.chat_messages.current.ordered.last(HISTORY).map do |m|
       who = m.author == "user" ? @user.username : m.author.capitalize
       "#{who}: #{m.content}#{"\n  [applied by Agentaro: #{m.actions_summary}]" if m.actions_summary.present?}"
@@ -287,7 +331,7 @@ class ManagementRunner
 
       #{spaces_text}
 
-      Work list (open and planned):
+      Work list (open, planned and running, and finished in the last day), with the live progress of each step — this is current; report it, do not tell #{@user.username} to look it up:
       #{list.presence&.join("\n") || "(empty)"}
 
       Conversation (latest last):

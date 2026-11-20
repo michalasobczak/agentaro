@@ -2,7 +2,7 @@
 // nazwy katalogu"). First-party, no libraries; textContent only. Without this script the field is a plain input.
 "use strict";
 
-(() => {
+window.agentaroOnPage(() => { // spec 020: on every visit
   const picker = document.querySelector(".folder-picker[data-folders-url]");
   if (!picker) return;
   const input = picker.querySelector("input");
@@ -72,4 +72,4 @@
     else if ((event.key === "Enter" || event.key === "Tab") && (active >= 0 || items.length === 1)) { event.preventDefault(); pick(Math.max(active, 0)); }
     else if (event.key === "Escape") { list.hidden = true; input.setAttribute("aria-expanded", "false"); }
   });
-})();
+});

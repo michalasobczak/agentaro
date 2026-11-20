@@ -43,7 +43,7 @@ class TaskRunner
   # Stores the outcome on the run (output and errors limited, spec 010 G4/G5).
   def self.finish!(run, outcome)
     run.update!(state: outcome.state, output: TaskRun.limit_text(outcome.output, TaskRun::MAX_OUTPUT).presence,
-                error: TaskRun.limit_text(outcome.error, TaskRun::MAX_ERROR).presence,
+                error: TaskRun.limit_tail(outcome.error, TaskRun::MAX_ERROR).presence,
                 exit_status: outcome.exit_status, started_at: run.started_at || Time.current, finished_at: Time.current)
     run
   end

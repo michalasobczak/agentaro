@@ -97,7 +97,7 @@ class TaskRunTest < ActiveSupport::TestCase
   test "S3: failures, timeouts and missing programs end as states, with output kept" do
     with_fake_program("claude", "echo partial; echo 'quota exceeded' >&2; exit 2") do
       run = TaskRunner.new(run_for(task)).perform!
-      assert_equal [ "failed", "partial", "quota exceeded", 2 ], [ run.state, run.output, run.error, run.exit_status ]
+      assert_equal [ "failed", "partial", "quota exceeded\n\nclaude ended: exit status 2.", 2 ], [ run.state, run.output, run.error, run.exit_status ]
     end
     with_fake_program("claude", "sleep 30") do
       run = TaskRunner.new(run_for(task(title: "Slow")), timeout: 1).perform!
@@ -219,5 +219,19 @@ class TaskRunTest < ActiveSupport::TestCase
     assert TaskRun.exists?(run.id)
     t1.destroy!
     assert_not TaskRun.exists?(run.id)
+  end
+
+  test "owner fix: a long error keeps its end, and a program killed by a signal says so" do
+    long = ("log line\n" * 5000) + "ERROR: usage limit reached"
+    kept = TaskRun.limit_tail(long, TaskRun::MAX_ERROR)
+    assert kept.end_with?("ERROR: usage limit reached")
+    assert kept.start_with?("[… ")
+    assert kept.bytesize <= TaskRun::MAX_ERROR + 100
+    with_fake_program("claude", "cat > /dev/null; echo 'progress log' >&2; kill -9 $$") do
+      run = TaskRunner.new(run_for(task)).perform!
+      assert_equal "failed", run.state
+      assert_match "progress log", run.error
+      assert_match "claude ended: killed by signal 9 (KILL).", run.error
+    end
   end
 end

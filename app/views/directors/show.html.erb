@@ -1,6 +1,6 @@
 <% content_for :title, "Director · Agentaro" %>
 <% content_for :content_class, "full" %>
-<% content_for :scripts do %><%= javascript_include_tag "chat", defer: true %><% end %>
+<%# chat.js comes from the layout (spec 020: the floating chat is on every page). %>
 
 <% if @director.nil? %>
   <%= page_header "Director" %>

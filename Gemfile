@@ -21,3 +21,5 @@ end
 gem "bcrypt", "~> 3.1"
 gem "rotp", "~> 6.3"
 gem "rqrcode", "~> 3.1"
+
+gem "turbo-rails", ">= 2.0"

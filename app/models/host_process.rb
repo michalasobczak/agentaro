@@ -10,6 +10,14 @@ class HostProcess
   Result = Data.define(:status, :stdout, :stderr, :timed_out) do
     def success? = !timed_out && status&.success?
     def exit_status = status&.exitstatus
+    # Why it ended, in words: "exit status 1" or "killed by signal 9 (KILL)".
+    def ending
+      return "stopped after the time limit" if timed_out
+      return "exit status #{status.exitstatus}" if status&.exitstatus
+      return "killed by signal #{status.termsig} (#{Signal.signame(status.termsig)})" if status&.signaled?
+
+      "unknown ending"
+    end
   end
 
   # on_stdout: called with each chunk of standard output as it arrives (spec 017: streamed answers).

@@ -75,7 +75,8 @@ class AgentCall
     elsif result.success?
       Outcome.new("succeeded", ExecutorCheck.clean_text(answer), nil, 0) # standard error holds progress logs only
     else
-      Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, ExecutorCheck.clean_text(result.stderr).presence || "Exited with status #{result.exit_status}.", result.exit_status)
+      log = ExecutorCheck.clean_text(result.stderr).presence
+      Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, [ log, "#{preset.program} ended: #{result.ending}." ].compact.join("\n\n"), result.exit_status)
     end
   end
 

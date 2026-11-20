@@ -1,7 +1,7 @@
 <%# The floating chat with the director (owner fix after spec 011): a button at the bottom right that opens
     the chat as a panel on the right. Open or closed is remembered per browser by chat.js. %>
 <% writing = TaskRun.where(user: current_user, purpose: "chat", state: %w[queued running]).exists? %>
-<aside class="chat-dock" data-chat-dock aria-label="Chat with <%= director.name %>">
+<aside id="chat-dock" class="chat-dock" data-chat-dock data-turbo-permanent aria-label="Chat with <%= director.name %>">
   <button type="button" class="chat-launcher" data-dock-open aria-expanded="false" aria-controls="chat-dock-panel" title="Chat with <%= director.name %>">
     <span class="chat-avatar is-director" aria-hidden="true"><%= director.name.first.upcase %></span>
     <span class="chat-launcher-label"><%= director.name %></span>

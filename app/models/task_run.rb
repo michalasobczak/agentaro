@@ -42,4 +42,13 @@ class TaskRun < ApplicationRecord
 
     text.byteslice(0, bytes).scrub("") + "\n[… cut at #{bytes / 1024} KB]"
   end
+
+  # Errors end with what matters (tools print their logs first), so a long error keeps its end (owner fix: a Codex
+  # failure was cut away behind 20 KB of its own log).
+  def self.limit_tail(text, bytes)
+    text = text.to_s.dup.force_encoding(Encoding::UTF_8).scrub("?")
+    return text if text.bytesize <= bytes
+
+    "[… #{(text.bytesize - bytes) / 1024} KB of log left out …]\n" + text.byteslice(text.bytesize - bytes, bytes).scrub("")
+  end
 end

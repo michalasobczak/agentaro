@@ -3,7 +3,7 @@
 // see is always what was saved. Without this script every view and form still works.
 "use strict";
 
-(() => {
+window.agentaroOnPage((signal) => { // spec 020: on every visit; `signal` ends listeners when the page is left
   const cal = document.querySelector(".calendar");
   if (!cal) return;
 
@@ -34,9 +34,9 @@
     body.scrollTop = saved !== null ? Number(saved) : (document.getElementById("h7")?.offsetTop || 0);
     sessionStorage.removeItem(scrollKey);
   }
-  const reload = () => { if (body) sessionStorage.setItem(scrollKey, String(body.scrollTop)); location.reload(); };
+  const reload = () => { if (body) sessionStorage.setItem(scrollKey, String(body.scrollTop)); window.agentaroReload(); };
   // Auto refresh (app.js) reloads through here, so the scroll position is kept.
-  document.addEventListener("agentaro:refresh", (event) => { event.preventDefault(); reload(); });
+  document.addEventListener("agentaro:refresh", (event) => { event.preventDefault(); reload(); }, { signal });
 
   // ---------- Server calls ----------
   async function send(method, url, data) {
@@ -189,7 +189,7 @@
 
   // ---------- Where is the pointer? ----------
   let pointer = { x: 0, y: 0 };
-  document.addEventListener("pointermove", (e) => { pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
+  document.addEventListener("pointermove", (e) => { pointer = { x: e.clientX, y: e.clientY }; }, { passive: true, signal });
 
   // Slot under a screen point: { date, minutes } in the time grid, { date } in month / all-day cells.
   function slotAt(x, y) {
@@ -234,8 +234,8 @@
     menu.querySelector("button")?.focus();
   }
   const closeMenu = () => { menu.hidden = true; };
-  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) closeMenu(); });
-  window.addEventListener("scroll", closeMenu, true);
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) closeMenu(); }, { signal });
+  window.addEventListener("scroll", closeMenu, { capture: true, signal });
 
   cal.addEventListener("contextmenu", (e) => {
     if (phone.matches) return;
@@ -281,7 +281,7 @@
       const slot = slotAt(pointer.x, pointer.y);
       if (slot) { e.preventDefault(); paste(startForSlot(slot, readClip().start)); }
     } else if ((e.key === "Delete" || e.key === "Backspace") && editable && !mod) { e.preventDefault(); deleteTask(task); }
-  });
+  }, { signal });
 
   // ---------- Drag & drop, resize, create by dragging ----------
   let gesture = null;
@@ -321,7 +321,7 @@
     }
     e.preventDefault();
     preview(e.clientX, e.clientY);
-  });
+  }, { signal });
 
   window.addEventListener("pointerup", (e) => {
     if (!gesture) return;
@@ -331,7 +331,7 @@
     suppressClick = true;
     setTimeout(() => { suppressClick = false; }, 0);
     finish(current, e.clientX, e.clientY);
-  });
+  }, { signal });
 
   cal.addEventListener("click", (e) => {
     if (suppressClick) { e.preventDefault(); e.stopPropagation(); return; }
@@ -411,4 +411,4 @@
   }
 
   showClip();
-})();
+});

@@ -28,7 +28,7 @@
       <% end %>
       <% if dock %>
         <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>
-        <%= link_to director_path, class: "chat-tool", title: "Open the full chat", "aria-label": "Open the full chat" do %><%= icon(:expand) %><% end %>
+        <%= link_to director_path, class: "chat-tool", data: { dock_max: true }, title: "Maximize the chat", "aria-label": "Maximize the chat", "aria-pressed": "false" do %><%= icon(:expand) %><% end %>
         <button type="button" class="chat-tool" data-dock-close title="Hide the chat (Esc)" aria-label="Hide the chat"><%= icon(:close) %></button>
       <% else %>
         <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>

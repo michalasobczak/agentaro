@@ -111,6 +111,10 @@ Data → plan without times, planned at once → chain runner (start, next, stop
   - Q6. The calendar depth switch (spec 013, G9) — **removed, as steps are no longer in the calendar.** (owner accepted the proposal).
   - Q7. Steps planned before this spec — **left as they are (calendar tasks with their runs).** (owner accepted the proposal).
 
+## Owner fix after release (2026-11-20)
+
+- "najwyraźniej director nie widzi postępów pracy agentów… bez sensu": the director's chat prompt (and the verifier's) shows, for every open, planned, running or recently finished epic (last 24 hours), each step's state, agent, duration ("running for 4 min so far", "succeeded in 2 min") and the error of a stopped step, with the instruction to report this progress instead of sending the user to look it up. Titles and states only; results stay on the epic page (spec 013, G3).
+
 ## Security analysis (B20), after spec 016
 
 Scope: this spec and specs 001–015.

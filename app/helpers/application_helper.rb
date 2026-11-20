@@ -119,9 +119,11 @@ module ApplicationHelper
     end
   end
 
-  # The floating chat (owner fix after spec 011): on every page except the director's own, for users with a director.
+  # The floating chat (owner fix after spec 011): for users with a director. Spec 020: on every page, the
+  # Director page too — there it stays hidden unless voice mode runs in it (Q1), so moving to that page never
+  # drops a conversation.
   def chat_dock_director
-    return unless signed_in? && !controller_path.in?(%w[directors chat_messages])
+    return unless signed_in?
     current_user.director_role&.agent
   end
 
