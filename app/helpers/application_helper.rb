@@ -86,6 +86,14 @@ module ApplicationHelper
   end
 
   def space_crumbs(space) = [ [ "Spaces", spaces_path ], [ space.name, space_path(space) ] ]
+
+  # Spec 025, R2: what deleting an archived space takes with it.
+  def space_delete_confirmation(space)
+    counts = space.purge_counts
+    text = "Delete #{space.name} with #{pluralize(counts[:epics], "epic")}, their steps and runs?"
+    text += " #{pluralize(counts[:running], "step")} in progress will be stopped." if counts[:running].positive?
+    "#{text} This cannot be undone."
+  end
   def epic_crumbs(item) = [ *space_crumbs(item.space), [ item.title, work_item_path(item) ] ]
 
   # A step of an epic (calendar task with a work item): its crumbs, or nil for an ordinary task.

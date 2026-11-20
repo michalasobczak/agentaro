@@ -221,3 +221,10 @@
     - "hej" got its answer first. Then "a jeszcze" and "i to", which had waited, went together and got one answer.
     - Messages restored after a reload were sent once.
     - Strip colours changed live.
+- Spec 025 Delete an archived space. The owner asked: "powinno dać się skasować space po archiwizacji, po pytaniu, czy na pewno". The owner's decisions: delete everything (runs included), a dialog with counts, and stop running steps.
+  - **Delete on archived spaces.** An archived space's page has **Delete**. The confirmation counts the epics and the steps in progress, and says it cannot be undone.
+  - **What is removed.** `Space#purge!` skips queued runs and stops running ones. It then removes, one by one through callbacks (the data changelog records each), the space's runs, calendar entries, epics with their steps, and the space. Chat messages linked to those runs keep their text. Run folders under the runs directory are removed; the working folder is never touched.
+  - **Active spaces** still need to be empty (spec 013, R5).
+  - **A run's agent can now be stopped.** New `RunControl` registers the agent processes Agentaro starts (`HostProcess.run(on_spawn:)`) and kills a run's whole process group. A model reached over HTTP cannot be interrupted; its run is deleted, and its late answer is dropped.
+  - **Tests:** `test/models/space_purge_test.rb` (includes killing a real stand-in agent that sleeps 30 s) and `spaces_test.rb`. Full suite: 320 runs.
+  - **Checks:** a browser check on demo data deleted an archived space with 3 epics, and nothing of it was left. Brakeman: 0 warnings.

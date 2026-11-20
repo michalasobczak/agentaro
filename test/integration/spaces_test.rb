@@ -28,13 +28,36 @@ class SpacesTest < ActionDispatch::IntegrationTest
 
     @user.work_items.create!(title: "Tiles", space: space)
     delete space_path(space)
-    assert_equal "Only an empty space can be deleted. Archive it instead.", flash[:alert]
+    assert_equal "Only an empty space can be deleted. Archive it first.", flash[:alert]
     patch archive_space_path(space)
     assert_equal "archived", space.reload.state
     patch activate_space_path(space)
     space.work_items.destroy_all
     delete space_path(space)
     assert_not Space.exists?(space.id)
+  end
+
+  test "spec 025: an archived space is deleted with its epics after a confirmation that counts them; never someone else's" do
+    space = make_space("Old")
+    item = @user.work_items.create!(title: "Tiles", space: space)
+    get space_path(space)
+    assert_select "form[action='#{space_path(space)}']", 0, "an active space with epics cannot be deleted"
+    patch archive_space_path(space)
+    get space_path(space)
+    assert_select "form[action='#{space_path(space)}'][data-confirm='Delete Old with 1 epic, their steps and runs? This cannot be undone.'] button", text: "Delete"
+
+    stranger = create_user(username: "stranger1")
+    delete space_path(space)
+    assert_redirected_to spaces_path
+    assert_equal "Space Old deleted with its epics.", flash[:notice]
+    assert_not Space.exists?(space.id)
+    assert_not WorkItem.exists?(item.id)
+
+    theirs = make_space("Theirs", user: stranger)
+    theirs.update!(state: "archived")
+    delete space_path(theirs)
+    assert_response :not_found
+    assert Space.exists?(theirs.id)
   end
 
   test "Q8–Q10: the board has a column per state; order is set within a column; Done and Cancel" do

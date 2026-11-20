@@ -21,12 +21,13 @@ class HostProcess
   end
 
   # on_stdout: called with each chunk of standard output as it arrives (spec 017: streamed answers).
-  def self.run(program, args, stdin: nil, chdir: Dir.tmpdir, timeout:, max_output:, on_stdout: nil)
-    new(program, args, stdin:, chdir:, timeout:, max_output:, on_stdout:).run
+  # on_spawn: called with the process id (also its group id) once it runs (spec 025: runs can be stopped).
+  def self.run(program, args, stdin: nil, chdir: Dir.tmpdir, timeout:, max_output:, on_stdout: nil, on_spawn: nil)
+    new(program, args, stdin:, chdir:, timeout:, max_output:, on_stdout:, on_spawn:).run
   end
 
-  def initialize(program, args, stdin:, chdir:, timeout:, max_output:, on_stdout: nil)
-    @program, @args, @stdin, @chdir, @timeout, @max_output, @on_stdout = program, args, stdin, chdir, timeout, max_output, on_stdout
+  def initialize(program, args, stdin:, chdir:, timeout:, max_output:, on_stdout: nil, on_spawn: nil)
+    @program, @args, @stdin, @chdir, @timeout, @max_output, @on_stdout, @on_spawn = program, args, stdin, chdir, timeout, max_output, on_stdout, on_spawn
   end
 
   def run
@@ -36,6 +37,7 @@ class HostProcess
     env = ENV.to_h.slice(*ENV_KEPT)
     pid = Process.spawn(env, @program, *@args, unsetenv_others: true, chdir: @chdir, pgroup: true,
                         in: in_r, out: out_w, err: err_w, close_others: true)
+    @on_spawn&.call(pid)
     [ in_r, out_w, err_w ].each(&:close)
     writer = Thread.new { write_input(in_w) }
 

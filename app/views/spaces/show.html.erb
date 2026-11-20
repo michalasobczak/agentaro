@@ -8,7 +8,9 @@
   <% else %>
     <%= button_to "Make active", activate_space_path(@space), method: :patch, class: "secondary" %>
   <% end %>
-  <% if @space.work_items.none? %>
+  <% if !@space.active? %>
+    <%= button_to "Delete", space_path(@space), method: :delete, class: "danger", form: { data: { confirm: space_delete_confirmation(@space) } } %>
+  <% elsif @space.work_items.none? %>
     <%= button_to "Delete", space_path(@space), method: :delete, class: "danger", form: { data: { confirm: "Delete #{@space.name}?" } } %>
   <% end %>
 <% end %>

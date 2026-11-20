@@ -46,12 +46,17 @@ class SpacesController < ApplicationController
     end
   end
 
-  # R5: only an empty space can be deleted; others are archived.
+  # R5: an empty space can be deleted; others are archived first. Spec 025: an archived space is deleted with its
+  # epics, steps, calendar entries and runs; steps still running in it are stopped.
   def destroy
-    if @space.destroy
+    if !@space.active?
+      name = @space.name
+      @space.purge!
+      redirect_to spaces_path, notice: "Space #{name} deleted with its epics."
+    elsif @space.destroy
       redirect_to spaces_path, notice: "Space deleted."
     else
-      redirect_to @space, alert: "Only an empty space can be deleted. Archive it instead."
+      redirect_to @space, alert: "Only an empty space can be deleted. Archive it first."
     end
   end
 

@@ -37,6 +37,49 @@ class Space < ApplicationRecord
     (self.class.protected_dirs + others).uniq
   end
 
+  # Spec 025: what deleting an archived space takes with it (for the confirmation, R2).
+  def purge_counts
+    runs = purge_runs
+    { epics: work_items.count, running: runs.where(state: %w[queued running]).count }
+  end
+
+  STOP_WAIT = 10 # seconds a stopped step may take to end (R3)
+
+  # Spec 025: deletes an archived space with its epics, their steps, calendar entries, runs and run folders.
+  # Running steps are stopped first (R3); every row goes through callbacks, so the data changelog keeps it (R4).
+  def purge!(wait: STOP_WAIT)
+    raise ArgumentError, "only an archived space is deleted with its epics" if active?
+
+    ActiveRecord::Base.uncached do
+      runs = purge_runs
+      runs.where(state: "queued").find_each { |run| run.update!(state: "skipped", error: "The space was deleted.", finished_at: Time.current) }
+      running = runs.where(state: "running").pluck(:id)
+      running.each { |id| RunControl.stop!(id) }
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + wait
+      while TaskRun.where(id: running, state: "running").exists? && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+        sleep 0.1
+      end
+
+      run_ids = runs.pluck(:id)
+      transaction do
+        ChatMessage.where(task_run_id: run_ids).find_each { |message| message.update!(task_run: nil) }
+        TaskRun.where(id: run_ids).find_each(&:destroy!)
+        work_items.each do |item|
+          item.tasks.find_each(&:destroy!)
+          item.reload.destroy!
+        end
+        reload.destroy!
+      end
+      remove_run_folders(run_ids)
+    end
+  end
+
+  # The runs of the space's epics, including runs of their calendar entries (steps planned before spec 016).
+  def purge_runs
+    items = work_items.select(:id)
+    TaskRun.where(work_item_id: items).or(TaskRun.where(task_id: Task.where(work_item_id: items).select(:id)))
+  end
+
   def active? = state == "active"
   def project? = kind == "project"
   def team? = kind == "team"
@@ -60,6 +103,15 @@ class Space < ApplicationRecord
   end
 
   private
+
+  # R5: only <runs dir>/<run id>, a number, inside Agentaro's runs folder.
+  def remove_run_folders(run_ids)
+    root = File.expand_path(Rails.application.config.x.runs_dir.to_s)
+    run_ids.each do |id|
+      folder = File.join(root, Integer(id).to_s)
+      FileUtils.rm_rf(folder) if File.dirname(folder) == root && File.directory?(folder) && !File.symlink?(folder)
+    end
+  end
 
   # Spec 018, R1: an absolute path to an existing folder, stored resolved; never "/", Agentaro's storage or the runs.
   def working_dir_usable

@@ -70,7 +70,7 @@ Every user groups their work into **projects** (e.g. "company X", "house renovat
 - R2. An item may move to another project while it is *new* or *blocked* (Q5), by the director (`update_item` with a project).
 - R3. Separation is enforced by Agentaro when building prompts, not by asking the model.
 - R4. Archiving a project cancels nothing that already runs; its planned steps stay in the calendar.
-- R5. Only an empty project can be deleted; others are archived (Q6). Archived projects can be made active again.
+- R5. Only an empty project can be deleted; others are archived (Q6). Archived projects can be made active again. *Spec 025: an archived space can be deleted with its epics, steps, calendar entries and runs; active spaces keep this rule.*
 - R6. One team for all projects (Q7).
 
 **Data:** a new table and a required column in the main database; a migration creates "General" per user who has items.

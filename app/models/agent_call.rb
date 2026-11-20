@@ -71,8 +71,12 @@ class AgentCall
 
     stream = @on_text && preset.key == "claude_code" ? ClaudeStream.new(@on_text) : nil
     args = stream.arguments(args) if stream
-    result = HostProcess.run(program, args, stdin: stdin, chdir: @chdir, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
-                             on_stdout: stream&.method(:feed))
+    result = begin
+      HostProcess.run(program, args, stdin: stdin, chdir: @chdir, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
+                      on_stdout: stream&.method(:feed), on_spawn: ->(pid) { RunControl.started(@run.id, pid) }) # spec 025: can be stopped
+    ensure
+      RunControl.finished(@run.id)
+    end
     answer = answer_file && File.exist?(answer_file) ? File.read(answer_file) : (stream ? stream.answer(result.stdout) : result.stdout)
     if result.timed_out
       Outcome.new("timed_out", ExecutorCheck.clean_text(answer), "Stopped after #{@timeout.to_i / 60} minutes.", nil)
