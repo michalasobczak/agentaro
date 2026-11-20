@@ -21,7 +21,7 @@ class ChatMessagesController < ApplicationController
     return reject("Write a message.") if content.empty?
     return reject("Messages are at most 5,000 characters.") if content.length > 5000
 
-    message = current_user.chat_messages.create!(author: "user", content: content)
+    message = current_user.chat_messages.create!(author: "user", content: content, spoken: params.dig(:chat_message, :spoken) == "1") # owner fix: voice
     ManagementRunner.chat!(current_user)
     respond_to do |format|
       format.json { render json: { ok: true, message: helpers.chat_message_json(message), writing: director_writing? } }

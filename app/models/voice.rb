@@ -6,6 +6,15 @@ class Voice
   MAX_AUDIO = 2 * 1024 * 1024 # bytes (R1): about 60 s of 16 kHz mono WAV
   MAX_TEXT = 600              # characters per speech request (R2)
   NOISE = /\A[\[(][^\])]*[\])]\z/ # whisper's notes for silence or noise, e.g. [BLANK_AUDIO], (muzyka)
+  # Owner fix after spec 017 ("dodaj usuwanie szumów, żeby nie było 'wszystkie prawa zastrzeżone'"): sentences Whisper
+  # invents on silence or noise (learnt from film subtitles). A sentence made only of such a phrase is dropped.
+  PHANTOMS = Regexp.union(
+    /wszystkie prawa zastrze[żz]one/i, /napisy (wykonane|stworzone|przygotowane|zrobione)( przez[^.!?]*)?/i, /amara\.org/i, /tvp\s*s\.?a\.?/i,
+    /dzi[ęe]kuj[ęe] za (obejrzenie|uwag[ęe]|ogl[ąa]danie)/i, /dzi[ęe]ki za (obejrzenie|ogl[ąa]danie)/i,
+    /(zapraszam do |nie zapomnij )?(zasubskrybowa[ćc]|subskrybuj|subskrypcj[ię])/i, /do zobaczenia w (nast[ęe]pnym|kolejnym) (odcinku|filmie)/i,
+    /thank(s| you) for watching/i, /please subscribe/i, /subtitles? (by|made by)[^.!?]*/i, /all rights reserved/i, /copyright/i,
+    /\A[♪♫\s.…-]*\z/
+  )
   # Owner fix after spec 017 ("nie czytaj uśmieszków"): emoji, text smileys and Markdown marks are not read aloud.
   EMOJI = /[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}\u200D\uFE0E\uFE0F\u20E3]/
   SMILEYS = /(?<![\p{L}\p{N}])[:;=8xX][-'^o]?[)(\]\[DPpOo3|\/\\*]+(?![\p{L}\p{N}])|(?<!\S)<3(?!\S)|(?<!\S)\^[_.]?\^(?!\S)/
@@ -43,12 +52,13 @@ class Voice
     Dir.mktmpdir("agentaro-voice") do |dir|
       path = File.join(dir, "speech.wav")
       File.binwrite(path, audio)
-      result = HostProcess.run(config[:whisper_bin], [ "-m", config[:whisper_model], "-f", path, "-l", (%w[pl en].include?(language) ? language : "auto"), "-nt", "-np" ],
+      result = HostProcess.run(config[:whisper_bin], [ "-m", config[:whisper_model], "-f", path, "-l", (%w[pl en].include?(language) ? language : "auto"), "-nt", "-np", "-sns" ],
                                chdir: dir, timeout: 60, max_output: 64 * 1024)
       raise Error, "Speech recognition did not finish in time." if result.timed_out
       raise Error, "Speech recognition failed." unless result.success?
 
-      result.stdout.to_s.force_encoding(Encoding::UTF_8).scrub("").lines.map(&:strip).reject { |l| l.empty? || l.match?(NOISE) }.join(" ").strip
+      text = result.stdout.to_s.force_encoding(Encoding::UTF_8).scrub("").lines.map(&:strip).reject { |l| l.empty? || l.match?(NOISE) }.join(" ")
+      without_phantoms(text)
     end
   end
 
@@ -59,8 +69,19 @@ class Voice
     text.gsub(/[[:cntrl:]]+/, " ").gsub(/\s+([.,!?;:])/, "\\1").squeeze(" ").strip
   end
 
+  # Drops whole sentences that are only a phantom phrase; real sentences that merely mention one stay.
+  WHOLE_PHANTOMS = /\A(koniec|the end|dzi[ęe]kuj[ęe]( bardzo)?|thank you)[.!…]*\z/i # phantoms when they are all that was "heard"
+
+  def self.without_phantoms(text)
+    return "" if text.strip.match?(WHOLE_PHANTOMS)
+
+    text.split(/(?<=[.!?…])\s+/).reject { |sentence| sentence.strip.match?(PHANTOMS) && sentence.gsub(PHANTOMS, "").gsub(/[\p{P}\s]/, "").length < 12 }
+        .join(" ").strip
+  end
+
   # G5: text in, WAV bytes out, in the voice of the chosen language ("auto": guessed from the text).
-  def self.speak(text, language: "auto", speaker: "director")
+  # speed: 1.0 is Piper's natural pace; 1.5 speaks 1.5 times faster (owner fix), without changing the pitch.
+  def self.speak(text, language: "auto", speaker: "director", speed: 1.5)
     raise Error, "The voice is not installed on this computer." unless speaking?
 
     text = readable(text)
@@ -70,7 +91,10 @@ class Voice
     Dir.mktmpdir("agentaro-voice") do |dir|
       path = File.join(dir, "speech.wav")
       voice = voice_for(%w[pl en].include?(language) ? language : guess_language(text), speaker.to_s == "verifier" ? "verifier" : "director")
-      result = HostProcess.run(config[:piper_bin], [ "-m", voice, "-f", path ], stdin: text, chdir: dir, timeout: 30, max_output: 64 * 1024)
+      # Pauses shrink less than sounds, so the scale goes a bit further than 1/speed: measured on the host, 1.5 gives
+      # about 1.5x and 2.0 about 2x the natural duration.
+      length = format("%.2f", speed.to_f.clamp(1.0, 2.0)**-1.35)
+      result = HostProcess.run(config[:piper_bin], [ "-m", voice, "-f", path, "--length-scale", length ], stdin: text, chdir: dir, timeout: 30, max_output: 64 * 1024)
       raise Error, "The voice did not finish in time." if result.timed_out
       raise Error, "The voice failed." unless result.success? && File.file?(path)
 

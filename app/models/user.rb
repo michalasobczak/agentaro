@@ -25,6 +25,8 @@ class User < ApplicationRecord
   CHAT_LANGUAGES = { "auto" => "Auto", "pl" => "PL", "en" => "EN" }.freeze
   LANGUAGE_NAMES = { "pl" => "Polish", "en" => "English" }.freeze
   validates :chat_language, inclusion: { in: CHAT_LANGUAGES.keys }
+  SPEECH_SPEEDS = [ 1.0, 1.25, 1.5, 2.0 ].freeze # owner fix: how fast Piper speaks
+  validates :speech_speed, inclusion: { in: SPEECH_SPEEDS }
 
   normalizes :username, with: ->(u) { u.to_s.strip.downcase }
 

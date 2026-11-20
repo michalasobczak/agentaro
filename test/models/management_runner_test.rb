@@ -406,6 +406,25 @@ class VerifierTest < ActiveSupport::TestCase
     assert_not @user.team_roles.new(agent: @director, role: "verifier").valid?, "one verifier"
   end
 
+  test "owner fix: an active verifier follows every answer of the director; a spoken message asks for short answers" do
+    @user.update!(verifier_active: true)
+    chat = TaskRun.create!(user: @user, agent: @director, purpose: "chat", trigger: "scheduled", occurrence_start: Time.current, state: "running")
+    runner = ManagementRunner.new(chat)
+    runner.send(:apply_chat!, { "reply" => "Done.", "actions" => [] })
+    assert_equal 1, TaskRun.where(user: @user, purpose: "verify", state: "queued").count, "queued while the chat run still runs"
+    @user.update!(verifier_active: false)
+    TaskRun.where(purpose: "verify").delete_all
+    ManagementRunner.new(chat).send(:apply_chat!, { "reply" => "Again.", "actions" => [] })
+    assert_equal 0, TaskRun.where(purpose: "verify").count, "sent away: no more checks"
+
+    @user.chat_messages.create!(author: "user", content: "Mów krótko", spoken: true)
+    assert_match "talking by voice", ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat")).send(:chat_prompt)
+    assert_match "at most 3 short spoken sentences", ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat")).send(:chat_prompt)
+    assert_match "at most 2 short spoken sentences", ManagementRunner.new(TaskRun.new(user: @user, purpose: "verify")).send(:verify_prompt)
+    @user.chat_messages.create!(author: "user", content: "Teraz piszę")
+    assert_no_match "talking by voice", ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat")).send(:chat_prompt)
+  end
+
   test "a failing verifier posts an Agentaro notice" do
     run = ManagementRunner.verify!(@user)
     with_codex("") { ManagementRunner.new(run).perform! }

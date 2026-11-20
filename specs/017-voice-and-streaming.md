@@ -107,6 +107,11 @@ Install tools → `Voice` with stand-in tests → endpoints → streaming in `Ho
 
 - "nie czytaj uśmieszków": emoji, text smileys and Markdown marks are removed from what Piper reads; the chat shows the reply unchanged.
 
+- "dodaj usuwanie szumów, żeby nie było 'wszystkie prawa zastrzeżone'": Whisper runs with `-sns` (suppress non-speech tokens). Sentences it invents on silence or noise (learnt from film subtitles: "Wszystkie prawa zastrzeżone", "Napisy stworzone przez…", "Dziękuję za obejrzenie", "Subskrybuj", "Thanks for watching") are dropped when that is all the sentence says. A whole utterance of just "Koniec", "Dziękuję" or "Thank you" is dropped too. Real sentences that mention these words stay (tests). On the host, plain noise had given "KONIEC".
+
+- "wpisz w prompty systemowe, żeby odpowiadali krócej w rozmowie głosowej": messages sent from voice mode are marked (`chat_messages.spoken`). When the user's latest message was spoken, the prompts ask the director for at most 3 short spoken sentences and the verifier for at most 2, with no lists, Markdown or emoji.
+- "zwiększ tempo syntezy mowy, tak x1.5 co najmniej" and "przełącznik prędkości wymowy": a speed switch in the voice panel (1× / 1,25× / 1,5× / 2×, saved per user, default 1,5×). It sets Piper's `--length-scale` to speed^-1.35, because pauses shrink less than sounds. Measured on the host: 1.26×, 1.55× and 1.9×. Whisper still understands the 2× speech.
+
 ## Security analysis (B20), after spec 017
 
 Scope: this spec and specs 001–016.

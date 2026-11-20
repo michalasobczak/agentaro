@@ -19,7 +19,8 @@ Rails.application.routes.draw do
   resource :director, only: :show do
     get :stamp
     post :new_conversation # spec 015
-    post :verify # spec 019
+    post :verify # spec 019: invite the verifier, or send it away
+    patch :speech_speed
     get :archive
   end
   # Spec 017: voice for the director chat

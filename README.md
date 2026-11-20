@@ -117,7 +117,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-20: spec 018 implemented — a space may have a working folder; its steps edit, commit, use Docker and the network there, and cannot read other spaces' folders (Claude Code; verified on the host). Tests: 224.
 - 2026-11-20: spec 019 drafted — a verifier on demand (Codex checks Claude), comments only, with its own voice.
 - 2026-11-20: spec 019 implemented — a verifier on demand (e.g. Codex checking a Claude director) comments in the chat and in voice mode with its own voice; the director reads and answers its comments. Tests: 232.
-- Next: later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per space and per agent), self-improvement.
+- 2026-11-20: spec 020 drafted — Turbo, so the floating chat (and voice mode) survives moving between pages.
+- Next: 020 pages without reloading; later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per space and per agent), self-improvement.
 
 ## Specifications
 
@@ -142,6 +143,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 017 | [Talking to the director: voice and streamed answers](specs/017-voice-and-streaming.md) | implemented (E2E with a microphone: owner) |
 | 018 | [A working folder for a space](specs/018-working-folders.md) | implemented (F17, F18 accepted) |
 | 019 | [A verifier in the chat](specs/019-verifier.md) | implemented |
+| 020 | [Pages without reloading: the conversation keeps going](specs/020-pages-without-reloading.md) | draft |
 | — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per space and per agent | not written |

@@ -21,7 +21,10 @@
     </div>
     <nav class="chat-links">
       <% if current_user.verifier_role %>
-        <%= button_to verify_director_path, class: "chat-tool verify-tool", data: { verify: true }, title: "Ask the verifier (#{current_user.verifier_role.agent.name}) to check the director", "aria-label": "Ask the verifier" do %><%= icon(:verify) %><% end %>
+        <% on = current_user.verifier_active? %>
+        <%= button_to verify_director_path, class: ["verify-tool", ("is-on" if on)].compact.join(" "), data: { verify: true }, "aria-pressed": on,
+                      title: on ? "#{current_user.verifier_role.agent.name} checks every answer — click to send it away" : "Invite #{current_user.verifier_role.agent.name} to check every answer of the director until you send it away",
+                      "aria-label": "Verifier" do %><%= icon(:verify) %><span class="verify-label"><%= on ? "Verifier on" : "Verifier" %></span><% end %>
       <% end %>
       <% if dock %>
         <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>
@@ -67,7 +70,12 @@
       <strong data-voice-state>Listening…</strong>
       <span class="muted small" data-voice-note>Speak; I send when you pause, or press Done.</span>
     </div>
-    <% if current_user.verifier_role %><button type="button" class="voice-verify" data-voice-verify title="Ask the verifier to check the director" aria-label="Ask the verifier"><%= icon(:verify) %></button><% end %>
+    <div class="speed-switch" role="group" aria-label="Speech speed" data-speed-url="<%= speech_speed_director_path %>">
+      <% User::SPEECH_SPEEDS.each do |speed| %>
+        <button type="button" class="speed<%= " is-active" if current_user.speech_speed.to_f == speed %>" data-speed="<%= speed %>" aria-pressed="<%= current_user.speech_speed.to_f == speed %>"><%= speed.to_s.sub(/\.0\z/, "").tr(".", ",") %>×</button>
+      <% end %>
+    </div>
+    <% if current_user.verifier_role %><button type="button" class="voice-verify<%= " is-on" if current_user.verifier_active? %>" data-voice-verify title="Invite or send away the verifier" aria-label="Verifier" aria-pressed="<%= current_user.verifier_active? %>"><%= icon(:verify) %></button><% end %>
     <button type="button" class="voice-done" data-voice-done hidden title="I am done speaking — send now" aria-label="Done speaking, send now"><%= icon(:send) %> Done</button>
     <button type="button" class="voice-stop" data-voice-stop title="End voice mode" aria-label="End voice mode"><%= icon(:close) %></button>
   </div>

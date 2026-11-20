@@ -23,10 +23,11 @@ class ManagementRunner
 
   # G1: a user wrote to the director. One chat run per user at a time (R3).
   # Spec 019: the user asks the verifier to check the conversation. One at a time, not while the director writes.
-  def self.verify!(user)
+  # except: the chat run that asks for it (owner fix: an active verifier follows every answer of the director).
+  def self.verify!(user, except: nil)
     verifier = user.verifier_role&.agent
     return nil unless verifier
-    return nil if TaskRun.where(user: user, purpose: %w[chat verify], state: %w[queued running]).exists?
+    return nil if TaskRun.where(user: user, purpose: %w[chat verify], state: %w[queued running]).where.not(id: except&.id).exists?
 
     queue!(user: user, purpose: "verify", agent: verifier)
   end
@@ -189,8 +190,12 @@ class ManagementRunner
   # Owner fix after spec 017: the user's chosen conversation language, or the language of their latest message.
   def reply_language
     name = User::LANGUAGE_NAMES[@user.chat_language]
-    name ? "Write your reply in #{name}." : "Write your reply in the language of #{@user.username}'s latest message (for example Polish when they write Polish)."
+    text = name ? "Write your reply in #{name}." : "Write your reply in the language of #{@user.username}'s latest message (for example Polish when they write Polish)."
+    spoken? ? "#{text} #{@user.username} is talking by voice and hears your reply read aloud: keep it short — at most #{@run.purpose == "verify" ? 2 : 3} short spoken sentences, no lists, headings, Markdown or emoji." : text
   end
+
+  # Owner fix: the latest message of the user came from voice mode.
+  def spoken? = (@spoken ||= (@user.chat_messages.current.where(author: "user").ordered.last&.spoken? ? :yes : :no)) == :yes
 
   def team_members = @user.team_roles.members.includes(agent: :executor).order(:id).to_a
 
@@ -328,6 +333,7 @@ class ManagementRunner
     planned = actions.map { |action| check_action(action) } # all checked before any is applied
     summary = WorkItem.transaction { planned.map(&:call) }
     say("director", reply, actions_summary: summary.compact.join("\n").presence)
+    self.class.verify!(@user, except: @run) if @user.verifier_active? # queued before this run ends, so "writing" never drops in between
     self.class.dispatch_due(user: @user)
   end
 

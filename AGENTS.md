@@ -32,6 +32,7 @@ Ruby 4.0.10 must be on `PATH` (on the owner's Mac: `export PATH="/opt/homebrew/o
 - `bin/rails test` — tests (must pass before every commit)
 - `bin/ci` — local CI (setup, tests, seeds)
 - `bin/dev` — development server on http://localhost:3000 (this machine only)
+- **The owner's instance runs from this working folder.** In production, templates are read from disk on first use, so editing views while it runs can break it (500s) until it is restarted. Restart it right after changing code that it uses.
 - `bin/start` — real use: production mode behind an HTTPS proxy; needs `AGENTARO_HOSTS` (in `storage/settings.env`). It precompiles assets into `public/assets`; development and test ignore that folder and always compile live.
 - Throwaway browser checks: never use the test databases (tests run in HTTPS mode and the data leaks into later runs). Use a development server on separate files: `DATABASE_URL=sqlite3:storage/demo.sqlite3 AUDIT_DATABASE_URL=sqlite3:storage/demo_audit.sqlite3`, and delete them afterwards — plus `var/runs/development` if runs were made; never touch `var/runs/production`. Open the demo at `http://demo.localhost:<port>` (the browser may keep a Secure session cookie for `localhost` and `127.0.0.1`). Seed text with non-ASCII characters only with `LANG=en_US.UTF-8`.
 - `bin/rails agentaro:admin:create` — first admin (interactive: password, QR code); prefix `RAILS_ENV=production` for production data

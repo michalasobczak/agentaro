@@ -9,13 +9,22 @@ class DirectorsController < ApplicationController
     @writing = writing?
   end
 
-  # Spec 019, G2/R2: ask the verifier to check the conversation; refused without a verifier or while someone writes.
+  # Spec 019, owner fix ("jak zapraszam weryfikatora, to ma on być do odwołania aktywny"): the button invites the
+  # verifier — it checks the conversation now and every answer of the director after — or sends it away again.
   def verify
-    run = ManagementRunner.verify!(current_user)
-    error = current_user.verifier_role ? "Wait until the current answer is finished." : "Choose a verifier on the Team page first."
+    return respond_verify(false, "Choose a verifier on the Team page first.") unless current_user.verifier_role
+
+    current_user.update!(verifier_active: !current_user.verifier_active?)
+    run = ManagementRunner.verify!(current_user) if current_user.verifier_active?
+    respond_verify(true, nil, writing: run.present?)
+  end
+
+  # Owner fix: how fast the voices speak (1x to 2x).
+  def speech_speed
+    current_user.update(speech_speed: params[:speed].to_f) if User::SPEECH_SPEEDS.include?(params[:speed].to_f)
     respond_to do |format|
-      format.json { run ? render(json: { ok: true, writing: true }) : render(json: { ok: false, error: error }, status: :unprocessable_content) }
-      format.any { run ? redirect_back_or_to(director_path) : redirect_back_or_to(director_path, alert: error) }
+      format.json { render json: { speed: current_user.speech_speed.to_f } }
+      format.any { redirect_back_or_to director_path }
     end
   end
 
@@ -43,6 +52,13 @@ class DirectorsController < ApplicationController
   end
 
   private
+
+  def respond_verify(ok, error, writing: false)
+    respond_to do |format|
+      format.json { ok ? render(json: { ok: true, active: current_user.verifier_active?, writing: writing }) : render(json: { ok: false, error: error }, status: :unprocessable_content) }
+      format.any { ok ? redirect_back_or_to(director_path) : redirect_back_or_to(director_path, alert: error) }
+    end
+  end
 
   def writing? = TaskRun.where(user: current_user, purpose: %w[chat verify], state: %w[queued running]).exists?
 end

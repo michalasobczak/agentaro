@@ -226,10 +226,12 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_select "form[action='#{verify_director_path}'] button[data-verify]"
     assert_select "[data-voice-verify]", 1
     post verify_director_path, headers: { "Accept" => "application/json" }
-    assert JSON.parse(response.body)["ok"]
+    assert_equal({ "ok" => true, "active" => true, "writing" => true }, JSON.parse(response.body), "invited: checks the conversation at once")
+    assert @user.reload.verifier_active?
     assert_equal 1, TaskRun.where(user: @user, purpose: "verify").count
     post verify_director_path, headers: { "Accept" => "application/json" }
-    assert_response :unprocessable_content
+    assert_equal false, JSON.parse(response.body)["active"], "pressed again: sent away"
+    assert_not @user.reload.verifier_active?
     @user.chat_messages.create!(author: "verifier", content: "<b>Check</b> this")
     get director_path
     assert_select ".bubble-row.from-verifier .bubble-name", text: "Wera · verifier"
@@ -239,6 +241,18 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     post verify_director_path, headers: { "Accept" => "application/json" }
     assert_response :unprocessable_content
     assert_equal 1, TaskRun.where(purpose: "verify").count, "bob has no verifier; mine is not his"
+  end
+
+  test "owner fixes: spoken messages are marked; the speech speed is saved per user" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    post chat_messages_path, params: { chat_message: { content: "Hej", spoken: "1" } }, headers: { "Accept" => "application/json" }
+    assert @user.chat_messages.last.spoken?
+    get director_path
+    assert_select ".speed-switch button.is-active", text: "1,5×"
+    patch speech_speed_director_path, params: { speed: "2.0" }, as: :json
+    assert_equal 2.0, JSON.parse(response.body)["speed"]
+    patch speech_speed_director_path, params: { speed: "9" }, as: :json
+    assert_equal 2.0, @user.reload.speech_speed.to_f, "only the offered speeds"
   end
 
   test "auto refresh stamp changes with new chat messages" do

@@ -567,3 +567,28 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .voice-verify svg.icon, .chat-tool.verify-tool svg.icon { width: 1.15rem; height: 1.15rem; }
 .chat-head { min-width: 0; } .chat-app { min-width: 0; }
 .chat-head .chat-who { min-width: 3.5rem; }
+/* The verifier button, labelled so it is found (owner: "nie mam przycisku") */
+.chat-links .verify-tool { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 0; height: 2.2rem; padding: 0 0.7rem 0 0.55rem; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--line)); background: var(--ok-soft); color: var(--ok); font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.chat-links .verify-tool:hover:not(:disabled) { border-color: var(--ok); }
+.chat-links .verify-tool:disabled { opacity: 0.45; cursor: default; }
+.chat-links .verify-tool svg.icon { width: 1.05rem; height: 1.05rem; }
+.chat-app.is-dock .verify-label { display: none; }
+.chat-app.is-dock .chat-links .verify-tool { width: 2.2rem; padding: 0; justify-content: center; }
+/* The chat header adapts to the chat's own width (page, floating panel, phone) */
+.chat-app { container-type: inline-size; }
+@container (max-width: 620px) {
+  .chat-links .verify-tool { width: 2.2rem; padding: 0; justify-content: center; }
+  .verify-label { display: none; }
+  .chat-links { gap: 0.15rem; }
+}
+@container (max-width: 470px) { .lang-switch .lang { padding: 0.2rem 0.4rem; } }
+@container (max-width: 620px) { .chat-head .chat-tool, .chat-links .verify-tool { width: 1.95rem; height: 1.95rem; } .chat-head { gap: 0.5rem; padding: 0.6rem 0.75rem; } }
+/* The verifier as a switch, and the speech speed switch (owner fixes) */
+.chat-links .verify-tool:not(.is-on) { background: var(--surface); color: var(--muted); border-color: var(--line); }
+.chat-links .verify-tool.is-on { background: var(--ok); color: #fff; border-color: var(--ok); }
+.voice-verify.is-on { background: var(--ok); color: #fff; border-color: var(--ok); }
+.speed-switch { display: inline-flex; padding: 0.12rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); flex: none; }
+.speed-switch .speed { min-height: 0; padding: 0.2rem 0.45rem; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 0.72rem; font-weight: 700; cursor: pointer; }
+.speed-switch .speed.is-active { background: var(--accent); color: #fff; }
+@container (max-width: 520px) { .voice-panel { flex-wrap: wrap; } .voice-info { flex-basis: calc(100% - 3rem); } }

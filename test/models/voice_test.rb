@@ -34,7 +34,7 @@ class VoiceTest < ActiveSupport::TestCase
     with_tools do |dir|
       assert_equal "Cześć Anna", Voice.transcribe(WAV)
       args = File.read(File.join(dir, "whisper-args"))
-      assert_match "-l auto -nt -np", args
+      assert_match "-l auto -nt -np -sns", args
       heard = args[/-f (\S+)/, 1]
       assert_not File.exist?(heard), "the temporary audio is deleted"
       assert_equal WAV, File.binread(File.join(dir, "heard.wav"))
@@ -44,7 +44,7 @@ class VoiceTest < ActiveSupport::TestCase
   test "owner fix after spec 017: the language goes to whisper; the voice follows the language" do
     with_tools do |dir|
       Voice.transcribe(WAV, language: "pl")
-      assert_match "-l pl -nt", File.read(File.join(dir, "whisper-args"))
+      assert_match "-l pl -nt -np -sns", File.read(File.join(dir, "whisper-args"))
       Voice.transcribe(WAV, language: "xx; rm")
       assert_match "-l auto -nt", File.read(File.join(dir, "whisper-args")), "only known languages reach whisper"
       english = File.join(dir, "en.onnx")
@@ -79,6 +79,29 @@ class VoiceTest < ActiveSupport::TestCase
       assert_match own, File.read(File.join(dir, "piper-args"))
       Voice.speak("Dzień dobry", language: "pl", speaker: "anything else")
       assert_no_match own, File.read(File.join(dir, "piper-args"))
+    end
+  end
+
+  test "owner fix: phantom sentences from silence or noise are dropped; real speech stays" do
+    assert_equal "", Voice.without_phantoms("Wszystkie prawa zastrzeżone.")
+    assert_equal "", Voice.without_phantoms("Napisy stworzone przez społeczność Amara.org. Dziękuję za obejrzenie!")
+    assert_equal "", Voice.without_phantoms("Thanks for watching! ♪")
+    assert_equal "", Voice.without_phantoms("KONIEC"), "heard from plain noise on the host"
+    assert_equal "Koniec na dziś, dzięki.", Voice.without_phantoms("Koniec na dziś, dzięki.")
+    assert_equal "Dodaj epik o remoncie kuchni.", Voice.without_phantoms("Dodaj epik o remoncie kuchni. Wszystkie prawa zastrzeżone.")
+    assert_equal "Sprawdź, czy w umowie jest klauzula, że wszystkie prawa zastrzeżone są po stronie wydawcy.",
+                 Voice.without_phantoms("Sprawdź, czy w umowie jest klauzula, że wszystkie prawa zastrzeżone są po stronie wydawcy."), "a real sentence that mentions it stays"
+    with_tools(transcript: "Wszystkie prawa zastrzeżone.") { assert_equal "", Voice.transcribe(WAV) }
+  end
+
+  test "owner fix: speech speed becomes Piper's length scale (1.5x by default, 1x to 2x)" do
+    with_tools do |dir|
+      Voice.speak("Szybciej")
+      assert_match "--length-scale 0.58", File.read(File.join(dir, "piper-args"))
+      Voice.speak("Szybciej", speed: 2.0)
+      assert_match "--length-scale 0.39", File.read(File.join(dir, "piper-args"))
+      Voice.speak("Szybciej", speed: 9)
+      assert_match "--length-scale 0.39", File.read(File.join(dir, "piper-args")), "never beyond 2x"
     end
   end
 

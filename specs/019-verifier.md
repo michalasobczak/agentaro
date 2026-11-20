@@ -103,6 +103,10 @@ Role and author values → verifier run (prompt, plain answer) → button and en
   - Q1–Q4 answered by the owner (see Abstract).
   - Q5. The second voice — **pl_PL-darkman-medium** (owner accepted) (a male Polish Piper voice, about 63 MB, from Hugging Face rhasspy/piper-voices), downloaded into `storage/voice/`. English keeps the current voice unless a second one is installed later.
 
+## Owner fix after release (2026-11-20)
+
+- "jak zapraszam weryfikatora, to ma on być do odwołania aktywny" (replaces Q1 "on demand"): the button invites the verifier. It checks the conversation at once, then follows every answer of the director automatically, until the button sends it away. The setting is saved per user (`users.verifier_active`). Each check is queued before the director's run ends, so the chat shows "writing" without a gap. In voice mode the director speaks, then the verifier, then listening starts again. The limits of R2 still apply.
+
 ## Security analysis (B20), after spec 019
 
 Scope: this spec and specs 001–018.

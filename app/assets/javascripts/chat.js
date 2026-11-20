@@ -62,8 +62,22 @@
     const directorName = app.querySelector(".chat-who strong")?.textContent || "Director";
 
     // ---------- Scrolling: stay at the bottom unless the user scrolled up to read ----------
-    const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
-    const toBottom = () => { scroller.scrollTop = scroller.scrollHeight; };
+    // Owner fix ("auto scroll w panelu bocznym nie działa skutecznie"): "stuck" remembers whether the reader is at the
+    // bottom (it changes only when they scroll), and any change of size — a growing streamed reply, the voice panel,
+    // the floating panel opening, the phone keyboard — keeps a stuck chat at the bottom.
+    const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+    let stuck = true;
+    const toBottom = () => {
+      stuck = true;
+      scroller.scrollTop = scroller.scrollHeight;
+      requestAnimationFrame(() => { if (stuck) scroller.scrollTop = scroller.scrollHeight; }); // after layout settles
+    };
+    scroller.addEventListener("scroll", () => { stuck = nearBottom(); }, { passive: true });
+    if (window.ResizeObserver) {
+      const keep = new ResizeObserver(() => { if (stuck) scroller.scrollTop = scroller.scrollHeight; });
+      keep.observe(stream);
+      keep.observe(scroller);
+    }
 
     function addDay(day) {
       if (!day || day === lastDay) return;
@@ -77,11 +91,10 @@
     function append(message) {
       if (message.id && stream.querySelector(`.bubble-row[data-id="${message.id}"]`)) return; // already shown
       stream.querySelector("[data-empty]")?.remove();
-      const stick = nearBottom();
       addDay(message.day);
       stream.insertBefore(bubble(message), typing);
       if (message.id > lastId) lastId = message.id;
-      if (stick || message.author === "user") toBottom();
+      if (stuck || message.author === "user") toBottom();
       if (message.author !== "user") {
         dropStream();
         hooks.reply?.(message.id);
@@ -92,7 +105,6 @@
     // Spec 017, G4: the director's reply so far, in a bubble that grows until the final message replaces it.
     function showStream(text) {
       if (!text) return;
-      const stick = nearBottom();
       if (!streamRow) {
         streamRow = bubble({ author: "director", name: directorName, content: "" }, "is-streaming");
         streamRow.querySelector(".bubble-time").remove();
@@ -100,7 +112,7 @@
       }
       streamRow.querySelector(".bubble-text").textContent = text;
       typing.hidden = true;
-      if (stick) toBottom();
+      if (stuck) toBottom();
       emit("stream", text);
     }
 
@@ -111,15 +123,13 @@
 
     function setWriting(value) {
       writing = value;
-      const stick = nearBottom();
       typing.hidden = !value || Boolean(streamRow);
       if (!value) dropStream();
       status.textContent = value ? "writing…" : idleStatus;
       if (value) status.dataset.writing = ""; else delete status.dataset.writing;
       hooks.writing?.(value);
       emit("writing", value);
-      if (verifyButton) verifyButton.disabled = value; // spec 019: one answer at a time
-      if (stick) toBottom();
+      if (stuck) toBottom();
       schedulePoll();
     }
 
@@ -184,6 +194,7 @@
       try {
         const body = new FormData();
         body.append("chat_message[content]", content);
+        if (spoken != null) body.append("chat_message[spoken]", "1"); // owner fix: spoken messages get short answers
         const response = await fetch(url, { method: "POST", body, headers: { Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin" });
         const data = await response.json().catch(() => ({ ok: false, error: "Could not send. Try again." }));
         if (!data.ok) throw new Error(data.error || "Could not send. Try again.");
@@ -206,19 +217,25 @@
       }
     }
 
-    // Spec 019: ask the verifier without reloading; resolves to true when it started.
+    // Spec 019, owner fix: the button invites the verifier until it is sent away. Resolves to whether it is on now.
     const verifyButton = app.querySelector("button[data-verify]");
+    let verifierOn = verifyButton?.getAttribute("aria-pressed") === "true";
+    function showVerifier(on) {
+      verifierOn = on;
+      app.querySelectorAll("button[data-verify], [data-voice-verify]").forEach((b) => { b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", String(on)); });
+      const label = verifyButton?.querySelector(".verify-label");
+      if (label) label.textContent = on ? "Verifier on" : "Verifier";
+    }
     async function verify() {
-      if (!verifyButton || writing) return false;
-      verifyButton.disabled = true;
+      if (!verifyButton) return verifierOn;
       try {
         const response = await fetch(verifyButton.form.action, { method: "POST", headers: { Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin" });
         const data = await response.json().catch(() => ({ ok: false }));
-        if (!data.ok) { verifyButton.disabled = false; return false; }
-        setWriting(true);
-        status.textContent = "verifier checking…";
-        return true;
-      } catch (_) { verifyButton.disabled = false; return false; }
+        if (!data.ok) return verifierOn;
+        showVerifier(data.active);
+        if (data.writing) { setWriting(true); status.textContent = "verifier checking…"; }
+        return data.active;
+      } catch (_) { return verifierOn; }
     }
     verifyButton?.addEventListener("click", (event) => { event.preventDefault(); verify(); });
 
@@ -231,7 +248,7 @@
     toBottom();
     grow();
     schedulePoll();
-    const instance = { poll, grow, input, toBottom, send, verify, csrf, get lastId() { return lastId; }, get loaded() { return loaded; }, get writing() { return writing; },
+    const instance = { poll, grow, input, toBottom, send, verify, csrf, get lastId() { return lastId; }, get verifierOn() { return verifierOn; }, get loaded() { return loaded; }, get writing() { return writing; },
                        on: (name, fn) => listeners[name].push(fn) };
     voice(app, instance);
     return instance;
@@ -255,6 +272,7 @@
     let state = "off", ctx = null, mic = null, source = null, processor = null;
     let floor = 0.01, loudMs = 0, quietMs = 0, speechMs = 0, chunks = [], preroll = [], peak = 0, heard = [], heardMs = 0;
     let awaitingAfter = null, spoken = 0, finalText = null, generation = 0, playing = null, queue = Promise.resolve(), pending = 0;
+    let waitingVerifier = false; // owner fix: an active verifier speaks after the director
 
     function setState(next, text) {
       state = next;
@@ -407,15 +425,21 @@
       if (awaitingAfter == null || state === "off" || message.author === "user" || message.id <= awaitingAfter) return;
       awaitingAfter = null;
       if (message.author === "verifier") { // spec 019, G6: the verifier speaks with its own voice
+        waitingVerifier = false;
         finalText = message.content;
         sentences(message.content).forEach((t) => say(t, "verifier"));
         return finishWhenDone();
       }
-      if (message.author !== "director") return listen(); // Agentaro's own notices are shown, not spoken
+      if (message.author !== "director") { waitingVerifier = false; return listen(); } // Agentaro's notices are shown, not spoken
       finalText = message.content;
+      if (chat.verifierOn) { waitingVerifier = true; awaitingAfter = message.id; } // its comment comes next
       speakUpTo(message.content, true);
     });
-    chat.on("writing", (value) => { if (!value && state === "thinking" && awaitingAfter != null && finalText == null) listen(); });
+    chat.on("writing", (value) => {
+      if (value || awaitingAfter == null) return;
+      if (waitingVerifier && pending === 0 && state === "thinking") { waitingVerifier = false; awaitingAfter = null; return listen(); } // no comment came
+      if (state === "thinking" && finalText == null) listen();
+    });
 
     function speakUpTo(text, final) {
       const rest = text.slice(spoken);
@@ -464,12 +488,18 @@
         });
         playing = null;
         pending--;
-        if (mine === generation && pending === 0 && finalText != null) listen();
+        if (mine === generation && pending === 0 && finalText != null) afterSpeech();
       });
     }
 
     function finishWhenDone() {
-      queue = queue.then(() => { if (pending === 0 && state !== "off" && state !== "hearing") listen(); });
+      queue = queue.then(() => { if (pending === 0 && state !== "off" && state !== "hearing") afterSpeech(); });
+    }
+
+    // After speaking: listen again, or wait for the verifier's comment when it is on.
+    function afterSpeech() {
+      if (waitingVerifier) return setState("thinking", "The verifier is checking…");
+      listen();
     }
 
     start.addEventListener("click", begin);
@@ -478,9 +508,28 @@
     // Spec 019, G6: ask the verifier from voice mode; its comment is spoken in its own voice.
     panel.querySelector("[data-voice-verify]")?.addEventListener("click", async () => {
       if (state === "off" || state === "transcribing") return;
-      generation++; playing?.stop?.(); playing = null; pending = 0;
       const after = chat.lastId;
-      if (await chat.verify()) { awaitingAfter = after; finalText = null; setState("thinking", "The verifier is checking…"); }
+      const on = await chat.verify();
+      if (on && chat.writing) { // invited now: it checks the conversation at once
+        generation++; playing?.stop?.(); playing = null; pending = 0;
+        awaitingAfter = after; finalText = null; waitingVerifier = true;
+        setState("thinking", "The verifier is checking…");
+      }
+    });
+
+    // Owner fix: speech speed (1x–2x), saved for the user; the next sentence uses it.
+    const speeds = panel.querySelector("[data-speed-url]");
+    speeds?.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-speed]");
+      if (!button) return;
+      const response = await fetch(speeds.dataset.speedUrl, { method: "PATCH", body: JSON.stringify({ speed: button.dataset.speed }),
+        headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-Token": chat.csrf }, credentials: "same-origin" }).catch(() => null);
+      if (!response?.ok) return;
+      const { speed } = await response.json();
+      speeds.querySelectorAll("[data-speed]").forEach((b) => {
+        const on = Number(b.dataset.speed) === speed;
+        b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on));
+      });
     });
     window.addEventListener("pagehide", end);
   }
