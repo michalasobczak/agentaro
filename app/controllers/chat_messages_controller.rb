@@ -13,8 +13,10 @@ class ChatMessagesController < ApplicationController
     scope = current_user.chat_messages.current # spec 015
     messages = after.positive? ? scope.where("id > ?", after).ordered.limit(100) : scope.ordered.last(100)
     run_id = streaming_run_id
+    team = AgentStatus.json(current_user) # spec 023, G5/R12: the statuses only when the client's stamp is old
     render json: { messages: messages.map { |m| helpers.chat_message_json(m) }, writing: director_writing?,
-                   streaming: run_id && ReplyStream.read(run_id).presence, streaming_reply_to: run_id && ReplyStream.reply_to(run_id) }
+                   streaming: run_id && ReplyStream.read(run_id).presence, streaming_reply_to: run_id && ReplyStream.reply_to(run_id),
+                   team_stamp: team[:stamp], team: (team[:agents] if params[:team_stamp] != team[:stamp]) }
   end
 
   def create
@@ -25,7 +27,7 @@ class ChatMessagesController < ApplicationController
   def transcribe
     return reject("The recording is too long.", :content_too_large) if request.content_length.to_i > Voice::MAX_AUDIO
 
-    content = Voice.transcribe(request.raw_post.to_s.b, language: current_user.chat_language).strip
+    content = Voice.transcribe(request.raw_post.to_s.b, language: current_user.chat_language, names: Voice.names_for(current_user)).strip
     return render(json: { ok: true, message: nil }) if content.empty?
 
     send_message(content, spoken: true)

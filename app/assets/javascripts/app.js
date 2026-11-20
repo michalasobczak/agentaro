@@ -77,3 +77,66 @@ window.agentaroOnPage = (start) => {
   setInterval(() => check(false), 5000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) check(true); });
 })();
+
+// Spec 023: busy or free. Shared by the chat (team strip, status dots on icons) and the Team page (badges). The data
+// comes from AgentStatus.json; text is set with textContent only. Elapsed time is counted here, so it stays fresh
+// between changes of the status.
+window.agentaroTeamStatus = (() => {
+  const elapsed = (iso) => {
+    const started = Date.parse(iso);
+    if (!iso || Number.isNaN(started)) return null;
+    const minutes = Math.max(0, Math.floor((Date.now() - started) / 60000));
+    return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  };
+  const cut = (text, limit = 80) => (text.length > limit ? text.slice(0, limit - 3) + "..." : text);
+
+  // The same text as ApplicationHelper#agent_activity_text.
+  const activityText = (a) => {
+    const where = a.cancelled ? `finishing a step of a ${a.epic_state === "cancelled" ? "cancelled" : "closed"} epic: ${a.epic}` : a.epic;
+    const time = elapsed(a.started_at);
+    return [where, `step ${a.step}/${a.of}: ${cut(a.title || "")}`, time && `for ${time}`].filter(Boolean).join(" · ");
+  };
+  const stripText = (agent) => {
+    const list = agent.activities || [];
+    if (list.length === 0) return "free";
+    return `busy · ${activityText(list[0])}${list.length > 1 ? ` · +${list.length - 1} more` : ""}`;
+  };
+
+  function apply(agents, root = document) {
+    if (!Array.isArray(agents)) return;
+    agents.forEach((agent) => {
+      root.querySelectorAll(`[data-agent-icon="${agent.id}"] .status-dot`).forEach((dot) => {
+        dot.className = `status-dot is-${agent.status}`;
+        dot.title = agent.label;
+        dot.hidden = !agent.show_dot;
+      });
+      root.querySelectorAll(`[data-team-agent="${agent.id}"]`).forEach((chip) => {
+        chip.title = `${agent.name}: ${agent.label}`;
+        const label = chip.querySelector("[data-team-label]");
+        if (label) label.textContent = stripText(agent);
+      });
+      root.querySelectorAll(`[data-agent-status="${agent.id}"]`).forEach((holder) => {
+        holder.hidden = !agent.show_dot;
+        const badge = holder.querySelector(".badge");
+        if (badge) { badge.textContent = agent.status; badge.className = `badge${agent.status === "busy" ? " warn" : ""}`; }
+        const list = holder.querySelector(".agent-activities");
+        if (list) {
+          list.replaceChildren(...(agent.activities || []).flatMap((a, i) => {
+            const span = document.createElement("span");
+            span.className = "agent-activity muted small";
+            span.title = a.title || "";
+            span.textContent = activityText(a);
+            return i ? [document.createTextNode(" "), span] : [span];
+          }));
+        }
+      });
+    });
+    root.querySelectorAll("[data-team-strip]").forEach((strip) => {
+      const count = strip.querySelector("[data-team-count]");
+      const members = agents.filter((a) => a.member);
+      if (count) count.textContent = `${members.filter((a) => a.status === "busy").length} of ${members.length} busy`;
+    });
+  }
+
+  return { apply, activityText, stripText };
+})();

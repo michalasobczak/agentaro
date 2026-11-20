@@ -23,9 +23,23 @@
     return node;
   };
 
+  // Spec 023, R10/R12: the author's icon, drawn from the same JSON fields the server uses (chat_message_json).
+  function agentIcon(message) {
+    const icon = el("span", `agent-icon is-bubble ${message.icon_kind ? "is-" + message.icon_kind : message.icon_tone || ""}`.trim(), message.icon_letter || "?");
+    icon.setAttribute("aria-hidden", "true");
+    if (message.icon_agent) {
+      icon.dataset.agentIcon = message.icon_agent;
+      const dot = el("span", "status-dot is-free");
+      dot.hidden = true; // until the team status says otherwise
+      icon.append(dot);
+    }
+    return icon;
+  }
+
   function bubble(message, extraClass) {
     const row = el("div", `bubble-row from-${message.author}`);
     if (message.id) row.dataset.id = message.id;
+    if (message.author !== "user" && message.icon_kind) row.append(agentIcon(message));
     const box = el("div", `bubble${extraClass ? " " + extraClass : ""}`);
     if (message.author !== "user") box.append(el("div", "bubble-name", message.name));
     box.append(el("div", "bubble-text", message.content));
@@ -63,6 +77,18 @@
     const listeners = { stream: [], message: [], writing: [] };
     const emit = (name, value) => listeners[name].forEach((fn) => fn(value));
     const directorName = app.querySelector(".chat-who strong")?.textContent || "Director";
+    const directorAvatar = app.querySelector(".chat-avatar");
+    const directorIcon = { icon_kind: "director", icon_letter: directorAvatar?.firstChild?.textContent || "?", icon_agent: directorAvatar?.dataset.agentIcon };
+    // Spec 023: the team status (G4, R11) — the stamp the page has, and the latest statuses for new icons.
+    let teamStamp = ""; // the first poll fetches the statuses once (for icons of new messages), then only changes
+    let team = null;
+    const teamToggle = app.querySelector("[data-team-toggle]");
+    teamToggle?.addEventListener("click", () => {
+      const open = teamToggle.getAttribute("aria-expanded") !== "true";
+      teamToggle.setAttribute("aria-expanded", String(open));
+      teamToggle.closest("[data-team-strip]").classList.toggle("is-open", open);
+    }, { signal: life.signal });
+    const showTeam = (root) => { if (team) window.agentaroTeamStatus?.apply(team, root); };
 
     // ---------- Scrolling: stay at the bottom unless the user scrolled up to read ----------
     // Owner fix ("auto scroll w panelu bocznym nie działa skutecznie"): "stuck" remembers whether the reader is at the
@@ -101,12 +127,14 @@
       stream.querySelector("[data-empty]")?.remove();
       if (message.author !== "user" && message.reply_to && message.reply_to < latestUser()) message = { ...message, earlier: true };
       const later = message.id && [...stream.querySelectorAll(".bubble-row[data-id]")].find((r) => Number(r.dataset.id) > message.id);
+      const row = bubble(message);
       if (later) {
-        later.before(bubble(message));
+        later.before(row);
       } else {
         addDay(message.day);
-        stream.insertBefore(bubble(message), typing);
+        stream.insertBefore(row, typing);
       }
+      showTeam(row);
       if (message.id > lastId) lastId = message.id;
       if (stuck || message.author === "user") toBottom();
       if (message.author !== "user") {
@@ -121,8 +149,9 @@
       if (!text) return;
       if (replyTo && replyTo < latestUser()) return dropStream(); // owner fix: written before the user's latest words
       if (!streamRow) {
-        streamRow = bubble({ author: "director", name: directorName, content: "" }, "is-streaming");
+        streamRow = bubble({ author: "director", name: directorName, content: "", ...directorIcon }, "is-streaming");
         streamRow.querySelector(".bubble-time").remove();
+        showTeam(streamRow);
         stream.insertBefore(streamRow, typing);
       }
       streamRow.querySelector(".bubble-text").textContent = text;
@@ -155,7 +184,7 @@
       try {
         const first = !loaded && visible();
         const after = loaded ? lastId : first ? 0 : closedAfter;
-        const response = await fetch(`${url}?after=${after}`, { headers: { Accept: "application/json" }, credentials: "same-origin", redirect: "manual" });
+        const response = await fetch(`${url}?after=${after}&team_stamp=${encodeURIComponent(teamStamp)}`, { headers: { Accept: "application/json" }, credentials: "same-origin", redirect: "manual" });
         if (response.type === "opaqueredirect" || response.status === 401) { stopped = true; return; } // signed out
         if (response.ok) {
           const data = await response.json();
@@ -169,6 +198,8 @@
           } else {
             data.messages.forEach((m) => { closedAfter = Math.max(closedAfter, m.id); if (m.author !== "user") hooks.reply?.(m.id); });
           }
+          if (data.team) { team = data.team; teamStamp = data.team_stamp || ""; }
+          showTeam(app); // spec 023, R12: dots and the strip in place; also keeps "for N min" fresh
           if (loaded && data.streaming) showStream(data.streaming, data.streaming_reply_to);
           if (data.writing !== writing) return setWriting(data.writing);
         }

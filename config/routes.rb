@@ -46,7 +46,9 @@ Rails.application.routes.draw do
       patch :order
     end
   end
-  resource :team, only: :show
+  resource :team, only: :show do
+    get :status # spec 023: busy or free
+  end
   resources :team_roles, only: %i[create update destroy], path: "team/roles"
   resources :task_runs, only: :show, path: "runs" do # spec 010
     get :stamp, on: :member # owner fix: the run page refreshes itself without <meta refresh> (spec 020)

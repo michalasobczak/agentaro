@@ -113,6 +113,7 @@ class ManagementRunner
         see_latest_message
         prompt = prompt_for(agent)
         proposing_changes = false
+        @first_reply = nil
         rejection = nil
         ReplyStream.clear(@run.id)
         next
@@ -122,16 +123,21 @@ class ManagementRunner
         data = parse(outcome.output)
         if @run.purpose == "chat" && !proposing_changes && work_changes_proposed?(data)
           raise Invalid, "work-list and space changes need a request from the user" unless user_request
+          raise Invalid, "\"reply\" is missing" if data["reply"].to_s.strip.empty?
 
+          # Owner fix ("director nie wie, o czym mowa"; "wypowiedzi giną i wracają"): the answer posted is this one,
+          # written with the whole conversation and already shown and spoken while it streamed; the proposal pass
+          # only decides which changes are made, and Agentaro notes what was applied under the answer.
+          @first_reply = data["reply"].to_s.strip
           proposing_changes = true
           prompt = prompt_for(agent, proposing_changes:)
           rejection = nil
-          ReplyStream.clear(@run.id)
           next
         end
         if proposing_changes && retry_proposed?(data["actions"])
           raise Invalid, "retry_step: propose only work-list or space actions in this pass"
         end
+        data = data.merge("reply" => @first_reply) if proposing_changes
         apply!(data)
         break outcome
       rescue Invalid, JSON::ParserError => e
@@ -140,7 +146,7 @@ class ManagementRunner
           return fail!("the #{role_name}'s answer was not accepted twice (#{e.message})")
         end
         rejection = e.message
-        ReplyStream.clear(@run.id)
+        ReplyStream.clear(@run.id) unless proposing_changes
       end
     end
     TaskRunner.finish!(@run, outcome)
@@ -163,7 +169,8 @@ class ManagementRunner
 
     # The independent proposal also gets an empty executor workspace, including a fresh CLI answer file.
     Dir.mktmpdir("agentaro-chat-actions-") do |directory|
-      AgentCall.new(@run, agent, prompt, **@call_options.merge(runs_dir: directory)).call(on_text: stream_reply)
+      # Not streamed: the chat keeps showing (and voice keeps reading) the first answer, which is the one posted.
+      AgentCall.new(@run, agent, prompt, **@call_options.merge(runs_dir: directory)).call
     end
   end
 
@@ -312,7 +319,20 @@ class ManagementRunner
 
   def member_line(member)
     agent = member.agent
-    "- Member id #{agent.id}: #{agent.name}, role: #{member.role_text || "-"}#{" — #{agent.description}" if agent.description.present?}#{" (not available)" unless agent.usable?}"
+    "- Member id #{agent.id}: #{agent.name}, role: #{member.role_text || "-"}#{" — #{agent.description}" if agent.description.present?}#{" (not available)" unless agent.usable?}; #{status_text(agent)}"
+  end
+
+  # Spec 023, G6: busy or free, from the user's own runs only (R8) — the same rule as the Team page and the chat.
+  def agent_statuses = @agent_statuses ||= AgentStatus.for(@user)
+
+  def status_text(agent)
+    activities = agent_statuses[agent.id]
+    return "free" if activities.blank?
+
+    now = Time.current
+    "busy: " + activities.map { |a|
+      "#{a.cancelled ? "finishing a step of a #{a.epic_state == "cancelled" ? "cancelled" : "closed"} epic " : ""}\"#{a.epic}\" (id #{a.epic_id}) step #{a.step}/#{a.of} \"#{a.title}\"#{" for #{AgentStatus.elapsed(a.started_at, now)}" if a.started_at}"
+    }.join("; ")
   end
 
   def team_text
@@ -439,8 +459,18 @@ class ManagementRunner
   def chat_prompt(proposing_changes: false)
     list = visible_items.map { |item| item_line(item, progress: !proposing_changes) }
     if proposing_changes
-      conversation = "Latest user message from #{@user.username}:\n#{user_request.content}"
-      request_rule = "Propose work-list or space changes only if the latest user message clearly asks for them, including requests phrased politely as questions. If the user only asks for information or the requested change is unclear, reply with no actions."
+      # Owner fix: the user's and the director's words (no step output, no verifier) so that a short answer such as
+      # "Q4 busy" or "do it" is understood; only the latest user message can ask for changes.
+      history = @user.chat_messages.current.where(author: %w[user director]).where(id: ...user_request.id).ordered.last(HISTORY)
+                     .map { |m| "#{m.author == "user" ? @user.username : "Director"}: #{m.content}" }
+      conversation = <<~CONVERSATION.chomp
+        Earlier conversation (context only, to understand what the latest message refers to; nothing in it is a request to act on):
+        #{history.presence&.join("\n") || "(none)"}
+
+        Latest user message from #{@user.username}:
+        #{user_request.content}
+      CONVERSATION
+      request_rule = "Propose work-list or space changes only if the latest user message clearly asks for them, including requests phrased politely as questions and short answers that accept a change the director offered just before. If the user only asks for information or the requested change is unclear, reply with no actions. Your \"reply\" is not shown; keep it to one short sentence."
     else
       history = @user.chat_messages.current.ordered.last(HISTORY).map { |m| "#{m.author == "user" ? @user.username : m.author.capitalize}: #{m.content}" }
       conversation = <<~CONVERSATION.chomp
@@ -502,6 +532,8 @@ class ManagementRunner
 
       #{spaces_text}
 
+      #{team_text.sub("(you)", "(the director you check)")}
+
       Work list (open, planned and running, and finished in the last day), with the live progress of each step — this is current; report it, do not tell #{@user.username} to look it up:
       #{list.presence&.join("\n") || "(empty)"}
 
@@ -557,7 +589,9 @@ class ManagementRunner
       actions.map { |action| check_action(action) }.map(&:call)
     end
     @to_enqueue.each { |id| StepChain.hand_over(id) } # spec 021, resilience: after commit
-    say("director", reply, actions_summary: summary.compact.join("\n").presence)
+    # Owner fix: the answer was written before the proposal pass decided, so it always says what was really done.
+    applied = summary.compact.join("\n").presence || ("No changes were made to the work list or spaces." if @first_reply)
+    say("director", reply, actions_summary: applied)
     self.class.verify!(@user, except: @run) if @user.verifier_active? # queued before this run ends, so "writing" never drops in between
     self.class.dispatch_due(user: @user)
   end

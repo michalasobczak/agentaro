@@ -110,6 +110,57 @@ class ChatOrderTest < ActiveSupport::TestCase
     ReplyStream.clear(run.id) if run
   end
 
+  # Records what the chat shows while the proposal pass runs.
+  class ProposalRunner < ManagementRunner
+    attr_reader :shown_during_proposal
+
+    private
+
+    def call_director(agent, prompt, proposing_changes:)
+      @shown_during_proposal = ReplyStream.read(@run.id) if proposing_changes
+      super
+    end
+  end
+
+  # Owner fix ("director nie wie, o czym mowa"; "wypowiedzi giną i wracają"): "q4 zajęty" answered the director's
+  # questions, but the proposal pass saw only those two words and its own answer replaced the one being spoken.
+  test "a short answer to the director's question: the proposal pass sees the conversation; the answer shown is kept" do
+    space = @user.spaces.create!(name: "Agentaro", kind: "team")
+    @user.chat_messages.create!(author: "user", content: "Where are the questions?")
+    @user.chat_messages.create!(author: "director", content: "Q4: busy elsewhere or free? Shall I add an epic for it?")
+    @user.chat_messages.create!(author: "user", content: "q4 busy, add it")
+    run = ManagementRunner.chat!(@user)
+    runner = ProposalRunner.new(run)
+    File.write(File.join(@answers, "proposal"), { reply: "ok", actions: [ { type: "add_item", space: space.id, title: "Q4: busy elsewhere" } ] }.to_json)
+    first = { reply: "Noted: Q4 busy elsewhere. Adding the epic.", actions: [ { type: "add_item", space: space.id, title: "Q4" } ] }.to_json
+    File.write(File.join(@answers, "first"), { type: "stream_event", event: { delta: { type: "text_delta", text: first } } }.to_json + "\n")
+    Dir.mktmpdir do |bin|
+      File.write(File.join(bin, "claude"), <<~SH)
+        #!/bin/sh
+        input=$(cat)
+        printf '%s\\n=====\\n' "$input" >> "#{@answers}/prompts"
+        if printf '%s' "$input" | grep -q '^Earlier conversation'; then cat "#{@answers}/proposal"; exit 0; fi
+        cat "#{@answers}/first"
+      SH
+      File.chmod(0o755, File.join(bin, "claude"))
+      original = ENV["PATH"]
+      ENV["PATH"] = "#{bin}:#{original}"
+      runner.perform!
+    ensure
+      ENV["PATH"] = original
+    end
+
+    proposal = prompts.last
+    assert_match "Director: Q4: busy elsewhere or free?", proposal, "the proposal pass knows what q4 refers to"
+    assert_match "#{@user.username}: Where are the questions?", proposal
+    assert_match "Latest user message from #{@user.username}:\nq4 busy, add it", proposal
+    answer = @user.chat_messages.where(author: "director").last
+    assert_match "Noted: Q4 busy elsewhere", answer.content, "the answer written with the whole conversation is posted"
+    assert_match "Q4: busy elsewhere", answer.actions_summary, "what was really applied is noted under it"
+    assert @user.work_items.exists?(title: "Q4: busy elsewhere")
+    assert_equal "Noted: Q4 busy elsewhere. Adding the epic.", runner.shown_during_proposal, "the answer being spoken does not vanish meanwhile"
+  end
+
   test "one director at a time, even when two messages arrive at the same moment" do
     @user.chat_messages.create!(author: "user", content: "One")
     runs = Array.new(4) { Thread.new { ManagementRunner.chat!(@user) } }.map(&:value)

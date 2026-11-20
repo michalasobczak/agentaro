@@ -43,8 +43,32 @@ class Voice
     text.match?(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]|\b(jest|nie|się|już|czy|jak|to|na|w|z)\b/i) ? "pl" : "en"
   end
 
+  # Owner fix ("rozpoznawanie mowy jest znowu średnie"): Whisper gets a hint with the words of this conversation —
+  # Agentaro's own terms and the names of the user's team — so it writes them right. It is only a hint; a recording
+  # that comes back as nothing but the hint (Whisper repeats it on silence) counts as silence.
+  HINT = {
+    "pl" => "Rozmowa z dyrektorem w Agentaro o epikach, specach, krokach, przestrzeniach i agentach; weryfikator.",
+    "en" => "A conversation with the director in Agentaro about epics, specs, steps, spaces and agents; the verifier."
+  }.freeze
+  MAX_HINT = 400 # characters; Whisper takes at most about 220 tokens
+
+  def self.names_for(user)
+    user.team_roles.includes(:agent).filter_map { |role| role.agent&.name }.uniq
+  end
+
+  def self.hint(language, names = [])
+    base = HINT[language] || HINT["pl"]
+    names = names.map { |n| n.to_s.gsub(/[[:cntrl:]]+/, " ").squish.truncate(40, omission: "") }.compact_blank.uniq
+    names.empty? ? base : "#{base} #{names.join(", ")}.".truncate(MAX_HINT, omission: "")
+  end
+
+  def self.only_hint?(text, hint)
+    plain = ->(s) { s.downcase.gsub(/[^\p{L}\p{N}]+/, " ").strip }
+    plain.(text).present? && plain.(hint).include?(plain.(text)) && plain.(text).length > 20
+  end
+
   # G3: WAV bytes in, text out ("" for silence or noise). language: "auto", "pl" or "en" (passed to whisper).
-  def self.transcribe(audio, language: "auto")
+  def self.transcribe(audio, language: "auto", names: [])
     raise Error, "Speech recognition is not installed on this computer." unless listening?
     raise Error, "The recording is too long." if audio.bytesize > MAX_AUDIO
     raise Error, "The recording is not a WAV file." unless audio.byteslice(0, 4) == "RIFF" && audio.byteslice(8, 4) == "WAVE"
@@ -52,13 +76,15 @@ class Voice
     Dir.mktmpdir("agentaro-voice") do |dir|
       path = File.join(dir, "speech.wav")
       File.binwrite(path, audio)
-      result = HostProcess.run(config[:whisper_bin], [ "-m", config[:whisper_model], "-f", path, "-l", (%w[pl en].include?(language) ? language : "auto"), "-nt", "-np", "-sns" ],
+      hint = hint(language, names)
+      result = HostProcess.run(config[:whisper_bin], [ "-m", config[:whisper_model], "-f", path, "-l", (%w[pl en].include?(language) ? language : "auto"), "-nt", "-np", "-sns",
+                                                      "--prompt", hint ],
                                chdir: dir, timeout: 60, max_output: 64 * 1024)
       raise Error, "Speech recognition did not finish in time." if result.timed_out
       raise Error, "Speech recognition failed." unless result.success?
 
       text = result.stdout.to_s.force_encoding(Encoding::UTF_8).scrub("").lines.map(&:strip).reject { |l| l.empty? || l.match?(NOISE) }.join(" ")
-      without_phantoms(text)
+      only_hint?(text, hint) ? "" : without_phantoms(text)
     end
   end
 

@@ -322,7 +322,7 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .chat-app { display: flex; flex-direction: column; height: calc(100dvh - 2rem); min-height: 26rem; max-width: 60rem; margin: 0 auto;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .chat-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); background: var(--surface); }
-.chat-avatar { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; flex: none; }
+.chat-avatar { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--accent); color: var(--accent-fg); font-weight: 700; flex: none; }
 .chat-who { display: grid; line-height: 1.2; min-width: 0; }
 .chat-who strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-status[data-writing] { color: var(--accent); }
@@ -342,7 +342,7 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .from-system .bubble { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
 .bubble.is-pending { opacity: 0.6; }
 .bubble.is-failed { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
-.bubble-name { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.1rem; }
+.bubble-name { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.1rem; overflow-wrap: anywhere; }
 .from-system .bubble-name { color: var(--warn); }
 .bubble-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
 .bubble-actions { margin-top: 0.4rem; padding: 0.35rem 0.55rem; border-radius: 0.6rem; background: var(--surface-2); color: var(--muted); font-size: 0.8rem; white-space: pre-wrap; }
@@ -612,3 +612,52 @@ body:has(.chat-dock.is-voice) .content > .chat-app { display: none; }
 .model-check-result[data-state="bad"] { color: var(--bad); }
 .model-check-result[data-state="warn"], .model-check-result[data-state="busy"] { color: var(--muted); }
 .bubble-earlier { margin-top: 0.3rem; font-size: 0.72rem; color: var(--muted); font-style: italic; }
+
+/* Spec 023: agent icons (R10), busy/free status dots (R11), the chat team strip (G4) and Team page badges (G3) */
+.agent-icon { position: relative; display: inline-grid; place-items: center; flex: none; border-radius: 50%; font-weight: 700; line-height: 1;
+  color: #fff; background: var(--muted); user-select: none; }
+.agent-icon.is-bubble { width: 1.8rem; height: 1.8rem; font-size: 0.85rem; align-self: flex-end; margin-right: 0.45rem; }
+.agent-icon.is-strip { width: 1.4rem; height: 1.4rem; font-size: 0.7rem; }
+.agent-icon.is-director { background: var(--accent); color: var(--accent-fg); }
+.agent-icon.is-verifier { background: var(--ok); color: #000; }
+.agent-icon.is-system { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line-strong); }
+.agent-icon.tone-0 { background: #4f46e5; } .agent-icon.tone-1 { background: #0e7490; }
+.agent-icon.tone-2 { background: #b45309; } .agent-icon.tone-3 { background: #be185d; }
+.agent-icon.tone-4 { background: #15803d; } .agent-icon.tone-5 { background: #7c3aed; }
+.agent-icon.tone-6 { background: #b91c1c; } .agent-icon.tone-7 { background: #475569; }
+/* Q8: only the first of consecutive messages of the same author shows its icon; the place stays, so bubbles align */
+.bubble-row.from-director + .bubble-row.from-director > .agent-icon,
+.bubble-row.from-verifier + .bubble-row.from-verifier > .agent-icon,
+.bubble-row.from-system + .bubble-row.from-system > .agent-icon { visibility: hidden; }
+.typing .bubble { margin-left: 2.25rem; }
+.chat-avatar { position: relative; }
+.status-dot { position: absolute; right: -0.12rem; bottom: -0.12rem; width: 0.55rem; height: 0.55rem; border-radius: 50%;
+  border: 2px solid var(--surface); background: var(--muted); }
+.chat-avatar .status-dot { width: 0.7rem; height: 0.7rem; }
+.status-dot.is-busy { background: var(--warn); animation: status-pulse 1.6s ease-in-out infinite; }
+.status-dot.is-free { background: color-mix(in srgb, var(--muted) 55%, var(--surface)); }
+@keyframes status-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 45%, transparent); } 50% { box-shadow: 0 0 0 0.25rem transparent; } }
+@media (prefers-reduced-motion: reduce) { .status-dot.is-busy { animation: none; } }
+
+.team-strip { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 1rem; border-bottom: 1px solid var(--line); background: var(--surface-2); font-size: 0.85rem; }
+.team-summary { display: none; }
+.team-list { display: flex; gap: 0.4rem 1rem; min-width: 0; max-width: 100%; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: thin; }
+.team-chip { display: inline-flex; align-items: center; flex: none; gap: 0.35rem; max-width: min(100%, 22rem); white-space: nowrap; }
+.team-name, .team-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.team-name { font-weight: 600; }
+.team-label { color: var(--muted); flex: none; max-width: 65%; }
+@media (max-width: 639px) {
+  .team-strip { flex-direction: column; align-items: stretch; }
+  .team-summary { display: inline-flex; align-self: flex-start; min-height: 0; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem;
+    background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+  .team-list { display: none; flex-direction: column; overflow: visible; }
+  .team-strip.is-open .team-list { display: flex; }
+  .team-chip { max-width: 100%; white-space: normal; }
+  .team-name, .team-label { overflow-wrap: anywhere; }
+}
+
+.agent-status { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.5rem; }
+.agent-activities { display: inline-flex; flex-direction: column; }
+.org-node, .member-row { overflow-wrap: anywhere; }
+.org-node .agent-icon, .member-row .agent-icon { align-self: center; }
+.is-outdated .agent-status::after { content: "may be outdated"; font-size: 0.75rem; color: var(--muted); }

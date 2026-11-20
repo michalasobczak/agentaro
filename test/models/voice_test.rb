@@ -41,6 +41,23 @@ class VoiceTest < ActiveSupport::TestCase
     end
   end
 
+  test "owner fix (recognition): whisper is told Agentaro's words and the team's names; a hint repeated on silence is dropped" do
+    user = create_user
+    user.team_roles.create!(agent: Agent.create!(user: user, name: "Market Analyst", master_prompt: "x", executor: Executor.create!(name: "C", preset: "claude_code")), role: "director")
+    names = Voice.names_for(user)
+    assert_equal [ "Market Analyst" ], names
+    with_tools do |dir|
+      Voice.transcribe(WAV, language: "pl", names: names + [ "Evil\nName" ])
+      args = File.read(File.join(dir, "whisper-args"))
+      assert_match "--prompt Rozmowa z dyrektorem w Agentaro o epikach", args
+      assert_match "Market Analyst, Evil Name.", args, "names go in one line, without control characters"
+    end
+    with_tools(transcript: "Rozmowa z dyrektorem w Agentaro o epikach, specach") do
+      assert_equal "", Voice.transcribe(WAV, language: "pl"), "only the hint came back: silence"
+    end
+    assert_operator Voice.hint("pl", [ "x" * 100 ] * 20).length, :<=, Voice::MAX_HINT
+  end
+
   test "owner fix after spec 017: the language goes to whisper; the voice follows the language" do
     with_tools do |dir|
       Voice.transcribe(WAV, language: "pl")

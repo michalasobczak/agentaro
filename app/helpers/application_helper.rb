@@ -128,12 +128,82 @@ module ApplicationHelper
   end
 
   # Spec 011: a chat message as the chat page shows it (rendered by the server and by chat.js alike).
+  # Spec 023, R10/R12: the author's icon (letter, tone or fixed kind, agent id for the status dot) for non-user messages.
   def chat_message_json(message)
     director = message.user.director_role&.agent
     verifier = message.user.verifier_role&.agent if message.author == "verifier"
+    agent = { "director" => director, "verifier" => verifier }[message.author]
+    icon = case message.author
+           when "director" then { icon_letter: agent_icon_letter(director&.name || "Director"), icon_kind: "director" }
+           when "verifier" then { icon_letter: agent_icon_letter(verifier&.name || "Verifier"), icon_kind: "verifier" }
+           when "system" then { icon_letter: "A", icon_kind: "system" }
+           else {}
+           end
     { id: message.id, author: message.author,
       name: { "user" => "You", "director" => director&.name || "Director", "verifier" => "#{verifier&.name || "Verifier"} · verifier", "system" => "Agentaro" }[message.author],
       content: message.content, actions: message.actions_summary, reply_to: message.reply_to_id,
-      time: l(message.created_at, format: "%H:%M"), day: l(message.created_at.to_date, format: :long) }
+      time: l(message.created_at, format: "%H:%M"), day: l(message.created_at.to_date, format: :long),
+      **icon, icon_tone: nil, icon_agent: agent&.id }
+  end
+
+  # --- Spec 023: agent icons and busy/free status ---------------------------------------------------------------
+
+  # R10: the first letter of the name, upper case; "?" when the name does not start with a letter.
+  def agent_icon_letter(name)
+    first = name.to_s.strip[0]
+    first&.match?(/\p{L}/) ? first.upcase : "?"
+  end
+
+  def agent_tone(agent) = "tone-#{agent.id % 8}"
+
+  # R10/R11: a circle with a letter; `kind` (director, verifier, system) or `tone` sets the colour. `status` is an
+  # entry of AgentStatus.json; its dot is hidden unless `show_dot` (and updated in place by the scripts, R12).
+  def agent_icon(letter, kind: nil, tone: nil, size: "bubble", agent_id: nil, status: nil)
+    classes = [ "agent-icon", "is-#{size}", (kind ? "is-#{kind}" : tone) ].compact.join(" ")
+    dot = (status_dot(status) if agent_id)
+    tag.span(class: classes, "aria-hidden": "true", data: { agent_icon: agent_id }) { safe_join([ letter, dot ].compact) }
+  end
+
+  def status_dot(status)
+    status ||= { status: "free", label: "free", show_dot: false }
+    tag.span(class: "status-dot is-#{status[:status]}", title: status[:label], hidden: !status[:show_dot])
+  end
+
+  # The icon of a chat message (nil for the user's own).
+  def chat_message_icon(data, statuses)
+    return unless data[:icon_kind]
+
+    agent_icon(data[:icon_letter], kind: data[:icon_kind], agent_id: data[:icon_agent], status: statuses[data[:icon_agent]])
+  end
+
+  # G3: the status badge and the activities on the Team page (text, never colour alone — R11).
+  def agent_status_badge(status)
+    status ||= { status: "free", label: "free", show_dot: true, activities: [] }
+    # The director and verifier show it only while they hold a member's step (R11); hidden, so the poll can show it.
+    tag.span(class: "agent-status", data: { agent_status: status[:id] }, hidden: status[:show_dot] == false) do
+      safe_join([ badge(status[:status], status[:status] == "busy" ? "warn" : nil), agent_activity_list(status[:activities]) ])
+    end
+  end
+
+  def agent_activity_list(activities)
+    tag.span(class: "agent-activities") do
+      safe_join(Array(activities).map { |a| tag.span(agent_activity_text(a), class: "agent-activity muted small", title: a[:title]) }, " ")
+    end
+  end
+
+  # G4, R5: the chat strip — "free", or "busy · <first activity>" and "+N more".
+  def agent_strip_label(status)
+    activities = Array(status[:activities])
+    return "free" if activities.empty?
+
+    "busy · #{agent_activity_text(activities.first)}#{" · +#{activities.size - 1} more" if activities.size > 1}"
+  end
+
+  # "World review · step 2/4: Collect evidence · for 3 min" (G2, R4, R7) — the same text team_status.js builds.
+  def agent_activity_text(activity)
+    started = activity[:started_at] && Time.zone.parse(activity[:started_at])
+    where = activity[:cancelled] ? "finishing a step of a #{activity[:epic_state] == "cancelled" ? "cancelled" : "closed"} epic: #{activity[:epic]}" : activity[:epic]
+    [ where, "step #{activity[:step]}/#{activity[:of]}: #{activity[:title].to_s.truncate(AgentStatus::TITLE_LIMIT)}",
+      ("for #{AgentStatus.elapsed(started)}" if started) ].compact.join(" · ")
   end
 end

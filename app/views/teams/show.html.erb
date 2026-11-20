@@ -1,7 +1,10 @@
 <%= page_header "Team", "Who works for you: the director you talk to, who plans the work, and the members who do the steps." %>
+<% content_for :scripts do %><%= javascript_include_tag "team_status", defer: true %><% end %>
 <% role_badge_for = ->(agent) { agent.usable? ? nil : badge("not available", "warn") } %>
+<%# Spec 023: busy or free per agent (G3); team_status.js updates the badges in place (G5). %>
+<% status_for = ->(agent) { agent_status_badge(@statuses[agent.id] || { id: agent.id, status: "free", label: "free", show_dot: true, activities: [] }) } %>
 
-<div class="card org-card">
+<div class="card org-card" data-status-url="<%= status_team_path %>" data-status-stamp="<%= @team_status[:stamp] %>">
   <div class="card-header"><h2>Org chart</h2></div>
   <% if @director.nil? && @members.empty? %>
     <p class="muted">No team yet. Choose a director below, then add members with their roles.</p>
@@ -11,8 +14,10 @@
         <div class="org-node is-director">
           <span class="org-role">Director</span>
           <% if @director %>
+            <%= agent_icon(agent_icon_letter(@director.agent.name), kind: "director", size: "strip", agent_id: @director.agent_id, status: @statuses[@director.agent_id]) %>
             <strong><%= @director.agent.name %></strong> <%= role_badge_for.(@director.agent) %>
             <span class="muted small"><%= @director.agent.runtime_label %></span>
+            <%= status_for.(@director.agent) %>
           <% else %>
             <span class="muted">not chosen</span>
           <% end %>
@@ -20,8 +25,10 @@
         <% if @verifier %>
           <div class="org-node is-verifier">
             <span class="org-role">Verifier</span>
+            <%= agent_icon(agent_icon_letter(@verifier.agent.name), kind: "verifier", size: "strip", agent_id: @verifier.agent_id, status: @statuses[@verifier.agent_id]) %>
             <strong><%= @verifier.agent.name %></strong> <%= role_badge_for.(@verifier.agent) %>
             <span class="muted small"><%= @verifier.agent.runtime_label %></span>
+            <%= status_for.(@verifier.agent) %>
           </div>
         <% end %>
         <% if @members.any? %>
@@ -30,8 +37,10 @@
               <li>
                 <div class="org-node">
                   <span class="org-role"><%= member.role_text || "Member" %></span>
+                  <%= agent_icon(agent_icon_letter(member.agent.name), tone: agent_tone(member.agent), size: "strip", agent_id: member.agent_id, status: @statuses[member.agent_id]) %>
                   <strong><%= member.agent.name %></strong> <%= role_badge_for.(member.agent) %>
                   <span class="muted small"><%= member.agent.runtime_label %></span>
+                  <%= status_for.(member.agent) %>
                 </div>
               </li>
             <% end %>
@@ -92,7 +101,9 @@
       <ul class="rows member-rows">
         <% @members.each do |member| %>
           <li class="member-row">
+            <%= agent_icon(agent_icon_letter(member.agent.name), tone: agent_tone(member.agent), size: "strip", agent_id: member.agent_id, status: @statuses[member.agent_id]) %>
             <strong><%= member.agent.name %></strong>
+            <%= status_for.(member.agent) %>
             <%= form_with model: member, url: team_role_path(member), method: :patch, class: "inline-form" do |f| %>
               <%= f.text_field :role_text, maxlength: 100, placeholder: "Role, e.g. researcher", "aria-label": "Role of #{member.agent.name}" %>
               <%= f.submit "Save", class: "secondary small" %>

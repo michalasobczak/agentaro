@@ -122,6 +122,7 @@ Install tools → `Voice` with stand-in tests → endpoints → streaming in `Ho
   - **Bubbles stay in saved order.** They are always in the order the server saved them, including when a reply arrives while the user's own message is still being sent.
   - **The verifier follows the conversation.** A verifier comment on an answer the user has already moved past is not posted, and the director's newer answer is checked instead.
   - Tests: `test/models/chat_order_test.rb`, `director_chat_test.rb`.
+- Owner fix ("jakość rozpoznawania mowy jest znowu średnia"). Whisper now gets a hint (`--prompt`) with Agentaro's own words (epik, spec, krok, przestrzeń, weryfikator) and the names of the user's team, up to 400 characters, without control characters. A recording that comes back as only the hint counts as silence. The model is unchanged; the owner chose not to download a bigger one for now. In a check with the installed model, a sentence read by Piper came back as "epik ze specem 23" with the hint and "Epic ze Spec&23" without it. Tests: `test/models/voice_test.rb`.
 
 ## Security analysis (B20), after spec 017
 

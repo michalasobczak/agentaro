@@ -1,6 +1,6 @@
 # 023 — Agent status: busy or free
 
-Status: **draft** (Q1–Q9 open)
+Status: **implemented, release gate failed**. The implementation of 2026-11-20 follows the Q1–Q9 proposals and awaits the owner's confirmation. S2 failed in the browser. See the review in §9. Status is scoped to the account (R8). A per-space scope is [TO BE DETERMINED].
 Date: 2026-11-20 (agent icons added 2026-11-20, epic "Wdrożyć najnowszą specyfikację ikon agentów w czacie")
 Depends on: [011](011-list-and-management.md), [016](016-sequential-steps.md), [020](020-pages-without-reloading.md), [021](021-director-sees-step-output.md)
 
@@ -122,7 +122,7 @@ Completion condition: S1–S5 pass and the B20 analysis has no open finding.
 | Unit | prompts list `busy …`/`free` per member | `management_runner_test.rb` | merge | another user's epic titles never appear |
 | Integration | Team page and chat render the status; `/team/status` and `/director/messages` return statuses and the stamp; the stamp changes on start and end | `team_status_test.rb`, `director_chat_test.rb` | merge | signed out → 401/redirect; no other user's data |
 | Integration | every non-user bubble and every strip member has an icon with the right letter and tone class; status dot class matches the status | `director_chat_test.rb` | merge | user bubbles never get an icon; no inline `style=` |
-| Contract | JSON shape `{stamp, agents:[{id, status, activities:[{epic_id, epic, step, of, title, cancelled, started_at}]}]}` used by both scripts | integration test | merge | no HTML in JSON fields |
+| Contract | JSON shape `{stamp, agents:[{id, name, role, member, status, label, show_dot, activities:[{epic_id, epic, step, of, title, cancelled, epic_state, started_at}]}]}` used by both scripts (implemented: `name`, `role`, `member`, `label`, `show_dot`, `epic_state` added) | integration test | merge | no HTML in JSON fields |
 | E2E | — (no browser test suite) | — | — | — |
 | Manual | S2: an epic of 2+ steps, Team page and floating chat open, the status flips within 5 s, typed input kept | owner + browser | release | no full page reload during the flip |
 
@@ -137,17 +137,23 @@ Completion condition: S1–S5 pass and the B20 analysis has no open finding.
 
 - **Rejected alternatives:** a stored `agents.status` column updated at each transition (two sources of truth; wrong after a crash; shared agents serve several users); Turbo Streams or Action Cable (out of scope by spec 020); the existing 20 s full-page auto refresh on the Team page (too slow, and blocked by its forms).
 - **Technical debt:** the kanban card shows `step position of all steps`, which goes wrong after a replan. Align it with R7 later. Legacy calendar epic steps are not counted (Q3).
+- **Review (2026-11-20, epic step 4):** this working-tree revision is newer than the draft in `85ee1ab`. The production task history for 22–24 records discovery and diagnosis, including a cancelled icon design step in task 22 and a completed task 23 whose final review still describes a draft. There is no owner approval recorded in these sources.
+- **Browser gate:** Team preserved the half-typed role and updated within 4.42 s in the measured run. Full chat took up to 7.96 s to update its DOM, and a floating chat status response took more than 5 s. Both chat views showed saved, polled and streamed icons for their supported authors. A separate short stream completed before the first GET, so only its final reply was shown.
+- **Presentation fixes (spec 006):** long names wrap or truncate within their own area, and the desktop strip scrolls without overlapping status labels. Team cards wrap long names and activity titles. Director header and verifier icon text use foregrounds with improved contrast in both themes. Repeat browser checks at 1440 px and 390 px used 60-character names and a member with two concurrent activities.
+- **Open findings:** activity titles lack epic links (G2). The director and verifier lack visible busy text alongside their chat dots (R11); the dot tooltip also truncates long step titles (R7/R11). The chat has no stale-state indicator after three failed polls. A roster-only change leaves the stamp unchanged, and chat polling only updates existing chips. A removed idle member stays on the strip until reload. Old director and verifier messages use the current role holder's identity, so replacing a role can relabel history. The interval in Q6 conflicts with G5/S2, and Q8's grouping conflicts with a literal reading of G7/S6. G2's link also needs reconciliation with R9's informational strip. When evaluating R1/R4, the model accepts any non-planned epic with an active running step as closed. R4 names cancelled and manually finished epics.
+- **Review checks:** regression tests cover an absent member assignment, a blank role description, a default icon and deletion of a busy member. The privacy and template CSP gates passed, Brakeman reported zero warnings, and the dependency audit found no known vulnerabilities using a freshly cloned advisory database. Chromium observed inline style attempts blocked by the existing CSP in Turbo. The stylesheet fixes use external CSS.
+- **Production assets:** the local precompiled manifest still points at a chat script without `team_stamp` and has no `team_status.js` entry. Browser verification ran from an isolated development copy. The production assets were not rebuilt during this review.
 - **External dependencies:** none.
 - **Sources and questions:**
-  - Q1. **Queued step:** free (proposal) or "next: …"? Proposal: free. Optionally a muted "next: World review, step 3/4" without changing the status. [TO BE DETERMINED]
-  - Q2. **Cancelled epic with a step still running:** "busy · finishing a step of a cancelled epic" (proposal) or free at once? [TO BE DETERMINED]
-  - Q3. **Legacy calendar steps** (`purpose: "step"` runs of a work item's tasks): ignore (proposal) or count as busy? [TO BE DETERMINED]
-  - Q4. **Shared agent busy for another user:** free with no mark (proposal, privacy) or a neutral "busy elsewhere"? [TO BE DETERMINED]
-  - Q5. **Where in the chat:** a strip under the header (proposal), or only an icon in the header that opens the list? [TO BE DETERMINED]
-  - Q7. **Icon look:** first letter on a colour from a fixed palette (proposal), or an image chosen per agent (needs upload, storage and a new column)? [TO BE DETERMINED]
-  - Q8. **Repeated messages:** icon on the first message of a run of the same author (proposal) or on every message? [TO BE DETERMINED]
-  - Q9. **Status on old messages:** the dot shows the agent's current status (proposal), or no dot on bubbles at all, only in the strip and the header? [TO BE DETERMINED]
-  - Q6. **Polling interval:** 5 s on the Team page and the chat's own rhythm (8 s, 0.5 s while writing) for the strip. Is up to 8 s in the chat acceptable, or should it also be 5 s? [TO BE DETERMINED]
+  - Q1. **Queued step:** free (proposal) or "next: …"? Proposal: free. Optionally a muted "next: World review, step 3/4" without changing the status. **Implemented as proposed: free, no "next" mark** (pending owner confirmation).
+  - Q2. **Cancelled epic with a step still running:** "busy · finishing a step of a cancelled epic" (proposal) or free at once? **Implemented as proposed** ("closed epic" for one marked done by hand).
+  - Q3. **Legacy calendar steps** (`purpose: "step"` runs of a work item's tasks): ignore (proposal) or count as busy? **Implemented as proposed: ignored.**
+  - Q4. **Shared agent busy for another user:** free with no mark (proposal, privacy) or a neutral "busy elsewhere"? **Implemented as proposed: free, no mark.**
+  - Q5. **Where in the chat:** a strip under the header (proposal), or only an icon in the header that opens the list? **Implemented as proposed: a strip under the header** (folded into "N of M busy" under 640 px). Resilience: "may be outdated" after 3 failed polls on the Team page.
+  - Q7. **Icon look:** first letter on a colour from a fixed palette (proposal), or an image chosen per agent (needs upload, storage and a new column)? **Implemented as proposed: letter and tone.**
+  - Q8. **Repeated messages:** icon on the first message of a run of the same author (proposal) or on every message? **Implemented as proposed**, in CSS: every non-user bubble carries its icon, repeats are `visibility: hidden` so bubbles stay aligned.
+  - Q9. **Status on old messages:** the dot shows the agent's current status (proposal), or no dot on bubbles at all, only in the strip and the header? **Implemented as proposed: current status**; the director's and verifier's dots show only while they hold a step (R11).
+  - Q6. **Polling interval:** 5 s on the Team page and the chat's own rhythm (8 s, 0.5 s while writing) for the strip. Is up to 8 s in the chat acceptable, or should it also be 5 s? **Implemented as proposed: the chat keeps 8 s** (so the chat may lag S2's 5 s by up to 3 s; owner to confirm). No in-memory counter.
 
 ## Files to change (implementation map)
 
@@ -172,3 +178,13 @@ Completion condition: S1–S5 pass and the B20 analysis has no open finding.
 | Emission points (unchanged code, covered by tests) | `StepChain#claim_run` (start), `TaskRunner.finish!` + `StepChain.after_run` (end), `TaskScheduler.recover!` (interrupted), `WorkItem#cancel!` / `#done!` (cancelled or closed), `WorkItem#retire_plan_on_move`, `Agent#unassign_tasks` |
 | `test/models/agent_status_test.rb`, `test/integration/team_status_test.rb` (new); `test/integration/director_chat_test.rb`, `test/models/management_runner_test.rb` | gates in §7 |
 | `README.md`, `CHANGELOG.md` | spec 023 row and status; entry after implementation |
+
+## Implementation notes (2026-11-20)
+
+- `AgentStatus` (`app/models/agent_status.rb`): `for(user)`, `stamp`, `label`, `elapsed`, `team`, `json`. One query for running `epic_step` runs of the user, with their steps and epics. `ChangeStamp` was not changed.
+- `GET /team/status` (`TeamsController#status`). `GET /director/messages` returns `team_stamp` on every poll, and `team` on the first poll and whenever the stamp changed.
+- Shared rendering in `app.js` (`window.agentaroTeamStatus.apply`), used by `chat.js` and the new `team_status.js`. Elapsed time ("for N min") is counted in the browser, so it stays fresh between stamp changes.
+- Icons: `agent_icon`, `agent_icon_letter`, `agent_tone`, `status_dot`, `chat_message_icon`; `chat_message_json` gains `icon_letter`, `icon_kind`, `icon_tone` (always `nil`: chat authors have fixed kinds), and `icon_agent` (agent id for the dot). The header avatar carries the director's dot too.
+- The verifier prompt now has the team part (`team_text`) as well, for G6.
+- Tests: `test/models/agent_status_test.rb` (12) and `test/integration/team_status_test.rb` (7).
+- B20 security recheck (specs 001–023): `/team/status` needs sign-in and reads only `task_runs.user_id = viewer` (R8, S4 tested across the Team page, `/team/status` and the chat poll). JSON carries plain text only, and every script sets text with `textContent`. The CSP tests still pass, with no inline `style=` or `<script>`. Prompt lines quote epic and step titles that spec 013 already exposes. The extra query per chat poll is one indexed read and a count per busy epic. Brakeman: no warnings. No new findings.

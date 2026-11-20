@@ -2,11 +2,15 @@
     (dock: true). The floating chat loads its messages when first opened; chat.js drives both. %>
 <% dock = local_assigns.fetch(:dock, false) %>
 <% voice_ready = Voice.listening? && Voice.speaking? %>
+<%# Spec 023: busy/free of the team (G4) and the status dots on icons (R11); chat.js updates them from its poll (R12). %>
+<% team_status = AgentStatus.json(current_user) %>
+<% statuses = team_status[:agents].index_by { |a| a[:id] } %>
+<% strip = team_status[:agents].select { |a| a[:member] } %>
 <div class="chat-app<%= " is-dock" if dock %>" data-messages-url="<%= chat_messages_path %>" data-last-id="<%= messages.last&.id.to_i %>"
      data-voice="<%= voice_ready ? "ready" : "missing" %>" data-voice-transcribe-url="<%= voice_transcribe_path %>" data-voice-speak-url="<%= voice_speak_path %>"
-     data-writing="<%= writing %>"<% if dock %> data-lazy="true" data-latest-reply-id="<%= latest_reply_id.to_i %>"<% end %>>
+     data-writing="<%= writing %>" data-team-stamp="<%= team_status[:stamp] %>"<% if dock %> data-lazy="true" data-latest-reply-id="<%= latest_reply_id.to_i %>"<% end %>>
   <header class="chat-head">
-    <span class="chat-avatar is-director" aria-hidden="true"><%= director.name.first.upcase %></span>
+    <span class="chat-avatar is-director" aria-hidden="true" data-agent-icon="<%= director.id %>"><%= agent_icon_letter(director.name) %><%= status_dot(statuses[director.id]) %></span>
     <div class="chat-who">
       <strong><%= director.name %></strong>
       <span class="chat-status muted small" data-status><%= writing ? "writing…" : "your director" %></span>
@@ -38,6 +42,20 @@
       <% end %>
     </nav>
   </header>
+  <% if strip.any? %>
+    <div class="team-strip" data-team-strip aria-label="Team status">
+      <button type="button" class="team-summary" data-team-toggle aria-expanded="false"><span data-team-count><%= strip.count { |a| a[:status] == "busy" } %> of <%= strip.size %> busy</span></button>
+      <ul class="team-list">
+        <% strip.each do |member| %>
+          <li class="team-chip" data-team-agent="<%= member[:id] %>" title="<%= member[:name] %>: <%= member[:label] %>">
+            <%= agent_icon(agent_icon_letter(member[:name]), tone: "tone-#{member[:id] % 8}", size: "strip", agent_id: member[:id], status: member) %>
+            <span class="team-name"><%= member[:name] %></span>
+            <span class="team-label small" data-team-label><%= agent_strip_label(member) %></span>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
 
   <div class="chat-scroll">
     <div class="chat-stream" aria-live="polite">
@@ -51,6 +69,7 @@
         <% data = chat_message_json(message) %>
         <% if data[:day] != day %><% day = data[:day] %><div class="chat-day" data-day="<%= day %>"><span><%= day %></span></div><% end %>
         <div class="bubble-row from-<%= message.author %>" data-id="<%= message.id %>">
+          <%= chat_message_icon(data, statuses) %>
           <div class="bubble">
             <% unless message.author == "user" %><div class="bubble-name"><%= data[:name] %></div><% end %>
             <div class="bubble-text"><%= message.content %></div>

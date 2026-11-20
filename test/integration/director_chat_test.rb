@@ -334,10 +334,12 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_equal "queued", ordered.runs.where(purpose: "director").sole.state
     assert_equal "succeeded", chat.reload.state
     assert_match "Please add an epic to research backups.", chat.prompt
-    [ "Topics found:", "Find topics", "Step 2 failed", "Earlier model reply", "First answer", "/change" ].each do |text|
+    [ "Topics found:", "Find topics", "Step 2 failed", "First answer", "/change" ].each do |text|
       assert_no_match text, chat.prompt
     end
+    assert_match "Director: Earlier model reply", chat.prompt, "owner fix: the proposal pass sees the conversation as context"
     get director_path
+    assert_select ".bubble", text: /First answer/, count: 1 # owner fix: the answer written with the whole conversation is posted
     assert_select ".bubble-actions", text: "Added to the list: Research backups"
   end
 
@@ -358,7 +360,8 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_equal "blocked", item.reload.state
     assert_equal name, space.reload.name
     assert_no_match "Cancel World review and rename its space.", chat.reload.prompt
-    assert_equal [ "World review is blocked.", nil ], @user.chat_messages.where(author: "director").last.values_at(:content, :actions_summary)
+    # Owner fix: the first answer is posted; what Agentaro really did (nothing) is noted under it.
+    assert_equal [ "Changed.", "No changes were made to the work list or spaces." ], @user.chat_messages.where(author: "director").last.values_at(:content, :actions_summary)
   end
 
   test "spec 021: chat and verification show the topics while the next step is running" do
