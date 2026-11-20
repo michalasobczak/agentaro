@@ -29,19 +29,19 @@ Every user talks to **one agent only: their director**, in a chat. From the conv
 - Agentaro then applies it: chat replies, list changes, choice of manager, steps, approval.
 - An invalid answer is retried once with the errors; after that the director tells the user in the chat that something failed.
 
-With no human approval, these checks are the only brake until spec 012 adds budgets and a stop button. That is why the limits below (Q6) are hard.
+With no human approval, these checks are the only brake until a later spec adds budgets and a stop button. That is why the limits below (Q6) are hard.
 
 **Later specs (owner's direction).**
-- 012: feedback loop — step results go back to the manager and director, follow-up steps, *done*, and reports in the chat; budgets and stop.
-- 013: isolation of agents (F12).
-- 014: memory ([draft](014-agent-memory.md)).
-- 015: self-improvement.
+- Feedback loop — step results go back to the manager and director, follow-up steps, *done*, and reports in the chat; budgets and stop.
+- Isolation of agents (F12).
+- Memory, then self-improvement.
+- Renumbered 2026-11-20: the owner put projects first as spec 012; the rest comes later, without numbers yet.
 
 ## 3. Objective
 
 **Goals**
 - G1. **Chat with the director** (one conversation per user):
-  - the user writes; the director answers within a run (spec 010). The page is a real chat (owner fix after release): bubbles, "writing…" dots, Enter sends, messages sent and received as JSON without reloading;
+  - the user writes; the director answers within a run (spec 010). The page is a real chat (owner fix after release): bubbles, "writing…" dots, Enter sends, messages sent and received as JSON without reloading; on every other page the same chat floats as a panel on the right that the user opens and hides (owner fix, 2026-11-20);
   - the director sees the conversation (latest 30 messages), the current list and the team.
   - It answers `{"reply": "...", "actions": [...]}`; possible actions: `add_item`, `update_item`, `cancel_item`, `reprioritize`.
   - Agentaro applies valid actions and shows them under the reply ("added to the list: …").
@@ -71,8 +71,8 @@ With no human approval, these checks are the only brake until spec 012 adds budg
 - G9. Director and manager runs are normal runs (spec 010) marked *chat*, *director* or *manager*; every change appears in the audit log and the data changelog.
 
 **Out of scope**
-- Step results going back to the management, follow-up steps, automatic *done*, reports (spec 012); budgets and stop (spec 012).
-- Talking to managers or members; shared lists or teams; agents changing Agentaro through tools (MCP, see section 9); memory (spec 014).
+- Step results going back to the management, follow-up steps, automatic *done*, reports (feedback loop spec); budgets and stop (same).
+- Talking to managers or members; shared lists or teams; agents changing Agentaro through tools (MCP, see section 9); memory (later spec).
 
 **Success criteria**
 - S1. Telling the director in the chat "research X and write a summary by Friday" adds an item with a due date, and the reply says so.
@@ -123,13 +123,13 @@ Data model → team page and org chart → chat with the director (stand-in test
 
 - **Direct effect:** the owner talks to one director; the work gets planned and scheduled without the owner touching the calendar.
 - **Measurable effect:** S1–S5 pass.
-- **Side effects:** several runs per item (chat, director, manager, steps) — more subscription use; no human checks plans (Q8), so the limits of R2 and the later budgets of spec 012 matter.
+- **Side effects:** several runs per item (chat, director, manager, steps) — more subscription use; no human checks plans (Q8), so the limits of R2 and the later budgets matter.
 - **Rollback:** drop the new tables and columns.
 
 ## 9. Additional Information
 
 - **Rejected alternatives:**
-  - A write MCP server for the management. The owner asked "dlaczego nie serwer MCP?". Planning needs one answer, not actions. A token for Agentaro in the environment of agents that can read files and use the web (F12) could be misused, e.g. by a hidden instruction on a web page. JSON also works on every executor, including Ollama and LM Studio. A **read-only** MCP (memory, history) is planned after spec 013.
+  - A write MCP server for the management. The owner asked "dlaczego nie serwer MCP?". Planning needs one answer, not actions. A token for Agentaro in the environment of agents that can read files and use the web (F12) could be misused, e.g. by a hidden instruction on a web page. JSON also works on every executor, including Ollama and LM Studio. A **read-only** MCP (memory, history) is planned after the isolation of agents.
   - The user approving plans (owner chose the director).
   - Talking to managers (owner: only the director).
 - **Technical debt:** planning sees the user's busy times, not other users' load on shared agents.
@@ -152,6 +152,6 @@ Scope: this spec and specs 001–010.
 - **Separation of users (S4).** Chats, lists, items, teams and management runs of other users are 404; team candidates are limited to the user's own and shared agents (tests).
 - **Output.** Chat messages, notes and plans are shown as text (test with markup); the data changelog keeps only the size of chat messages.
 - **Rate limit.** At most 20 messages to the director per user per 10 minutes, like "Run now" (F13).
-- **F14 (medium, open — spec 012).** No budget yet. One chat reply may add 20 items. Each item may cost up to about 10 management runs (choice, plan, 3 re-plans with reviews) and up to 10 steps. With no human approval (Q8), one message can schedule a lot of subscription use. Spec 012 brings budgets and a stop button, as the owner planned. Until then, keep requests small.
-- **F15 (low, open — spec 013).** Director and managers run with the same tools as steps (spec 010: files in their folder, web), although they only need to answer. Least privilege calls for no tools in management runs; to be done with the isolation of agents (spec 013).
+- **F14 (medium, open — feedback loop spec).** No budget yet. One chat reply may add 20 items. Each item may cost up to about 10 management runs (choice, plan, 3 re-plans with reviews) and up to 10 steps. With no human approval (Q8), one message can schedule a lot of subscription use. The feedback loop spec brings budgets and a stop button, as the owner planned. Until then, keep requests small.
+- **F15 (low, open — isolation spec).** Director and managers run with the same tools as steps (spec 010: files in their folder, web), although they only need to answer. Least privilege calls for no tools in management runs; to be done with the isolation of agents.
 - **Regressions in 001–010.** Brakeman: no warnings (the weak F8 is gone since sign-in remembers only page requests). `bundle-audit`: no vulnerabilities. A time-dependent test fixed (pinned to a fixed time).

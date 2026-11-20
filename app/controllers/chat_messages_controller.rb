@@ -7,9 +7,11 @@ class ChatMessagesController < ApplicationController
              with: -> { reject("Too many messages. Try again in a few minutes.", :too_many_requests) }
 
   # New messages after a given id, and whether the director is writing — polled by the chat page.
+  # Without an id (the floating chat opening for the first time): the latest 100.
   def index
     after = params[:after].to_i
-    messages = current_user.chat_messages.where("id > ?", after).ordered.limit(100)
+    scope = current_user.chat_messages
+    messages = after.positive? ? scope.where("id > ?", after).ordered.limit(100) : scope.ordered.last(100)
     render json: { messages: messages.map { |m| helpers.chat_message_json(m) }, writing: director_writing? }
   end
 

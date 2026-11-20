@@ -16,8 +16,8 @@ Agents: each has a name, a short description, a **master prompt** (who it is, wr
 
 **Plan of the following specs (owner).**
 - 010: running a task on its agent's executor.
-- 011: the agent's memory and the context it gets ([draft](014-agent-memory.md)); renumbered to 014 when the owner set the roadmap (work list and management first).
-- 012: self-improvement, where memory is reorganized on a schedule.
+- 011: the agent's memory and the context it gets; later moved after other specs, and its draft dropped on 2026-11-20 (owner: projects first).
+- later: self-improvement, where memory is reorganized on a schedule.
 
 ## 3. Objective
 
@@ -41,7 +41,7 @@ Agents: each has a name, a short description, a **master prompt** (who it is, wr
 - G5. Every change appears in the audit log and the data changelog.
 
 **Out of scope**
-- Running tasks (spec 010); memory, context and self-improvement (specs 011, 012); teams of agents; tools and permissions of agents.
+- Running tasks (spec 010); memory, context and self-improvement (later specs); teams of agents; tools and permissions of agents.
 
 **Success criteria**
 - S1. A user creates a private agent on an executor and assigns it to a task; the calendar shows it; a recurring task shows it on every occurrence.

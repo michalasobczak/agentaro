@@ -100,6 +100,33 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "floating chat (owner fix): on every other page for users with a director, never on the Director page" do
+    get calendar_path
+    assert_select "[data-chat-dock]", 0, "no director, no floating chat"
+    @user.team_roles.create!(agent: @director, role: "director")
+    reply = @user.chat_messages.create!(author: "director", content: "Secret plan")
+    get calendar_path
+    assert_select "[data-chat-dock] .chat-app.is-dock[data-lazy=true][data-latest-reply-id='#{reply.id}']"
+    assert_select "[data-chat-dock] .chat-launcher[aria-expanded=false]", text: /Dyrektor/
+    assert_select "[data-chat-dock] .bubble-row:not([data-typing])", 0, "messages load only when the chat is opened"
+    assert_no_match "Secret plan", response.body
+    assert_select "script[src*=chat]", 1
+    assert_select "[style]", 0
+    assert_select "script:not([src])", 0
+    get director_path
+    assert_select "[data-chat-dock]", 0
+    assert_select ".chat-app:not(.is-dock)", 1
+  end
+
+  test "floating chat opening for the first time gets the latest 100 messages" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    ids = 105.times.map { |i| @user.chat_messages.create!(author: "user", content: "m#{i}").id }
+    get chat_messages_path, headers: { "Accept" => "application/json" }
+    assert_equal ids.last(100), JSON.parse(response.body)["messages"].map { |m| m["id"] }
+    get chat_messages_path(after: ids[1]), headers: { "Accept" => "application/json" }
+    assert_equal ids[2, 100], JSON.parse(response.body)["messages"].map { |m| m["id"] }
+  end
+
   test "auto refresh stamp changes with new chat messages" do
     get stamp_director_path, headers: { "Accept" => "application/json" }
     first = JSON.parse(response.body)["stamp"]

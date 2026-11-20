@@ -77,7 +77,7 @@ class ManagementRunner
       end
     end
     TaskRunner.finish!(@run, outcome)
-    return fail!("the #{role_name} could not answer (#{outcome.error.to_s.truncate(300)})") unless outcome.state == "succeeded"
+    return fail!("the #{role_name} could not answer: #{outcome.error.to_s.truncate(300).chomp(".")}") unless outcome.state == "succeeded"
 
     answer_later_messages
     @run

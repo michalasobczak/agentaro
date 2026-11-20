@@ -13,6 +13,7 @@
     <%= stylesheet_link_tag :app %>
     <%= javascript_include_tag "app", defer: true %>
     <%= yield :scripts %>
+    <% if (dock_director = chat_dock_director) %><%= javascript_include_tag "chat", defer: true %><% end %>
   </head>
 
   <body>
@@ -69,5 +70,6 @@
         </div>
       </main>
     </div>
+    <%= render "directors/dock", director: dock_director if dock_director %>
   </body>
 </html>

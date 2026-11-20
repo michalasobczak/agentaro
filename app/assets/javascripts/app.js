@@ -18,7 +18,7 @@ document.addEventListener("submit", (event) => {
   let dirty = false;
   let stopped = false;
 
-  document.addEventListener("input", (event) => { if (event.target.form && !event.target.closest("dialog")) dirty = true; });
+  document.addEventListener("input", (event) => { if (event.target.form && !event.target.closest("dialog, .chat-app")) dirty = true; });
 
   const busy = () => Boolean(document.querySelector("dialog[open], .is-dragging, .is-selected, .cal-menu:not([hidden])")) ||
     (document.activeElement && document.activeElement.matches("input, textarea, select"));

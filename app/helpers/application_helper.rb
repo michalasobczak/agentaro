@@ -25,7 +25,9 @@ module ApplicationHelper
     org: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
     play: '<path d="M7 4.5v15l12-7.5-12-7.5Z"/>',
     chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M10 10h4v4h-4zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
-    pin: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>'
+    pin: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    expand: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>'
   }.freeze
 
   def icon(name, css: "icon")
@@ -85,6 +87,12 @@ module ApplicationHelper
   end
 
   # Spec 011: a chat message as the chat page shows it (rendered by the server and by chat.js alike).
+  # The floating chat (owner fix after spec 011): on every page except the director's own, for users with a director.
+  def chat_dock_director
+    return unless signed_in? && !controller_path.in?(%w[directors chat_messages])
+    current_user.director_role&.agent
+  end
+
   def chat_message_json(message)
     director = message.user.director_role&.agent
     { id: message.id, author: message.author,
