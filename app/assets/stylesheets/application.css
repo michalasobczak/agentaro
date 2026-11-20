@@ -557,3 +557,13 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .folder-suggestions .folder-parent { color: var(--muted); }
 .folder-status[data-state="ok"] { color: var(--ok); }
 .folder-status[data-state="missing"] { color: var(--muted); }
+/* The verifier (spec 019) */
+.bubble-row.from-verifier .bubble { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); background: color-mix(in srgb, var(--ok-soft) 55%, var(--surface)); border-bottom-left-radius: 0.35rem; }
+.from-verifier .bubble-name { color: var(--ok); }
+.org-node.is-verifier { border-color: var(--ok); background: var(--ok-soft); margin-left: 0.6rem; }
+.chat-tool.verify-tool { color: var(--ok); }
+.chat-tool.verify-tool:disabled { opacity: 0.4; cursor: default; }
+.voice-verify { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0; border-radius: 50%; background: var(--surface); color: var(--ok); border: 1px solid var(--line); flex: none; }
+.voice-verify svg.icon, .chat-tool.verify-tool svg.icon { width: 1.15rem; height: 1.15rem; }
+.chat-head { min-width: 0; } .chat-app { min-width: 0; }
+.chat-head .chat-who { min-width: 3.5rem; }

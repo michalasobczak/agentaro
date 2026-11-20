@@ -1,7 +1,7 @@
 # Spec 011, G3, corrected by spec 012: a user's team — one director and its members, each member with a role
 # text. One agent may hold both roles (spec 011, Q5). Candidates are the user's private agents and shared agents.
 class TeamRole < ApplicationRecord
-  ROLES = %w[director member].freeze
+  ROLES = %w[director member verifier].freeze # spec 019: one verifier, chosen like the director
 
   belongs_to :user
   belongs_to :agent
@@ -15,6 +15,7 @@ class TeamRole < ApplicationRecord
 
   scope :directors, -> { where(role: "director") }
   scope :members, -> { where(role: "member") }
+  scope :verifiers, -> { where(role: "verifier") }
 
   private
 
@@ -24,8 +25,8 @@ class TeamRole < ApplicationRecord
 
   def one_per_role
     others = TeamRole.where(user_id: user_id, role: role).where.not(id: id)
-    if role == "director"
-      errors.add(:base, "You already have a director") if others.exists?
+    if %w[director verifier].include?(role)
+      errors.add(:base, "You already have a #{role}") if others.exists?
     elsif others.exists?(agent_id: agent_id)
       errors.add(:agent, "is already in your team")
     end

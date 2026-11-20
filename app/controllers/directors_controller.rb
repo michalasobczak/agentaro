@@ -1,10 +1,22 @@
 # Spec 011, G1: the user's chat with their director — the only agent the user talks to (Q7).
 # Spec 015: a new conversation archives the current one; the archive is read-only.
 class DirectorsController < ApplicationController
+  rate_limit to: 20, within: 10.minutes, only: :verify, by: -> { current_user.id }, store: RATE_LIMIT_STORE,
+             with: -> { respond_to { |f| f.json { render json: { ok: false, error: "Too many checks. Try again in a few minutes." }, status: :too_many_requests }; f.any { redirect_to director_path, alert: "Too many checks. Try again in a few minutes." } } }
   def show
     @director = current_user.director_role&.agent
     @messages = current_user.chat_messages.current.ordered.last(100)
     @writing = writing?
+  end
+
+  # Spec 019, G2/R2: ask the verifier to check the conversation; refused without a verifier or while someone writes.
+  def verify
+    run = ManagementRunner.verify!(current_user)
+    error = current_user.verifier_role ? "Wait until the current answer is finished." : "Choose a verifier on the Team page first."
+    respond_to do |format|
+      format.json { run ? render(json: { ok: true, writing: true }) : render(json: { ok: false, error: error }, status: :unprocessable_content) }
+      format.any { run ? redirect_back_or_to(director_path) : redirect_back_or_to(director_path, alert: error) }
+    end
   end
 
   # Auto refresh of the chat, list and item pages.
@@ -32,5 +44,5 @@ class DirectorsController < ApplicationController
 
   private
 
-  def writing? = TaskRun.where(user: current_user, purpose: "chat", state: %w[queued running]).exists?
+  def writing? = TaskRun.where(user: current_user, purpose: %w[chat verify], state: %w[queued running]).exists?
 end

@@ -22,6 +22,15 @@ class ManagementRunner
   end
 
   # G1: a user wrote to the director. One chat run per user at a time (R3).
+  # Spec 019: the user asks the verifier to check the conversation. One at a time, not while the director writes.
+  def self.verify!(user)
+    verifier = user.verifier_role&.agent
+    return nil unless verifier
+    return nil if TaskRun.where(user: user, purpose: %w[chat verify], state: %w[queued running]).exists?
+
+    queue!(user: user, purpose: "verify", agent: verifier)
+  end
+
   def self.chat!(user)
     director = user.director_role&.agent
     return nil unless director
@@ -61,6 +70,7 @@ class ManagementRunner
 
     agent = @run.agent
     return fail!("The #{role_name} is no longer set.") unless agent
+    return verify!(agent) if @run.purpose == "verify"
 
     prompt = prompt_for(agent)
     outcome = AgentCall.new(@run, agent, prompt, **@call_options).call(on_text: stream_reply)
@@ -111,7 +121,20 @@ class ManagementRunner
     self.class.chat!(@user) if @user.chat_messages.where(author: "user").where("created_at > ?", @run.started_at).exists?
   end
 
-  def role_name = "director"
+  def role_name = @run.purpose == "verify" ? "verifier" : "director"
+
+  # Spec 019, G4/R1: the verifier answers in plain text; it is posted as a comment and nothing is applied.
+  def verify!(agent)
+    outcome = AgentCall.new(@run, agent, AgentCall::Prompt.new(system: agent.master_prompt, user: [ context_header, verify_prompt ].join("\n\n")), **@call_options).call
+    TaskRunner.finish!(@run, outcome)
+    return fail!("the verifier could not answer: #{outcome.error.to_s.truncate(300).chomp(".")}") unless outcome.state == "succeeded"
+
+    comment = outcome.output.to_s.strip.truncate(4000)
+    return fail!("the verifier gave no comment") if comment.empty?
+
+    say("verifier", comment)
+    @run
+  end
 
   # The answer is the first JSON object in the output (models sometimes wrap it in code fences).
   def parse(output)
@@ -139,7 +162,7 @@ class ManagementRunner
       @item.block!(reason.upcase_first) if @item.open?
       say("system", "\"#{@item.title}\" is blocked: #{reason}. Write to the director, or press Try again on the item.")
     else
-      say("system", "No answer from the director: #{reason}.")
+      say("system", "No answer from the #{role_name}: #{reason}.")
     end
     @run
   end
@@ -227,7 +250,7 @@ class ManagementRunner
       Work list (open and planned):
       #{list.presence&.join("\n") || "(empty)"}
 
-      Conversation (latest last):
+      Conversation (latest last; "Verifier" is a second model #{@user.username} may ask to check you — take its comments seriously, answer them honestly):
       #{history.join("\n")}
 
       Answer #{@user.username}'s latest messages. #{reply_language} These instructions are in English only for you. Messages may come from speech recognition, so forgive small transcription errors.
@@ -243,6 +266,29 @@ class ManagementRunner
       {"type": "reprioritize", "id": 1, "priority": "normal" or "high"}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
       Every item belongs to a space. When it is not clear which space a new item belongs to, do not guess: ask in your reply and add nothing.
+    PROMPT
+  end
+
+  # Spec 019, G3: the conversation, the director's latest answer with what Agentaro applied, and the user's spaces
+  # and open epics (names, goals, titles only — spec 013, G3).
+  def verify_prompt
+    list = @user.work_items.where(state: WorkItem::OPEN + %w[planned]).listed.limit(50).map { |i| item_line(i) }
+    history = @user.chat_messages.current.ordered.last(HISTORY).map do |m|
+      who = m.author == "user" ? @user.username : m.author.capitalize
+      "#{who}: #{m.content}#{"\n  [applied by Agentaro: #{m.actions_summary}]" if m.actions_summary.present?}"
+    end
+    <<~PROMPT
+      You are the verifier: a second model asked by #{@user.username} to check what their director (another AI model) said. You only comment; you change nothing.
+
+      #{spaces_text}
+
+      Work list (open and planned):
+      #{list.presence&.join("\n") || "(empty)"}
+
+      Conversation (latest last):
+      #{history.join("\n")}
+
+      Check the director's latest answer: facts, logic, plans, and any claim that something was done or checked. Say plainly what is wrong, doubtful or unverified, and what to ask or check instead. If it holds up, say so briefly. Be concrete and short: at most 8 sentences, plain text, no headings. #{reply_language.sub("your reply", "your comment")}
     PROMPT
   end
 

@@ -339,3 +339,76 @@ class ConversationLanguageTest < ActiveSupport::TestCase
     assert_not user.update(chat_language: "de")
   end
 end
+
+class VerifierTest < ActiveSupport::TestCase
+  # Spec 019: the verifier comments on demand, in plain text; nothing it says is applied (G3, G4, G5, R1, R2).
+  setup do
+    @user = create_user
+    @claude = Executor.create!(name: "Claude", preset: "claude_code")
+    @codex = Executor.create!(name: "Codex", preset: "codex")
+    @director = Agent.create!(user: @user, name: "Anna", master_prompt: "You direct.", executor: @claude)
+    @verifier = Agent.create!(user: @user, name: "Wera", master_prompt: "You check.", executor: @codex)
+    @user.team_roles.create!(agent: @director, role: "director")
+    @user.team_roles.create!(agent: @verifier, role: "verifier")
+    @user.chat_messages.create!(author: "user", content: "Is the backup done?")
+    @user.chat_messages.create!(author: "director", content: "Yes, all backups are done and verified.", actions_summary: "Added to the list: Check backups")
+    @answers = Dir.mktmpdir
+  end
+
+  teardown { FileUtils.rm_rf(@answers) }
+
+  # A stand-in "codex": writes its answer to the -o file, keeps the prompt.
+  def with_codex(answer)
+    Dir.mktmpdir do |bin|
+      File.write(File.join(bin, "codex"), <<~SH)
+        #!/bin/sh
+        cat > "#{@answers}/prompt"
+        out=""; prev=""
+        for a in "$@"; do if [ "$prev" = "-o" ]; then out="$a"; fi; prev="$a"; done
+        printf '%s' '#{answer}' > "$out"
+      SH
+      File.chmod(0o755, File.join(bin, "codex"))
+      original = ENV["PATH"]
+      ENV["PATH"] = "#{bin}:#{original}"
+      yield
+    ensure
+      ENV["PATH"] = original
+    end
+  end
+
+  test "S1: the verifier's comment is posted as text; JSON-looking actions in it are never applied" do
+    answer = 'Nothing shows the backups were checked. {"actions": [{"type": "cancel_item", "id": 1}]}'
+    run = ManagementRunner.verify!(@user)
+    assert_equal [ "verify", @verifier ], [ run.purpose, run.agent ]
+    assert_nil ManagementRunner.verify!(@user), "R2: one at a time"
+    with_codex(answer) { ManagementRunner.new(run).perform! }
+    comment = @user.chat_messages.ordered.last
+    assert_equal [ "verifier", answer ], [ comment.author, comment.content ]
+    assert_equal 0, @user.work_items.count, "R1: nothing applied"
+    prompt = File.read(File.join(@answers, "prompt"))
+    assert_match "You are the verifier", prompt
+    assert_match "Director: Yes, all backups are done and verified.", prompt
+    assert_match "[applied by Agentaro: Added to the list: Check backups]", prompt
+  end
+
+  test "G5: the director's next prompt includes the verifier's comment" do
+    @user.chat_messages.create!(author: "verifier", content: "The backup claim is not verified.")
+    prompt = ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat")).send(:chat_prompt)
+    assert_match "Verifier: The backup claim is not verified.", prompt
+    assert_match "\"Verifier\" is a second model", prompt
+  end
+
+  test "R2, R3: no verifier, or the director still writing, starts nothing; one verifier per user" do
+    TaskRun.create!(user: @user, agent: @director, purpose: "chat", trigger: "scheduled", occurrence_start: Time.current, state: "running")
+    assert_nil ManagementRunner.verify!(@user)
+    other = create_user(username: "bob")
+    assert_nil ManagementRunner.verify!(other)
+    assert_not @user.team_roles.new(agent: @director, role: "verifier").valid?, "one verifier"
+  end
+
+  test "a failing verifier posts an Agentaro notice" do
+    run = ManagementRunner.verify!(@user)
+    with_codex("") { ManagementRunner.new(run).perform! }
+    assert_match "No answer from the verifier", @user.chat_messages.ordered.last.content
+  end
+end

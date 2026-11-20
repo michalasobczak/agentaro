@@ -19,6 +19,7 @@ Rails.application.routes.draw do
   resource :director, only: :show do
     get :stamp
     post :new_conversation # spec 015
+    post :verify # spec 019
     get :archive
   end
   # Spec 017: voice for the director chat

@@ -118,6 +118,7 @@
       if (value) status.dataset.writing = ""; else delete status.dataset.writing;
       hooks.writing?.(value);
       emit("writing", value);
+      if (verifyButton) verifyButton.disabled = value; // spec 019: one answer at a time
       if (stick) toBottom();
       schedulePoll();
     }
@@ -205,6 +206,22 @@
       }
     }
 
+    // Spec 019: ask the verifier without reloading; resolves to true when it started.
+    const verifyButton = app.querySelector("button[data-verify]");
+    async function verify() {
+      if (!verifyButton || writing) return false;
+      verifyButton.disabled = true;
+      try {
+        const response = await fetch(verifyButton.form.action, { method: "POST", headers: { Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin" });
+        const data = await response.json().catch(() => ({ ok: false }));
+        if (!data.ok) { verifyButton.disabled = false; return false; }
+        setWriting(true);
+        status.textContent = "verifier checking…";
+        return true;
+      } catch (_) { verifyButton.disabled = false; return false; }
+    }
+    verifyButton?.addEventListener("click", (event) => { event.preventDefault(); verify(); });
+
     form.addEventListener("submit", (event) => { event.preventDefault(); send(); });
     input.addEventListener("input", () => { grow(); hooks.draft?.(input.value); });
     input.addEventListener("keydown", (event) => {
@@ -214,7 +231,7 @@
     toBottom();
     grow();
     schedulePoll();
-    const instance = { poll, grow, input, toBottom, send, csrf, get loaded() { return loaded; }, get writing() { return writing; },
+    const instance = { poll, grow, input, toBottom, send, verify, csrf, get lastId() { return lastId; }, get loaded() { return loaded; }, get writing() { return writing; },
                        on: (name, fn) => listeners[name].push(fn) };
     voice(app, instance);
     return instance;
@@ -389,6 +406,11 @@
     chat.on("message", (message) => {
       if (awaitingAfter == null || state === "off" || message.author === "user" || message.id <= awaitingAfter) return;
       awaitingAfter = null;
+      if (message.author === "verifier") { // spec 019, G6: the verifier speaks with its own voice
+        finalText = message.content;
+        sentences(message.content).forEach((t) => say(t, "verifier"));
+        return finishWhenDone();
+      }
       if (message.author !== "director") return listen(); // Agentaro's own notices are shown, not spoken
       finalText = message.content;
       speakUpTo(message.content, true);
@@ -423,10 +445,10 @@
       return out;
     }
 
-    function say(text) {
+    function say(text, speaker = "director") {
       const mine = generation;
       pending++;
-      const audio = fetch(app.dataset.voiceSpeakUrl, { method: "POST", body: JSON.stringify({ text }),
+      const audio = fetch(app.dataset.voiceSpeakUrl, { method: "POST", body: JSON.stringify({ text, speaker }),
         headers: { "Content-Type": "application/json", "X-CSRF-Token": chat.csrf }, credentials: "same-origin" })
         .then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b && ctx ? ctx.decodeAudioData(b) : null)).catch(() => null);
       queue = queue.then(async () => {
@@ -453,6 +475,13 @@
     start.addEventListener("click", begin);
     panel.querySelector("[data-voice-stop]").addEventListener("click", end);
     panel.querySelector("[data-voice-done]").addEventListener("click", done);
+    // Spec 019, G6: ask the verifier from voice mode; its comment is spoken in its own voice.
+    panel.querySelector("[data-voice-verify]")?.addEventListener("click", async () => {
+      if (state === "off" || state === "transcribing") return;
+      generation++; playing?.stop?.(); playing = null; pending = 0;
+      const after = chat.lastId;
+      if (await chat.verify()) { awaitingAfter = after; finalText = null; setState("thinking", "The verifier is checking…"); }
+    });
     window.addEventListener("pagehide", end);
   }
 

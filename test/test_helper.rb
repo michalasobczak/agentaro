@@ -6,6 +6,11 @@ module ActiveSupport
   class TestCase
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)
+    # Each test process has its own database, so run ids repeat across processes: give each its own runs folder,
+    # or two tests' runs share var/runs/test/<id> (found with spec 019: a flaky verifier test).
+    parallelize_setup do |worker|
+      Rails.application.config.x.runs_dir = File.join(Rails.application.config.x.runs_dir, "worker-#{worker}")
+    end
 
     include ActiveSupport::Testing::TimeHelpers
 

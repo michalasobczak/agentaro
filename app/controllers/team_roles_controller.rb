@@ -7,7 +7,7 @@ class TeamRolesController < ApplicationController
     role = current_user.team_roles.new(role: attrs[:role], role_text: attrs[:role_text],
                                        agent: Agent.visible_to(current_user).find_by(id: attrs[:agent_id]))
     if role.save
-      redirect_to team_path, notice: "#{role.agent.name} is now #{role.role == "member" ? "in your team" : "your director"}."
+      redirect_to team_path, notice: "#{role.agent.name} is now #{role.role == "member" ? "in your team" : "your #{role.role}"}."
     else
       redirect_to team_path, alert: role.errors.full_messages.to_sentence
     end

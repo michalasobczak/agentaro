@@ -53,7 +53,7 @@ class TaskRunTest < ActiveSupport::TestCase
         assert_match '"denyRead":["' + Rails.root.join("storage").realpath.to_s, args
         assert_no_match "Draft the newsletter", args, "the prompt is not in the arguments"
         assert_equal run.prompt, File.read("#{log}/stdin")
-        assert_equal File.realpath(Rails.root.join("tmp/test-runs", run.id.to_s, "work")), File.realpath(File.read("#{log}/pwd").strip)
+        assert_equal File.realpath(File.join(Rails.application.config.x.runs_dir, run.id.to_s, "work")), File.realpath(File.read("#{log}/pwd").strip)
         env = File.read("#{log}/env")
         assert_no_match "s3cret", env
         assert_no_match "SECRET_KEY_BASE", env

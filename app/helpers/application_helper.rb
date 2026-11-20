@@ -28,6 +28,7 @@ module ApplicationHelper
     pin: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
     expand: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>',
+    verify: '<path d="M12 3 4.5 6v5.5c0 4.5 3.2 8.4 7.5 9.5 4.3-1.1 7.5-5 7.5-9.5V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.4-4.6"/>',
     voice: '<path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/>',
     new_chat: '<path d="M4 5h16v11H9l-5 4V5Z"/><path d="M12 8v5M9.5 10.5h5"/>',
     board: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/><path d="M5.5 8h2M11.5 8h2M17.5 8h1"/>'
@@ -127,8 +128,9 @@ module ApplicationHelper
   # Spec 011: a chat message as the chat page shows it (rendered by the server and by chat.js alike).
   def chat_message_json(message)
     director = message.user.director_role&.agent
+    verifier = message.user.verifier_role&.agent if message.author == "verifier"
     { id: message.id, author: message.author,
-      name: { "user" => "You", "director" => director&.name || "Director", "system" => "Agentaro" }[message.author],
+      name: { "user" => "You", "director" => director&.name || "Director", "verifier" => "#{verifier&.name || "Verifier"} · verifier", "system" => "Agentaro" }[message.author],
       content: message.content, actions: message.actions_summary,
       time: l(message.created_at, format: "%H:%M"), day: l(message.created_at.to_date, format: :long) }
   end

@@ -19,6 +19,7 @@ class User < ApplicationRecord
   has_many :chat_messages, dependent: :destroy
 
   def director_role = team_roles.directors.includes(agent: :executor).first
+  def verifier_role = team_roles.verifiers.includes(agent: :executor).first # spec 019
 
   # Owner fix after spec 017: the language of the chat with the director.
   CHAT_LANGUAGES = { "auto" => "Auto", "pl" => "PL", "en" => "EN" }.freeze

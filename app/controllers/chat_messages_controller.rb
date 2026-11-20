@@ -31,7 +31,7 @@ class ChatMessagesController < ApplicationController
 
   private
 
-  def director_writing? = TaskRun.where(user: current_user, purpose: "chat", state: %w[queued running]).exists?
+  def director_writing? = TaskRun.where(user: current_user, purpose: %w[chat verify], state: %w[queued running]).exists? # spec 019: or the verifier
 
   # Spec 017, G4: the director's reply so far (own chat run only, R4).
   def streaming_reply

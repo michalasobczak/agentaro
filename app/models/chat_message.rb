@@ -1,6 +1,6 @@
 # Spec 011, G1: the conversation between a user and their director.
 class ChatMessage < ApplicationRecord
-  AUTHORS = %w[user director system].freeze
+  AUTHORS = %w[user director verifier system].freeze # spec 019: verifier
 
   self.changelog_summarized = %w[content actions_summary]
 

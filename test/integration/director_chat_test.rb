@@ -212,6 +212,35 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_select "[data-voice-done]", 1
   end
 
+  test "spec 019: the verifier on the Team page and the button in the chat; other users cannot use mine" do
+    codex = Executor.create!(name: "Codex", preset: "codex")
+    wera = Agent.create!(user: @user, name: "Wera", master_prompt: "x", executor: codex)
+    @user.team_roles.create!(agent: @director, role: "director")
+    get director_path
+    assert_select "button[data-verify]", 0, "no verifier, no button"
+    post team_roles_path, params: { team_role: { role: "verifier", agent_id: wera.id } }
+    assert_equal "Wera is now your verifier.", flash[:notice]
+    get team_path
+    assert_select ".org-node.is-verifier", text: /Wera/
+    get director_path
+    assert_select "form[action='#{verify_director_path}'] button[data-verify]"
+    assert_select "[data-voice-verify]", 1
+    post verify_director_path, headers: { "Accept" => "application/json" }
+    assert JSON.parse(response.body)["ok"]
+    assert_equal 1, TaskRun.where(user: @user, purpose: "verify").count
+    post verify_director_path, headers: { "Accept" => "application/json" }
+    assert_response :unprocessable_content
+    @user.chat_messages.create!(author: "verifier", content: "<b>Check</b> this")
+    get director_path
+    assert_select ".bubble-row.from-verifier .bubble-name", text: "Wera · verifier"
+    assert_select ".bubble-row.from-verifier .bubble-text", text: "<b>Check</b> this"
+
+    sign_in(create_user(username: "bob"))
+    post verify_director_path, headers: { "Accept" => "application/json" }
+    assert_response :unprocessable_content
+    assert_equal 1, TaskRun.where(purpose: "verify").count, "bob has no verifier; mine is not his"
+  end
+
   test "auto refresh stamp changes with new chat messages" do
     get stamp_director_path, headers: { "Accept" => "application/json" }
     first = JSON.parse(response.body)["stamp"]

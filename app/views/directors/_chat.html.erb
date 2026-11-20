@@ -20,6 +20,9 @@
       <% end %>
     </div>
     <nav class="chat-links">
+      <% if current_user.verifier_role %>
+        <%= button_to verify_director_path, class: "chat-tool verify-tool", data: { verify: true }, title: "Ask the verifier (#{current_user.verifier_role.agent.name}) to check the director", "aria-label": "Ask the verifier" do %><%= icon(:verify) %><% end %>
+      <% end %>
       <% if dock %>
         <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>
         <%= link_to director_path, class: "chat-tool", title: "Open the full chat", "aria-label": "Open the full chat" do %><%= icon(:expand) %><% end %>
@@ -27,8 +30,8 @@
       <% else %>
         <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>
         <%= link_to archive_director_path, class: "chat-tool", title: "Earlier conversations", "aria-label": "Earlier conversations" do %><%= icon(:history) %><% end %>
-        <%= link_to spaces_path, class: "button secondary small" do %><%= icon(:board) %> Spaces<% end %>
-        <%= link_to team_path, class: "button secondary small" do %><%= icon(:org) %> Team<% end %>
+        <%= link_to spaces_path, class: "chat-tool", title: "Spaces", "aria-label": "Spaces" do %><%= icon(:board) %><% end %>
+        <%= link_to team_path, class: "chat-tool", title: "Team", "aria-label": "Team" do %><%= icon(:org) %><% end %>
       <% end %>
     </nav>
   </header>
@@ -64,6 +67,7 @@
       <strong data-voice-state>Listening…</strong>
       <span class="muted small" data-voice-note>Speak; I send when you pause, or press Done.</span>
     </div>
+    <% if current_user.verifier_role %><button type="button" class="voice-verify" data-voice-verify title="Ask the verifier to check the director" aria-label="Ask the verifier"><%= icon(:verify) %></button><% end %>
     <button type="button" class="voice-done" data-voice-done hidden title="I am done speaking — send now" aria-label="Done speaking, send now"><%= icon(:send) %> Done</button>
     <button type="button" class="voice-stop" data-voice-stop title="End voice mode" aria-label="End voice mode"><%= icon(:close) %></button>
   </div>

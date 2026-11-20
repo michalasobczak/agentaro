@@ -16,7 +16,7 @@ class VoicesController < ApplicationController
   end
 
   def speak
-    send_data Voice.speak(params[:text], language: current_user.chat_language), type: "audio/wav", disposition: "inline"
+    send_data Voice.speak(params[:text], language: current_user.chat_language, speaker: params[:speaker]), type: "audio/wav", disposition: "inline"
   rescue Voice::Error => e
     render json: { error: e.message }, status: :unprocessable_content
   end

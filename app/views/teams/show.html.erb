@@ -17,6 +17,13 @@
             <span class="muted">not chosen</span>
           <% end %>
         </div>
+        <% if @verifier %>
+          <div class="org-node is-verifier">
+            <span class="org-role">Verifier</span>
+            <strong><%= @verifier.agent.name %></strong> <%= role_badge_for.(@verifier.agent) %>
+            <span class="muted small"><%= @verifier.agent.runtime_label %></span>
+          </div>
+        <% end %>
         <% if @members.any? %>
           <ul>
             <% @members.each do |member| %>
@@ -50,6 +57,21 @@
           <%= f.hidden_field :role, value: "director" %>
           <div class="field"><%= f.label :agent_id, "Agent" %><%= f.select :agent_id, agent_options %></div>
           <div><%= f.submit "Make director" %></div>
+        <% end %>
+      <% end %>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Verifier</h2></div>
+      <%# Spec 019: a second model you can ask in the chat to check the director; it only comments. %>
+      <% if @verifier %>
+        <p><strong><%= @verifier.agent.name %></strong> checks the director when you press "Ask the verifier" in the chat. It only comments.</p>
+        <%= button_to "Change verifier", team_role_path(@verifier), method: :delete, class: "secondary", form: { data: { confirm: "Remove #{@verifier.agent.name} as verifier?" } } %>
+      <% else %>
+        <p class="muted small">A second model you ask, in the chat, to check what the director says. Choose an agent on another model than the director's — e.g. Codex when the director runs on Claude.</p>
+        <%= form_with model: TeamRole.new, url: team_roles_path, class: "form" do |f| %>
+          <%= f.hidden_field :role, value: "verifier" %>
+          <div class="field"><%= f.label :agent_id, "Agent" %><%= f.select :agent_id, agent_options %></div>
+          <div><%= f.submit "Make verifier" %></div>
         <% end %>
       <% end %>
     </div>

@@ -68,6 +68,20 @@ class VoiceTest < ActiveSupport::TestCase
     with_tools { assert_raises(Voice::Error) { Voice.speak("😊 :)") } }
   end
 
+  test "spec 019: the verifier speaks with its own voice, or the main one when it has none" do
+    with_tools do |dir|
+      own = File.join(dir, "verifier.onnx")
+      Voice.speak("Sprawdzam", language: "pl", speaker: "verifier")
+      assert_match "voice.onnx", File.read(File.join(dir, "piper-args")), "no own voice: the main one"
+      File.write(own, "v")
+      Rails.application.config.x.voice = Rails.application.config.x.voice.merge(piper_voice_verifier: own)
+      Voice.speak("Sprawdzam", language: "pl", speaker: "verifier")
+      assert_match own, File.read(File.join(dir, "piper-args"))
+      Voice.speak("Dzień dobry", language: "pl", speaker: "anything else")
+      assert_no_match own, File.read(File.join(dir, "piper-args"))
+    end
+  end
+
   test "R1: only WAV, at most 2 MB" do
     with_tools do
       assert_raises(Voice::Error) { Voice.transcribe("OggS....") }

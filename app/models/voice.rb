@@ -17,7 +17,12 @@ class Voice
   def self.speaking? = File.executable?(config[:piper_bin]) && File.file?(config[:piper_voice])
 
   # Owner fix after spec 017: a voice per language; Polish is the main one, English is optional.
-  def self.voice_for(language)
+  # Spec 019, G6: the verifier speaks with its own voice when one is installed for the language.
+  def self.voice_for(language, speaker = "director")
+    if speaker == "verifier"
+      own = config[language == "en" ? :piper_voice_verifier_en : :piper_voice_verifier]
+      return own if own.present? && File.file?(own)
+    end
     english = config[:piper_voice_en]
     language == "en" && english && File.file?(english) ? english : config[:piper_voice]
   end
@@ -55,7 +60,7 @@ class Voice
   end
 
   # G5: text in, WAV bytes out, in the voice of the chosen language ("auto": guessed from the text).
-  def self.speak(text, language: "auto")
+  def self.speak(text, language: "auto", speaker: "director")
     raise Error, "The voice is not installed on this computer." unless speaking?
 
     text = readable(text)
@@ -64,7 +69,7 @@ class Voice
 
     Dir.mktmpdir("agentaro-voice") do |dir|
       path = File.join(dir, "speech.wav")
-      voice = voice_for(%w[pl en].include?(language) ? language : guess_language(text))
+      voice = voice_for(%w[pl en].include?(language) ? language : guess_language(text), speaker.to_s == "verifier" ? "verifier" : "director")
       result = HostProcess.run(config[:piper_bin], [ "-m", voice, "-f", path ], stdin: text, chdir: dir, timeout: 30, max_output: 64 * 1024)
       raise Error, "The voice did not finish in time." if result.timed_out
       raise Error, "The voice failed." unless result.success? && File.file?(path)

@@ -89,7 +89,10 @@ module Agentaro
       whisper_model: ENV.fetch("AGENTARO_WHISPER_MODEL", File.join(voice_dir, "ggml-large-v3-turbo-q5_0.bin")),
       piper_bin: ENV.fetch("AGENTARO_PIPER_BIN", File.join(voice_dir, "piper-venv/bin/piper")),
       piper_voice: ENV.fetch("AGENTARO_PIPER_VOICE", File.join(voice_dir, "pl_PL-gosia-medium.onnx")),           # Polish
-      piper_voice_en: ENV.fetch("AGENTARO_PIPER_VOICE_EN", File.join(voice_dir, "en_US-lessac-medium.onnx"))   # English (optional)
+      piper_voice_en: ENV.fetch("AGENTARO_PIPER_VOICE_EN", File.join(voice_dir, "en_US-lessac-medium.onnx")),  # English (optional)
+      # Spec 019: the verifier's own voices (optional; the main voice of the language when missing)
+      piper_voice_verifier: ENV.fetch("AGENTARO_PIPER_VOICE_VERIFIER", File.join(voice_dir, "pl_PL-darkman-medium.onnx")),
+      piper_voice_verifier_en: ENV.fetch("AGENTARO_PIPER_VOICE_VERIFIER_EN", File.join(voice_dir, "en_US-ryan-medium.onnx"))
     }
 
     # Command-line sessions are recorded as "cli:<user>" in the data changelog (spec 004).
