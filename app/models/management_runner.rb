@@ -163,6 +163,12 @@ class ManagementRunner
     "You work in Agentaro for #{@user.username}. Now: #{now.strftime("%A %-d %B %Y, %H:%M")} (#{Time.zone.name}).\nMode: #{@run.purpose}"
   end
 
+  # Owner fix after spec 017: the user's chosen conversation language, or the language of their latest message.
+  def reply_language
+    name = User::LANGUAGE_NAMES[@user.chat_language]
+    name ? "Write your reply in #{name}." : "Write your reply in the language of #{@user.username}'s latest message (for example Polish when they write Polish)."
+  end
+
   def team_members = @user.team_roles.members.includes(agent: :executor).order(:id).to_a
 
   def member_line(member)
@@ -224,13 +230,14 @@ class ManagementRunner
       Conversation (latest last):
       #{history.join("\n")}
 
-      Answer #{@user.username}'s latest messages. Reply with ONLY one JSON object, no other text:
+      Answer #{@user.username}'s latest messages. #{reply_language} These instructions are in English only for you. Messages may come from speech recognition, so forgive small transcription errors.
+      Reply with ONLY one JSON object, no other text:
       {"reply": "your message to #{@user.username}", "actions": [ ... ]}
       Actions (at most #{MAX_ACTIONS}, may be empty):
       {"type": "add_item", "space": <space id, or the name of a space added in this reply>, "title": "...", "description": "...", "starts_at": "YYYY-MM-DDTHH:MM" or null, "due_on": "YYYY-MM-DD" or null, "priority": "normal" or "high"}
       {"type": "update_item", "id": 1, "space": ..., "title": "...", "description": "...", "starts_at": ..., "due_on": ..., "priority": ...} (give only fields to change; items in state new or blocked can change everything, planned items that have not started only title, starts_at and priority)
       {"type": "add_space", "kind": "project" or "team", "name": "...", "goal": "what #{@user.username} wants to achieve (project spaces only)", "description": "what the space is about; for a team space, what it takes care of"}
-      {"type": "update_space", "id": 1, "kind": ..., "name": "...", "goal": "...", "description": "..."} (give only fields to change; a project space needs a goal)
+      {"type": "update_space", "id": 1, "kind": ..., "name": "...", "goal": "...", "description": "...", "working_dir": "/absolute/path" or null} (give only fields to change; a project space needs a goal; working_dir is the folder on this computer its steps work in)
       A project space works towards a goal; a team space has no goal and takes care of ongoing work.
       {"type": "cancel_item", "id": 1}
       {"type": "reprioritize", "id": 1, "priority": "normal" or "high"}
@@ -254,7 +261,7 @@ class ManagementRunner
       Your team members (use only these ids):
       #{members.presence&.join("\n") || "(none)"}
 
-      Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member.
+      Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member. Write the summary, titles and descriptions in the language of the work item.
       Reply with ONLY one JSON object, no other text:
       {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>}]}
       or, if you cannot plan it or need #{@user.username}'s decision: {"blocked": "your question to #{@user.username}"}
@@ -317,7 +324,7 @@ class ManagementRunner
       -> { space.save!; "New space: #{space.name}" }
     when "update_space"
       space = @user.spaces.find_by(id: action["id"]) or raise Invalid, "update_space: no space with id #{action["id"].inspect}"
-      space.assign_attributes(action.slice("kind", "name", "goal", "description"))
+      space.assign_attributes(action.slice("kind", "name", "goal", "description", "working_dir"))
       raise Invalid, "update_space: #{space.errors.full_messages.to_sentence}" unless space.valid?
 
       -> { space.save!; "Space updated: #{space.name}" }
@@ -407,12 +414,14 @@ class ManagementRunner
       @item.update!(state: "planned", plan_summary: summary, blocked_reason: nil, finished_at: nil)
     end
     start = @item.starts_at && @item.starts_at > Time.current ? "starts #{@item.starts_at.in_time_zone.strftime("%A %-d %B, %H:%M")}" : "starting now"
-    say("director", "#{summary || "Planned."}\n\nPlanned \"#{@item.title}\": #{steps.size} step#{"s" unless steps.size == 1}, #{start}; they run one after another.")
+    # Owner fix after spec 017: Agentaro's own note goes under the message (actions), so the director's words stay
+    # in the user's language and only they are spoken.
+    say("director", summary || @item.title, actions_summary: "Planned \"#{@item.title}\": #{steps.size} step#{"s" unless steps.size == 1}, #{start}; they run one after another.")
     StepChain.start_due(user: @user)
   end
 
   def block_with_question!(question)
     @item.block!(question)
-    say("director", "About \"#{@item.title}\": #{question}")
+    say("director", question, actions_summary: "Question about \"#{@item.title}\"") # the director's words only (owner fix after spec 017)
   end
 end

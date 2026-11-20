@@ -169,4 +169,20 @@ class SpacesTest < ActionDispatch::IntegrationTest
     post retry_work_item_path(theirs)
     assert_response :not_found
   end
+
+  test "spec 018: the space form takes a working folder; the space and epic pages show it" do
+    Dir.mktmpdir do |dir|
+      post spaces_path, params: { space: { kind: "project", name: "Code", goal: "Ship", working_dir: dir } }
+      space = @user.spaces.find_by!(name: "Code")
+      assert_equal File.realpath(dir), space.working_dir
+      get space_path(space)
+      assert_select ".space-folder code", text: File.realpath(dir)
+      epic = @user.work_items.create!(title: "Bug", space: space)
+      get work_item_path(epic)
+      assert_select "dd code", text: File.realpath(dir)
+      patch space_path(space), params: { space: { working_dir: "relative" } }
+      assert_response :unprocessable_content
+      assert_select ".errors", text: /must be an absolute path/
+    end
+  end
 end

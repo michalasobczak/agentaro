@@ -11,6 +11,14 @@
       <strong><%= director.name %></strong>
       <span class="chat-status muted small" data-status><%= writing ? "writing…" : "your director" %></span>
     </div>
+    <%# Owner fix after spec 017: the conversation language — recognition, replies and voice. %>
+    <div class="lang-switch" role="group" aria-label="Conversation language">
+      <% User::CHAT_LANGUAGES.each do |code, label| %>
+        <%= button_to label, chat_language_path(language: code), method: :patch, class: ["lang", ("is-active" if current_user.chat_language == code)].compact.join(" "),
+                      "aria-pressed": current_user.chat_language == code,
+                      title: { "auto" => "Language of your latest message", "pl" => "Polski", "en" => (Voice.english_voice? ? "English" : "English (English voice not installed: Polish voice reads it)") }[code] %>
+      <% end %>
+    </div>
     <nav class="chat-links">
       <% if dock %>
         <%= button_to new_conversation_director_path, class: "chat-tool", title: "New conversation", "aria-label": "New conversation", form: { data: { confirm: "Start a new conversation? This one moves to the archive; your epics and plans stay." } } do %><%= icon(:new_chat) %><% end %>
@@ -54,8 +62,9 @@
     <span class="voice-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
     <div class="voice-info">
       <strong data-voice-state>Listening…</strong>
-      <span class="muted small" data-voice-note>Speak; I send when you pause.</span>
+      <span class="muted small" data-voice-note>Speak; I send when you pause, or press Done.</span>
     </div>
+    <button type="button" class="voice-done" data-voice-done hidden title="I am done speaking — send now" aria-label="Done speaking, send now"><%= icon(:send) %> Done</button>
     <button type="button" class="voice-stop" data-voice-stop title="End voice mode" aria-label="End voice mode"><%= icon(:close) %></button>
   </div>
   <%= form_with model: ChatMessage.new, url: chat_messages_path, class: "chat-composer" do |f| %>

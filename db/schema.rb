@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_121000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -112,6 +112,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_090000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "kind", default: "project", null: false
+    t.string "working_dir"
     t.index ["user_id", "name"], name: "index_spaces_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_spaces_on_user_id"
   end
@@ -206,6 +207,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_090000) do
     t.datetime "password_changed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "chat_language", default: "auto", null: false
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 

@@ -20,6 +20,11 @@ class User < ApplicationRecord
 
   def director_role = team_roles.directors.includes(agent: :executor).first
 
+  # Owner fix after spec 017: the language of the chat with the director.
+  CHAT_LANGUAGES = { "auto" => "Auto", "pl" => "PL", "en" => "EN" }.freeze
+  LANGUAGE_NAMES = { "pl" => "Polish", "en" => "English" }.freeze
+  validates :chat_language, inclusion: { in: CHAT_LANGUAGES.keys }
+
   normalizes :username, with: ->(u) { u.to_s.strip.downcase }
 
   validates :username, presence: true, format: { with: USERNAME_FORMAT, message: "must be 3–32 characters: a–z, 0–9, . _ -" },

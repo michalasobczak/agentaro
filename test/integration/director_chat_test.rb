@@ -199,6 +199,19 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     ReplyStream.clear(run.id) if run
   end
 
+  test "owner fix after spec 017: the language switch in the chat header" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    get director_path
+    assert_select ".lang-switch form[action='#{chat_language_path(language: "auto")}'] button.is-active", text: "Auto"
+    patch chat_language_path(language: "pl")
+    assert_equal "pl", @user.reload.chat_language
+    patch chat_language_path(language: "klingon")
+    assert_equal "pl", @user.reload.chat_language, "unknown languages are ignored"
+    get director_path
+    assert_select ".lang-switch button.is-active", text: "PL"
+    assert_select "[data-voice-done]", 1
+  end
+
   test "auto refresh stamp changes with new chat messages" do
     get stamp_director_path, headers: { "Accept" => "application/json" }
     first = JSON.parse(response.body)["stamp"]

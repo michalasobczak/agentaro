@@ -25,6 +25,7 @@ Rails.application.routes.draw do
   post "director/voice/transcribe", to: "voices#transcribe", as: :voice_transcribe
   post "director/voice/speak", to: "voices#speak", as: :voice_speak
   get "director/voice/status", to: "voices#status", as: :voice_status
+  patch "director/language", to: "voices#language", as: :chat_language
   resources :chat_messages, only: %i[index create], path: "director/messages"
   resources :work_items, only: :show, path: "epics" do # owner fix after spec 013: no list page; epics live on their space boards
     member do

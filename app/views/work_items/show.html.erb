@@ -7,6 +7,7 @@
   <div class="card">
     <dl class="facts">
       <dt>Space</dt><dd><%= link_to @item.space.name, space_path(@item.space) %></dd>
+      <% if @item.space.working_dir %><dt>Folder</dt><dd><code><%= @item.space.working_dir %></code></dd><% end %>
       <dt>State</dt><dd><%= item_state_badge(@item) %></dd>
       <dt>Priority</dt><dd><%= @item.priority %></dd>
       <dt>Start</dt><dd><%= epic_start_label(@item) %></dd>

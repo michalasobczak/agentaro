@@ -99,6 +99,14 @@ Install tools → `Voice` with stand-in tests → endpoints → streaming in `Ho
 - **External dependencies:** whisper.cpp (MIT) and a Whisper model (MIT); Piper (GPL, run as a separate program) and a Polish voice (see its model card).
 - **Questions:** Q1–Q5 answered by the owner (see Abstract).
 
+## Owner fixes after release (2026-11-20)
+
+- "mówię po polsku, model odpowiada po angielsku; system czyta angielski, jakby to był polski": the director's prompt now names the reply language. Agentaro's own notes ("Planned…", "Question about…") go under the message instead of into it, and "Done…" is an Agentaro notice. Voice mode speaks only the director's own words.
+- "dodaj przycisk mówiący, że skończyłem mówić (nie wykrył pauzy)": a **Done** button sends what was said so far. The pause is now detected relative to the speaker's own loudness too, so steady background noise no longer hides it.
+- "wybierz może w rozmowie przełącznik języka": an **Auto / PL / EN** switch in the chat header, saved per user. It sets the language for Whisper, the director's replies ("Write your reply in Polish/English", or the latest message's language) and Piper's voice (Polish voice; English voice when installed, `AGENTARO_PIPER_VOICE_EN`; Auto guesses from the text).
+
+- "nie czytaj uśmieszków": emoji, text smileys and Markdown marks are removed from what Piper reads; the chat shows the reply unchanged.
+
 ## Security analysis (B20), after spec 017
 
 Scope: this spec and specs 001–016.
@@ -109,4 +117,5 @@ Scope: this spec and specs 001–016.
 - **Audit log.** Recordings are not stored in the audit log; it keeps only "[N bytes, audio/wav, not stored]" (spec 003 behaviour, unchanged). Text sent for speech is the director's own reply, already in the chat.
 - **Microphone.** Used only after the user presses the voice button, and released when voice mode ends or the page is left.
 - **Found on the way.** Text with Polish letters given to a program on standard input could fail with an encoding error; the pipe is now binary (test through the speech path). A variable kept from an earlier loop pass duplicated the end of a streamed reply; fixed and tested.
+- **Language switch.** Only auto, pl or en are stored and passed to whisper (test with a forged value); the voice file is chosen from settings, never from the request.
 - **Regressions in 001–016.** Brakeman: no warnings. `bundle-audit`: no vulnerabilities.

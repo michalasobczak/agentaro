@@ -40,7 +40,7 @@ class StepChain
     return unless item.epic_steps.exists? && item.epic_steps.all? { |s| s.state == "succeeded" }
 
     item.done!
-    say(item, "director", "Done: \"#{item.title}\" — all #{item.epic_steps.size} step#{"s" unless item.epic_steps.size == 1} finished. The results are on the epic's page.")
+    say(item, "system", "Done: \"#{item.title}\" — all #{item.epic_steps.size} step#{"s" unless item.epic_steps.size == 1} finished. The results are on the epic's page.")
     nil
   end
 
@@ -105,6 +105,9 @@ class StepChain
     lines << "\nDetails:\n#{step.description}" if step.description.present?
     lines << "\nThis is step #{step.position} of #{total} of the epic \"#{item.title}\", planned by your director, in the space \"#{item.space.name}\" (#{item.space.purpose_line})."
     lines << "Epic details: #{item.description}" if item.description.present?
+    if (dir = item.space.working_dir) # spec 018, G6
+      lines << "\nYou work in the space's folder #{dir} (your current directory). You may read and change files there, run commands and tools (git, docker, package managers, a browser) and use the network. Folders of other projects are not accessible."
+    end
     earlier = earlier_answers(step)
     lines << "\nAnswers of the earlier steps (oldest first):\n\n#{earlier}" if earlier.present?
     lines << "\nDo the task now and answer with the result."

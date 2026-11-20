@@ -65,7 +65,8 @@ class ManagementRunnerTest < ActiveSupport::TestCase
     messages = @user.chat_messages.ordered.map { |m| [ m.author, m.content ] }
     assert_equal [ "director", "On it." ], messages[1]
     assert_match "Added to the list: Backup summary", @user.chat_messages.where(author: "director").first.actions_summary
-    assert_match(/\AResearch then write\n\nPlanned "Backup summary": 2 steps, starts .*; they run one after another\./, messages.last[1])
+    assert_equal "Research then write", messages.last[1], "owner fix after spec 017: only the director's words are the message (and are spoken)"
+    assert_match(/\APlanned "Backup summary": 2 steps, starts .*; they run one after another\.\z/, @user.chat_messages.last.actions_summary)
     assert_match "Member id #{@writer.id}: Pisarz, role: writer", prompt("director")
     assert_match "Its steps run one after another", prompt("director")
     assert_no_match "Busy times", prompt("director")
@@ -129,7 +130,7 @@ class ManagementRunnerTest < ActiveSupport::TestCase
       run_all
     end
     assert_equal [ "blocked", "Which city?" ], [ item.reload.state, item.blocked_reason ]
-    assert_equal "About \"Unclear\": Which city?", @user.chat_messages.last.content
+    assert_equal [ "Which city?", "Question about \"Unclear\"" ], [ @user.chat_messages.last.content, @user.chat_messages.last.actions_summary ], "the director's words only; Agentaro's note below"
 
     assert_equal 0, Task.count
   end
@@ -323,5 +324,18 @@ class ManagementRunnerConversationTest < ActiveSupport::TestCase
     prompt = ManagementRunner.new(TaskRun.new(user: user, purpose: "chat")).send(:chat_prompt)
     assert_match "Fresh start", prompt
     assert_no_match "Archived secret topic", prompt
+  end
+end
+
+class ConversationLanguageTest < ActiveSupport::TestCase
+  test "owner fix after spec 017: the director replies in the chosen language, or the user's" do
+    user = create_user
+    prompt = -> { ManagementRunner.new(TaskRun.new(user: user, purpose: "chat")).send(:chat_prompt) }
+    assert_match "Write your reply in the language of alice's latest message", prompt.()
+    user.update!(chat_language: "pl")
+    assert_match "Write your reply in Polish.", prompt.()
+    user.update!(chat_language: "en")
+    assert_match "Write your reply in English.", prompt.()
+    assert_not user.update(chat_language: "de")
   end
 end

@@ -75,7 +75,7 @@ Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything e
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
-- **Spaces and epics (specs 013, 014):** your work is split into spaces — project spaces work towards a goal, team spaces take care of ongoing work without one. Each space has a kanban board of its epics (the director's units of work): New, Planned, Blocked, Done; drag cards to set their order, mark them Done or Cancel. Breadcrumbs lead from Spaces down to an epic, its steps and their runs. Agents working on an epic see only its space. An epic starts at the time you give (or at once); its steps then run one after another, each with the earlier answers, and a failed step stops it until you press Try again (spec 016). The calendar shows each epic as a bar from its start to its end; steps are not in the calendar.
+- **Spaces and epics (specs 013, 014):** your work is split into spaces — project spaces work towards a goal, team spaces take care of ongoing work without one. Each space has a kanban board of its epics (the director's units of work): New, Planned, Blocked, Done; drag cards to set their order, mark them Done or Cancel. Breadcrumbs lead from Spaces down to an epic, its steps and their runs. Agents working on an epic see only its space. A space may have a working folder on this computer (spec 018): its steps work there like a developer — edit, commit, push, Docker, network — and cannot read other spaces' folders. **Anyone with an Agentaro account can point a space at any folder of the Mac account Agentaro runs as: give accounts only to people you trust with that account.** An epic starts at the time you give (or at once); its steps then run one after another, each with the earlier answers, and a failed step stops it until you press Try again (spec 016). The calendar shows each epic as a bar from its start to its end; steps are not in the calendar.
 - **Director and management (specs 011, 012):** you talk only to your director in a chat — on the Director page, or from any page in a panel on the right; "New conversation" starts fresh and keeps the old one in an archive (spec 015). Replies stream word by word, and the voice button starts a hands-free spoken conversation: Whisper and Piper run on this computer (spec 017). The director keeps your work list and, when an item's time comes, plans it as steps for the members of your team (spec 012: no managers); the steps go into the calendar. Your team (director and members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
 - **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
@@ -113,7 +113,9 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-20: spec 016 drafted — an epic starts at a time; its steps run back to back with the earlier results, no times in the calendar.
 - 2026-11-20: spec 016 implemented — epics start at a time and run their steps back to back with chained results; failure blocks, Try again resumes; calendar bars from start to end; verified with Claude (2 steps in 22 s). Tests: 206.
 - 2026-11-20: spec 017 implemented — the director's replies stream word by word; voice mode: local Whisper transcribes, a local Piper voice speaks, hands-free with silence detection. Tests: 213.
-- Next: later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per space and per agent), self-improvement.
+- 2026-11-20: spec 018 drafted — a working folder per space (direct editing, tools and network; no reading other spaces' folders); the verifier moves to 019.
+- 2026-11-20: spec 018 implemented — a space may have a working folder; its steps edit, commit, use Docker and the network there, and cannot read other spaces' folders (Claude Code; verified on the host). Tests: 224.
+- Next: 019 verifier; later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per space and per agent), self-improvement.
 
 ## Specifications
 
@@ -136,6 +138,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 015 | [New conversation with the director](specs/015-new-conversation.md) | implemented |
 | 016 | [Epics start at a time; steps run one after another](specs/016-sequential-steps.md) | implemented |
 | 017 | [Talking to the director: voice and streamed answers](specs/017-voice-and-streaming.md) | implemented (E2E with a microphone: owner) |
+| 018 | [A working folder for a space](specs/018-working-folders.md) | implemented (F17, F18 accepted) |
+| 019 | A second model in the chat as the director's verifier | not written |
 | — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per space and per agent | not written |

@@ -42,4 +42,6 @@ Voice for the director chat (spec 017), optional — files in `storage/voice/` (
 - `python3 -m venv storage/voice/piper-venv && storage/voice/piper-venv/bin/pip install piper-tts`, then the voice `pl_PL-gosia-medium.onnx` (+ `.onnx.json`) from huggingface.co/rhasspy/piper-voices into `storage/voice/`;
 - other paths: `AGENTARO_WHISPER_BIN`, `AGENTARO_WHISPER_MODEL`, `AGENTARO_PIPER_BIN`, `AGENTARO_PIPER_VOICE`. Without them the voice button is disabled; text chat works.
 
+Docker for steps in spaces with a working folder (spec 018), optional: `brew install colima docker`, `colima start` (or `brew services start colima` to start it with the Mac). The socket is found at `~/.colima/default/docker.sock` or `~/.docker/run/docker.sock`, or set `AGENTARO_DOCKER_SOCKET`.
+
 Security tools used in the analysis (not in the Gemfile): `gem install bundler-audit brakeman`, then `bundle-audit check --update` and `brakeman -q`.

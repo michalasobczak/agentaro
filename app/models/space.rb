@@ -12,6 +12,7 @@ class Space < ApplicationRecord
   normalizes :name, with: ->(value) { value.to_s.strip.presence }
   normalizes :goal, with: ->(value) { value.to_s.strip.presence }
   normalizes :description, with: ->(value) { value.to_s.strip.presence }
+  normalizes :working_dir, with: ->(value) { value.to_s.strip.presence }
 
   before_validation { self.goal = nil if team? } # spec 014, R1: a team space has no goal
 
@@ -21,9 +22,20 @@ class Space < ApplicationRecord
   validates :goal, length: { maximum: 2000 }
   validates :description, length: { maximum: 5000 }
   validates :state, inclusion: { in: STATES }
+  validate :working_dir_usable
 
   scope :active, -> { where(state: "active") }
   scope :ordered, -> { order(Arel.sql("CASE state WHEN 'active' THEN 0 ELSE 1 END"), Arel.sql("LOWER(name)")) }
+
+  # Spec 018: folders agents of a space with a working folder may never read — Agentaro's storage, the runs of
+  # other steps — and the working folders of all other spaces (of every user), except folders that contain this one.
+  def self.protected_dirs = [ Rails.root.join("storage"), Pathname(Rails.application.config.x.runs_dir).dirname ].map { |p| File.expand_path(p.to_s) }
+
+  def denied_dirs
+    others = Space.where.not(working_dir: nil).where.not(id: id).distinct.pluck(:working_dir)
+    others.reject! { |dir| working_dir == dir || working_dir.start_with?(dir.end_with?("/") ? dir : "#{dir}/") }
+    (self.class.protected_dirs + others).uniq
+  end
 
   def active? = state == "active"
   def project? = kind == "project"
@@ -45,5 +57,21 @@ class Space < ApplicationRecord
     return nil if active.many? || user.spaces.exists?(name: DEFAULT_NAME)
 
     user.spaces.new(name: DEFAULT_NAME, kind: "team", description: DEFAULT_DESCRIPTION)
+  end
+
+  private
+
+  # Spec 018, R1: an absolute path to an existing folder, stored resolved; never "/", Agentaro's storage or the runs.
+  def working_dir_usable
+    return if working_dir.blank?
+    return errors.add(:working_dir, "must be an absolute path, e.g. /Users/you/Code/project") unless working_dir.start_with?("/")
+    return errors.add(:working_dir, "does not exist or is not a folder") unless File.directory?(working_dir)
+
+    self.working_dir = File.realpath(working_dir)
+    return errors.add(:working_dir, "cannot be the whole disk") if working_dir == "/"
+
+    if self.class.protected_dirs.any? { |dir| working_dir == dir || working_dir.start_with?("#{dir}/") }
+      errors.add(:working_dir, "cannot be Agentaro's storage or runs folder")
+    end
   end
 end

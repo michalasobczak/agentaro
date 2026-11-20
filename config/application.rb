@@ -78,13 +78,18 @@ module Agentaro
     config.x.run_workers = 2
     config.x.run_timeout = 15 * 60 # seconds
     config.x.runs_dir = File.expand_path("../var/runs/#{Rails.env}", __dir__) # one folder per environment
+    # Spec 018: the Docker socket agents may use in spaces with a working folder (Colima, else Docker Desktop).
+    config.x.docker_socket = ENV.fetch("AGENTARO_DOCKER_SOCKET") do
+      [ "~/.colima/default/docker.sock", "~/.docker/run/docker.sock" ].map { |p| File.expand_path(p) }.find { |p| File.exist?(p) }
+    end
     # Spec 017: local voice tools (outside the repository, in storage/voice); paths can be changed in settings.
     voice_dir = File.expand_path("../storage/voice", __dir__)
     config.x.voice = {
       whisper_bin: ENV.fetch("AGENTARO_WHISPER_BIN", "/opt/homebrew/bin/whisper-cli"),
       whisper_model: ENV.fetch("AGENTARO_WHISPER_MODEL", File.join(voice_dir, "ggml-large-v3-turbo-q5_0.bin")),
       piper_bin: ENV.fetch("AGENTARO_PIPER_BIN", File.join(voice_dir, "piper-venv/bin/piper")),
-      piper_voice: ENV.fetch("AGENTARO_PIPER_VOICE", File.join(voice_dir, "pl_PL-gosia-medium.onnx"))
+      piper_voice: ENV.fetch("AGENTARO_PIPER_VOICE", File.join(voice_dir, "pl_PL-gosia-medium.onnx")),           # Polish
+      piper_voice_en: ENV.fetch("AGENTARO_PIPER_VOICE_EN", File.join(voice_dir, "en_US-lessac-medium.onnx"))   # English (optional)
     }
 
     # Command-line sessions are recorded as "cli:<user>" in the data changelog (spec 004).

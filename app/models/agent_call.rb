@@ -46,18 +46,28 @@ class AgentCall
 
   def work_dir = folder.join("work")
 
+  # Spec 018: the space whose working folder this step runs in (steps of epics only; nil otherwise).
+  def working_space
+    space = @run.epic_step&.work_item&.space if @run.respond_to?(:epic_step)
+    space if space&.working_dir.present?
+  end
+
   # --- Command-line tools: prompt on standard input, fixed arguments, the run folder as working folder ---
 
   def run_cli(preset, executor, model, prompt)
     program = ExecutorCheck.locate(preset.program)
     return Outcome.new("failed", nil, "#{preset.program} was not found on this computer.", nil) unless program
 
-    args, stdin, answer_file = cli_call(preset.key, model, prompt)
+    space = working_space
+    return Outcome.new("failed", nil, "Working folder not found: #{space.working_dir}", nil) if space && !File.directory?(space.working_dir)
+
+    @chdir = space ? space.working_dir : work_dir.to_s # spec 018: the space's folder, else the run's own empty folder
+    args, stdin, answer_file = cli_call(preset.key, model, prompt, space)
     return Outcome.new("failed", nil, "Choose a model for #{executor.name} (agent or executor default).", nil) if args.nil?
 
     stream = @on_text && preset.key == "claude_code" ? ClaudeStream.new(@on_text) : nil
     args = stream.arguments(args) if stream
-    result = HostProcess.run(program, args, stdin: stdin, chdir: work_dir.to_s, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
+    result = HostProcess.run(program, args, stdin: stdin, chdir: @chdir, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
                              on_stdout: stream&.method(:feed))
     answer = answer_file && File.exist?(answer_file) ? File.read(answer_file) : (stream ? stream.answer(result.stdout) : result.stdout)
     if result.timed_out
@@ -106,18 +116,19 @@ class AgentCall
   end
 
   # [arguments, standard input, answer file]; nil arguments when a needed model is missing.
-  def cli_call(key, model, prompt)
+  def cli_call(key, model, prompt, space = nil)
     case key
     when "claude_code"
       # Web search and fetch are allowed (owner fix: "Claude said, that it couldnt use web search"); in print
       # mode every tool that is not allowed up front is refused.
       args = [ "-p", "--output-format", "text", "--no-session-persistence", "--permission-mode", "acceptEdits",
-               "--allowedTools", WEB_TOOLS, "--settings", claude_settings ]
+               "--allowedTools", (space ? "Bash #{WEB_TOOLS}" : WEB_TOOLS), "--settings", claude_settings(space) ]
       args += [ "--model", model ] if model
       [ args, prompt.text, nil ]
     when "codex"
       answer = folder.join("answer.txt").to_s
-      args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", work_dir.to_s, "-o", answer ]
+      args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
+      args.insert(5, "-c", "sandbox_workspace_write.network_access=true") if space # spec 018, Q5: network in a working folder (reads not limited: F17)
       args += [ "-m", model ] if model
       [ args + [ "-" ], prompt.text, answer ]
     when "ollama_cli"
@@ -128,10 +139,25 @@ class AgentCall
   end
 
   # R4: writes and commands sandboxed to the run folder; Agentaro's storage (databases, secrets) unreadable.
-  def claude_settings
+  # Spec 018, G3/G4: in a space's working folder — writes there and in temp folders, any command, any host, the
+  # Docker socket (Q6); reads of other spaces' folders, Agentaro's storage and other runs denied for both Claude's
+  # tools and its commands (checked on the host).
+  def claude_settings(space = nil)
+    return folder_settings(space) if space
+
     storage = Rails.root.join("storage").realpath.to_s
     { permissions: { deny: [ "Read(/#{storage}/**)", "Edit(/#{storage}/**)" ] },
       sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { denyRead: [ storage ] } } }.to_json
+  end
+
+  def folder_settings(space)
+    denied = space.denied_dirs
+    sockets = [ Rails.application.config.x.docker_socket ].compact
+    { permissions: { allow: [ "Bash", "WebFetch", "WebSearch" ],
+                     deny: denied.flat_map { |dir| [ "Read(/#{dir}/**)", "Edit(/#{dir}/**)" ] } },
+      sandbox: { enabled: true, failIfUnavailable: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
+                 filesystem: { denyRead: denied },
+                 network: { allowedDomains: [ "*" ], allowUnixSockets: sockets } } }.to_json
   end
 
   # --- Local APIs without a key: one chat request ---

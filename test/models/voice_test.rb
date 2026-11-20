@@ -41,6 +41,33 @@ class VoiceTest < ActiveSupport::TestCase
     end
   end
 
+  test "owner fix after spec 017: the language goes to whisper; the voice follows the language" do
+    with_tools do |dir|
+      Voice.transcribe(WAV, language: "pl")
+      assert_match "-l pl -nt", File.read(File.join(dir, "whisper-args"))
+      Voice.transcribe(WAV, language: "xx; rm")
+      assert_match "-l auto -nt", File.read(File.join(dir, "whisper-args")), "only known languages reach whisper"
+      english = File.join(dir, "en.onnx")
+      File.write(english, "e")
+      Rails.application.config.x.voice = Rails.application.config.x.voice.merge(piper_voice_en: english)
+      Voice.speak("Good morning", language: "en")
+      assert_match english, File.read(File.join(dir, "piper-args"))
+      Voice.speak("Dzień dobry", language: "auto")
+      assert_match "voice.onnx", File.read(File.join(dir, "piper-args")), "auto: Polish text, Polish voice"
+      Voice.speak("Good morning", language: "auto")
+      assert_match english, File.read(File.join(dir, "piper-args"))
+    end
+  end
+
+  test "owner fix after spec 017: emoji, smileys and Markdown are not read aloud" do
+    assert_equal "Gotowe! Plan jest w kalendarzu.", Voice.readable("**Gotowe!** 🎉 Plan jest w kalendarzu 😊.")
+    assert_equal "Super, dzięki!", Voice.readable("Super :) , dzięki ;-)!")
+    assert_equal "Lista: pierwszy punkt", Voice.readable("# Lista:\n- pierwszy `punkt` 👍🏽")
+    assert_equal "Godzina 10:30, kurs 3:2.", Voice.readable("Godzina 10:30, kurs 3:2."), "times and scores stay"
+    assert_equal "Na e-mail: a_b@x.pl", Voice.readable("Na e-mail: a_b@x.pl")
+    with_tools { assert_raises(Voice::Error) { Voice.speak("😊 :)") } }
+  end
+
   test "R1: only WAV, at most 2 MB" do
     with_tools do
       assert_raises(Voice::Error) { Voice.transcribe("OggS....") }

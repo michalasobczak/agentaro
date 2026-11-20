@@ -231,11 +231,12 @@
     const stateLabel = panel.querySelector("[data-voice-state]");
     const note = panel.querySelector("[data-voice-note]");
     const dots = [...panel.querySelectorAll(".voice-dots i")];
+    const doneButton = panel.querySelector("[data-voice-done]");
     const LABELS = { listening: "Listening…", hearing: "Listening…", transcribing: "Writing down…", thinking: "Thinking…", speaking: "Speaking…", error: "Voice problem" };
     const SILENCE_MS = 1000, MIN_SPEECH_MS = 350, MAX_SPEECH_MS = 30000, TARGET_RATE = 16000;
 
     let state = "off", ctx = null, mic = null, source = null, processor = null;
-    let floor = 0.01, loudMs = 0, quietMs = 0, speechMs = 0, chunks = [], preroll = [];
+    let floor = 0.01, loudMs = 0, quietMs = 0, speechMs = 0, chunks = [], preroll = [], peak = 0, heard = [], heardMs = 0;
     let awaitingAfter = null, spoken = 0, finalText = null, generation = 0, playing = null, queue = Promise.resolve(), pending = 0;
 
     function setState(next, text) {
@@ -244,6 +245,7 @@
       stateLabel.textContent = LABELS[next] || "";
       if (text != null) note.textContent = text;
       if (next !== "hearing") dots.forEach((d) => { d.style.height = ""; });
+      doneButton.hidden = next !== "listening" && next !== "hearing";
     }
 
     async function begin() {
@@ -282,7 +284,7 @@
     }
 
     function listen(text) {
-      chunks = []; preroll = []; loudMs = quietMs = speechMs = 0;
+      chunks = []; preroll = []; heard = []; loudMs = quietMs = speechMs = heardMs = peak = 0;
       setState("listening", text ?? "Speak; I send when you pause.");
     }
 
@@ -302,20 +304,32 @@
 
       if (level < threshold && state === "listening") floor = floor * 0.95 + level * 0.05;
       const copy = new Float32Array(samples);
+      // Everything since listening began (up to 30 s), for the Done button when no speech was detected.
+      heard.push(copy); heardMs += ms;
+      while (heardMs > MAX_SPEECH_MS && heard.length > 1) { heardMs -= (heard.shift().length / ctx.sampleRate) * 1000; }
       if (state === "listening") {
         preroll.push(copy); if (preroll.length > 3) preroll.shift();
         loudMs = level > threshold ? loudMs + ms : 0;
-        if (loudMs >= 150) { setState("hearing"); chunks = preroll.slice(); speechMs = loudMs; quietMs = 0; }
+        if (loudMs >= 150) { setState("hearing"); chunks = preroll.slice(); speechMs = loudMs; quietMs = 0; peak = level; }
         return;
       }
       chunks.push(copy);
       speechMs += ms;
-      quietMs = level > threshold ? 0 : quietMs + ms;
+      peak = Math.max(peak * 0.995, level);
+      // Quiet is relative to the speaker's own level too, so steady background noise does not hide the pause
+      // (owner: "nie wykrył pauzy").
+      quietMs = level > Math.max(threshold, peak * 0.22) ? 0 : quietMs + ms;
       dots.forEach((d, i) => { d.style.height = `${Math.min(2.2, 0.55 + level * (30 + i * 6))}rem`; });
       if (quietMs >= SILENCE_MS || speechMs >= MAX_SPEECH_MS) {
         if (speechMs - quietMs < MIN_SPEECH_MS) return listen();
         transcribe(chunks.slice());
       }
+    }
+
+    // Owner fix after spec 017: "I am done speaking" — send now, without waiting for the pause.
+    function done() {
+      if (state === "hearing" && speechMs >= MIN_SPEECH_MS) return transcribe(chunks.slice());
+      if (state === "listening" && heardMs >= MIN_SPEECH_MS) return transcribe(heard.slice());
     }
 
     function interrupt() {
@@ -374,8 +388,9 @@
     chat.on("stream", (text) => { if (awaitingAfter != null && state !== "off") speakUpTo(text, false); });
     chat.on("message", (message) => {
       if (awaitingAfter == null || state === "off" || message.author === "user" || message.id <= awaitingAfter) return;
-      finalText = message.content;
       awaitingAfter = null;
+      if (message.author !== "director") return listen(); // Agentaro's own notices are shown, not spoken
+      finalText = message.content;
       speakUpTo(message.content, true);
     });
     chat.on("writing", (value) => { if (!value && state === "thinking" && awaitingAfter != null && finalText == null) listen(); });
@@ -437,6 +452,7 @@
 
     start.addEventListener("click", begin);
     panel.querySelector("[data-voice-stop]").addEventListener("click", end);
+    panel.querySelector("[data-voice-done]").addEventListener("click", done);
     window.addEventListener("pagehide", end);
   }
 

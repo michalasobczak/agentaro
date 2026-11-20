@@ -71,5 +71,5 @@ class SpacesController < ApplicationController
 
   def set_space = @space = current_user.spaces.find(params[:id])
 
-  def space_params = params.expect(space: %i[kind name goal description])
+  def space_params = params.expect(space: %i[kind name goal description working_dir])
 end
