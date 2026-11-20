@@ -83,7 +83,14 @@ class ManagementRunner
     @call_options = call_options
   end
 
+  # Owner fix ("napisałem 'hi there'… zanim dokończył, napisałem 'cześć'… dwa razy podobne cześć"): background runs work
+  # inside Rails' executor, where the query cache is on, so "has the user written again?" kept reading the answer it
+  # got first. A run lasts seconds to minutes and must see what other requests save meanwhile: no query cache here.
   def perform!
+    ActiveRecord::Base.uncached { perform_run! }
+  end
+
+  def perform_run!
     if LEGACY.include?(@run.purpose)
       return TaskRunner.finish!(@run, AgentCall::Outcome.new("skipped", nil, "Managers were removed (spec 012).", nil))
     end

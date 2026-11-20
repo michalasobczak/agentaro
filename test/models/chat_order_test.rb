@@ -6,13 +6,13 @@ require "test_helper"
 class ChatOrderTest < ActiveSupport::TestCase
   # Runs a hook just before each call to the director, standing in for the user speaking while it thinks.
   class InterruptedRunner < ManagementRunner
-    attr_accessor :before_call
+    attr_accessor :before_call, :during_call
 
     private
 
     def call_director(...)
       before_call&.call
-      super
+      super.tap { during_call&.call } # the moment the tool has answered, before the runner looks again
     end
   end
 
@@ -78,6 +78,33 @@ class ChatOrderTest < ActiveSupport::TestCase
     assert_match "make it about backups", prompts.last
     assert_match first.content, prompts.last
     assert_equal 0, TaskRun.where(purpose: "chat", state: %w[queued running]).count, "nothing left to answer"
+  end
+
+  # A message saved by another request: written straight to SQLite, so this connection's query cache is not told.
+  def message_from_another_request(content)
+    now = Time.current.utc.strftime("%Y-%m-%d %H:%M:%S.%6N")
+    ChatMessage.connection.raw_connection.execute("INSERT INTO chat_messages (user_id, author, content, created_at, updated_at) VALUES (?, 'user', ?, ?, ?)", [ @user.id, content, now, now ])
+    @user.chat_messages.where(content: content).sole
+  end
+
+  # Owner fix ("napisałem 'hi there'… zanim dokończył, napisałem 'cześć'… dwa razy podobne cześć"): background runs
+  # work inside Rails' executor, where the query cache is on; the check for a newer message read the cached answer.
+  test "with the query cache on, as in background runs, a message sent meanwhile is still seen: one answer to both" do
+    @user.chat_messages.create!(author: "user", content: "hi there!")
+    run = ManagementRunner.chat!(@user)
+    second = nil
+    runner = InterruptedRunner.new(run)
+    runner.during_call = lambda do
+      runner.send(:newer_user_message?) # the streamed reply checks once a second while the director writes
+      second ||= message_from_another_request("cześć")
+    end
+    with_director("Cześć!") { ActiveRecord::Base.cache { runner.perform! } }
+
+    answers = @user.chat_messages.where(author: "director").to_a
+    assert_equal 1, answers.size, "one greeting, not two"
+    assert_equal second.id, answers.sole.reply_to_id
+    assert_match "cześć", prompts.last, "the answer was written knowing the second message"
+    assert_not TaskRun.exists?(purpose: "chat", state: "queued")
   end
 
   test "a user who keeps talking: after a few fresh starts the answer is posted, marked, and the newest message gets its own" do

@@ -82,13 +82,17 @@ module Agentaro
       def work
         loop do
           id = @queue.pop
+          # Owner fix: no query cache in runs — they last minutes and must see what other requests save (a newer
+          # chat message, a cancelled epic); the executor would otherwise keep answering from its cache.
           Rails.application.executor.wrap do
-            run = TaskRun.find_by(id: id, state: "queued")
-            next unless run
+            ActiveRecord::Base.uncached do
+              run = TaskRun.find_by(id: id, state: "queued")
+              next unless run
 
-            if run.purpose == "epic_step" then StepChain.new(run).perform! # spec 016
-            elsif run.step? then TaskRunner.new(run).perform!
-            else ManagementRunner.new(run).perform!
+              if run.purpose == "epic_step" then StepChain.new(run).perform! # spec 016
+              elsif run.step? then TaskRunner.new(run).perform!
+              else ManagementRunner.new(run).perform!
+              end
             end
           end
         rescue StandardError => e
