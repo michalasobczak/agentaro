@@ -30,6 +30,7 @@
     if (message.author !== "user") box.append(el("div", "bubble-name", message.name));
     box.append(el("div", "bubble-text", message.content));
     if (message.actions) box.append(el("div", "bubble-actions", message.actions));
+    if (message.earlier) box.append(el("div", "bubble-earlier", "Answer to an earlier message")); // owner fix: never mistaken for an answer to the latest
     box.append(el("div", "bubble-time", message.time || ""));
     row.append(box);
     return row;
@@ -90,11 +91,22 @@
       stream.insertBefore(separator, typing);
     }
 
+    // Owner fix ("wiadomości się rozsynchronizowują"): bubbles always stand in the order the server saved them, even
+    // when a reply arrives while the user's own message is still on its way; an answer written for an earlier message
+    // says so.
+    const latestUser = () => Math.max(0, ...[...stream.querySelectorAll(".bubble-row.from-user[data-id]")].map((r) => Number(r.dataset.id)));
+
     function append(message) {
       if (message.id && stream.querySelector(`.bubble-row[data-id="${message.id}"]`)) return; // already shown
       stream.querySelector("[data-empty]")?.remove();
-      addDay(message.day);
-      stream.insertBefore(bubble(message), typing);
+      if (message.author !== "user" && message.reply_to && message.reply_to < latestUser()) message = { ...message, earlier: true };
+      const later = message.id && [...stream.querySelectorAll(".bubble-row[data-id]")].find((r) => Number(r.dataset.id) > message.id);
+      if (later) {
+        later.before(bubble(message));
+      } else {
+        addDay(message.day);
+        stream.insertBefore(bubble(message), typing);
+      }
       if (message.id > lastId) lastId = message.id;
       if (stuck || message.author === "user") toBottom();
       if (message.author !== "user") {
@@ -105,8 +117,9 @@
     }
 
     // Spec 017, G4: the director's reply so far, in a bubble that grows until the final message replaces it.
-    function showStream(text) {
+    function showStream(text, replyTo) {
       if (!text) return;
+      if (replyTo && replyTo < latestUser()) return dropStream(); // owner fix: written before the user's latest words
       if (!streamRow) {
         streamRow = bubble({ author: "director", name: directorName, content: "" }, "is-streaming");
         streamRow.querySelector(".bubble-time").remove();
@@ -115,7 +128,7 @@
       streamRow.querySelector(".bubble-text").textContent = text;
       typing.hidden = true;
       if (stuck) toBottom();
-      emit("stream", text);
+      emit("stream", { text, replyTo });
     }
 
     function dropStream() {
@@ -156,7 +169,7 @@
           } else {
             data.messages.forEach((m) => { closedAfter = Math.max(closedAfter, m.id); if (m.author !== "user") hooks.reply?.(m.id); });
           }
-          if (loaded && data.streaming) showStream(data.streaming);
+          if (loaded && data.streaming) showStream(data.streaming, data.streaming_reply_to);
           if (data.writing !== writing) return setWriting(data.writing);
         }
       } catch (_) { /* offline for a moment: try again later */ }
@@ -177,45 +190,40 @@
       sendButton.disabled = input.value.trim() === "" || sending;
     }
 
-    // Sends the typed text, or `spoken` text from voice mode (the typed draft then stays). Resolves to the saved
-    // message, or null when sending failed.
-    async function send(spoken) {
-      const content = (spoken ?? input.value).trim();
-      if (!content || sending) return null;
+    function receive(data) {
+      append(data.message);
+      setWriting(data.writing);
+    }
+
+    async function send() {
+      const content = input.value.trim();
+      if (!content || sending) return;
       sending = true;
       const pending = bubble({ author: "user", content, time: new Date().toTimeString().slice(0, 5) }, "is-pending");
       stream.querySelector("[data-empty]")?.remove();
       stream.insertBefore(pending, typing);
       toBottom();
-      if (spoken == null) {
-        input.value = "";
-        hooks.draft?.(null);
-      }
+      input.value = "";
+      hooks.draft?.(null);
       grow();
 
       try {
         const body = new FormData();
         body.append("chat_message[content]", content);
-        if (spoken != null) body.append("chat_message[spoken]", "1"); // owner fix: spoken messages get short answers
         const response = await fetch(url, { method: "POST", body, headers: { Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin" });
         const data = await response.json().catch(() => ({ ok: false, error: "Could not send. Try again." }));
         if (!data.ok) throw new Error(data.error || "Could not send. Try again.");
         pending.remove();
-        append(data.message);
-        setWriting(data.writing);
-        return data.message;
+        receive(data);
       } catch (error) {
         pending.querySelector(".bubble").classList.replace("is-pending", "is-failed");
         pending.querySelector(".bubble-time").textContent = error.message;
-        if (spoken == null) {
-          input.value = content; // nothing typed is lost
-          hooks.draft?.(content);
-        }
-        return null;
+        input.value = content; // nothing typed is lost
+        hooks.draft?.(content);
       } finally {
         sending = false;
         grow();
-        if (spoken == null) input.focus();
+        input.focus();
       }
     }
 
@@ -250,7 +258,7 @@
     toBottom();
     grow();
     schedulePoll();
-    const instance = { poll, grow, input, toBottom, send, verify, csrf, get lastId() { return lastId; }, get verifierOn() { return verifierOn; }, get loaded() { return loaded; }, get writing() { return writing; },
+    const instance = { poll, grow, input, toBottom, receive, verify, csrf, get lastId() { return lastId; }, get verifierOn() { return verifierOn; }, get loaded() { return loaded; }, get writing() { return writing; },
                        on: (name, fn) => listeners[name].push(fn) };
     // Spec 020, owner fix ("przewinęło mi na początek rozmowy"): Turbo moves the floating chat into the next page,
     // and moving an element resets its scroll; keep the position across the move.
@@ -293,6 +301,7 @@
 
     let state = "off", ctx = null, mic = null, source = null, processor = null;
     let floor = 0.01, loudMs = 0, quietMs = 0, speechMs = 0, chunks = [], preroll = [], peak = 0, heard = [], heardMs = 0;
+    let askedId = 0; // owner fix: the user's latest spoken message; only answers written for it are spoken
     let awaitingAfter = null, spoken = 0, finalText = null, generation = 0, playing = null, queue = Promise.resolve(), pending = 0;
     let waitingVerifier = false; // owner fix: an active verifier speaks after the director
 
@@ -432,26 +441,24 @@
           headers: { "Content-Type": "audio/wav", Accept: "application/json", "X-CSRF-Token": chat.csrf }, credentials: "same-origin" });
         const data = await response.json().catch(() => ({ error: "Could not understand the recording." }));
         if (mine !== generation || state === "off") return;
-        if (response.status === 429) { // owner fix: wait instead of failing
-          const wait = Number(data.retry_after) || 30;
-          setState("error", `Too many recordings — listening again in ${wait} s.`);
-          return setTimeout(() => { if (state === "error") listen(); }, wait * 1000);
-        }
-        if (!response.ok) throw new Error(data.error || "Could not understand the recording.");
-        if (!data.text) return listen("I heard nothing — speak again.");
-        setState("thinking", `You: ${data.text}`);
-        const message = await chat.send(data.text);
-        if (!message) throw new Error("Could not send. Check the chat.");
-        awaitingAfter = message.id; spoken = 0; finalText = null;
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not understand the recording.");
+        if (!data.message) return listen("I heard nothing — speak again.");
+        setState("thinking", `You: ${data.message.content}`);
+        awaitingAfter = data.message.id; askedId = data.message.id; spoken = 0; finalText = null;
+        chat.receive(data);
       } catch (error) {
-        if (state !== "off") { setState("error", error.message); setTimeout(() => { if (state === "error") listen(); }, 2500); }
+        if (mine === generation && state !== "off") { setState("error", error.message); setTimeout(() => { if (state === "error") listen(); }, 2500); }
       }
     }
 
     // ---- Speaking the reply: complete sentences go to Piper in order, while the rest is still streaming ----
-    chat.on("stream", (text) => { if (awaitingAfter != null && state !== "off") speakUpTo(text, false); });
+    chat.on("stream", ({ text, replyTo }) => {
+      if (awaitingAfter == null || state === "off" || (replyTo && replyTo < askedId)) return; // owner fix: only the answer to the latest words
+      speakUpTo(text, false);
+    });
     chat.on("message", (message) => {
       if (awaitingAfter == null || state === "off" || message.author === "user" || message.id <= awaitingAfter) return;
+      if (message.reply_to && message.reply_to < askedId) return; // written before the user's latest words: shown, not spoken
       awaitingAfter = null;
       if (message.author === "verifier") { // spec 019, G6: the verifier speaks with its own voice
         waitingVerifier = false;

@@ -10,6 +10,7 @@ class ManagementRunner
   MAX_ACTIONS = 20
   LEGACY = %w[manager review].freeze
   HISTORY = 30 # chat messages the director sees
+  MAX_FRESH_STARTS = 3 # owner fix: times a chat answer is written again because the user wrote meanwhile
 
   Invalid = Class.new(StandardError)
 
@@ -22,23 +23,40 @@ class ManagementRunner
     run
   end
 
+  # Owner fix ("wiadomości się rozsynchronizowują"): the check "nothing is running" and the new run are one step.
+  # Two messages sent at the same moment (typed and spoken, or two recordings) once started two directors that
+  # answered side by side. SQLite transactions take the write lock at once (IMMEDIATE, Rails 8), and the lock below
+  # covers callers in this process; the run is handed to a worker only after the commit.
+  QUEUE_LOCK = Monitor.new
+
+  def self.queue_once!(user:, purpose:, agent:, busy:)
+    run = QUEUE_LOCK.synchronize do
+      TaskRun.transaction do
+        next nil if busy.exists?
+
+        TaskRun.create!(user: user, agent: agent, purpose: purpose, trigger: "scheduled", occurrence_start: Time.current, state: "queued")
+      end
+    end
+    Agentaro::TaskScheduler.enqueue(run.id) if run
+    run
+  end
+
   # G1: a user wrote to the director. One chat run per user at a time (R3).
   # Spec 019: the user asks the verifier to check the conversation. One at a time, not while the director writes.
   # except: the chat run that asks for it (owner fix: an active verifier follows every answer of the director).
   def self.verify!(user, except: nil)
     verifier = user.verifier_role&.agent
     return nil unless verifier
-    return nil if TaskRun.where(user: user, purpose: %w[chat verify], state: %w[queued running]).where.not(id: except&.id).exists?
 
-    queue!(user: user, purpose: "verify", agent: verifier)
+    queue_once!(user: user, purpose: "verify", agent: verifier,
+                busy: TaskRun.where(user: user, purpose: %w[chat verify], state: %w[queued running]).where.not(id: except&.id))
   end
 
   def self.chat!(user)
     director = user.director_role&.agent
     return nil unless director
-    return nil if TaskRun.where(user: user, purpose: "chat", state: %w[queued running]).exists?
 
-    queue!(user: user, purpose: "chat", agent: director)
+    queue_once!(user: user, purpose: "chat", agent: director, busy: TaskRun.where(user: user, purpose: "chat", state: %w[queued running]))
   end
 
   # Items whose time has come go to the director to be planned (spec 012, G2); called by the scheduler and
@@ -75,23 +93,54 @@ class ManagementRunner
     return verify!(agent) if @run.purpose == "verify"
 
     user_request if @run.purpose == "chat"
+    see_latest_message
     prompt = prompt_for(agent)
-    outcome = AgentCall.new(@run, agent, prompt, **@call_options).call(on_text: stream_reply)
-    if outcome.state == "succeeded"
-      begin
-        apply!(parse(outcome.output))
-      rescue Invalid, JSON::ParserError => e
-        retry_prompt = AgentCall::Prompt.new(system: prompt.system, user: "#{prompt.user}\n\nYour previous answer was not accepted: #{e.message}\nAnswer again with only the JSON object.")
+    proposing_changes = false
+    rejection = nil
+    fresh_starts = 0
+    outcome = loop do
+      request = rejection ? prompt.with(user: "#{prompt.user}\n\nYour previous answer was not accepted: #{rejection}\nAnswer again with only the JSON object.") : prompt
+      outcome = call_director(agent, request, proposing_changes:)
+      break outcome unless outcome.state == "succeeded"
+
+      # Owner fix ("raz mówisz, że agent przyjmuje zadanie, a za chwilę, że nie wiesz, o co chodzi"): the user wrote
+      # again while this answer was being written. It answers an earlier state of the conversation, so it is not
+      # posted; the director answers again with everything the user said, once.
+      if @run.purpose == "chat" && newer_user_message? && fresh_starts < MAX_FRESH_STARTS
+        fresh_starts += 1
+        remove_instance_variable(:@user_request) if defined?(@user_request)
+        user_request
+        see_latest_message
+        prompt = prompt_for(agent)
+        proposing_changes = false
+        rejection = nil
         ReplyStream.clear(@run.id)
-        outcome = AgentCall.new(@run, agent, retry_prompt, **@call_options).call(on_text: stream_reply)
-        if outcome.state == "succeeded"
-          begin
-            apply!(parse(outcome.output))
-          rescue Invalid, JSON::ParserError => e2
-            TaskRunner.finish!(@run, AgentCall::Outcome.new("failed", outcome.output, "Answer not accepted twice: #{e2.message}", nil))
-            return fail!("the #{role_name}'s answer was not accepted twice (#{e2.message})")
-          end
+        next
+      end
+
+      begin
+        data = parse(outcome.output)
+        if @run.purpose == "chat" && !proposing_changes && work_changes_proposed?(data)
+          raise Invalid, "work-list and space changes need a request from the user" unless user_request
+
+          proposing_changes = true
+          prompt = prompt_for(agent, proposing_changes:)
+          rejection = nil
+          ReplyStream.clear(@run.id)
+          next
         end
+        if proposing_changes && retry_proposed?(data["actions"])
+          raise Invalid, "retry_step: propose only work-list or space actions in this pass"
+        end
+        apply!(data)
+        break outcome
+      rescue Invalid, JSON::ParserError => e
+        if rejection
+          TaskRunner.finish!(@run, AgentCall::Outcome.new("failed", outcome.output, "Answer not accepted twice: #{e.message}", nil))
+          return fail!("the #{role_name}'s answer was not accepted twice (#{e.message})")
+        end
+        rejection = e.message
+        ReplyStream.clear(@run.id)
       end
     end
     TaskRunner.finish!(@run, outcome)
@@ -109,31 +158,77 @@ class ManagementRunner
 
   private
 
+  def call_director(agent, prompt, proposing_changes:)
+    return AgentCall.new(@run, agent, prompt, **@call_options).call(on_text: stream_reply) unless proposing_changes
+
+    # The independent proposal also gets an empty executor workspace, including a fresh CLI answer file.
+    Dir.mktmpdir("agentaro-chat-actions-") do |directory|
+      AgentCall.new(@run, agent, prompt, **@call_options.merge(runs_dir: directory)).call(on_text: stream_reply)
+    end
+  end
+
   # Spec 017, G4: while the director answers the user, the "reply" so far is kept in memory for the chat to show.
   def stream_reply
     return unless @run.purpose == "chat"
 
     run_id = @run.id
-    ->(text) { ReplyStream.write(run_id, ReplyStream.partial_reply(text)) }
+    checked_at = 0.0
+    stale = false
+    lambda do |text|
+      # Owner fix: once the user has written again, this reply is outdated — it is no longer shown or spoken while it
+      # is written (checked at most once a second), and the director answers again afterwards.
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      if !stale && now - checked_at >= 1
+        checked_at = now
+        stale = newer_user_message?
+        ReplyStream.clear(run_id) if stale
+      end
+      ReplyStream.write(run_id, ReplyStream.partial_reply(text), reply_to: @seen_message_id) unless stale
+    end
   end
 
   # R3: messages written while the director was answering get their own answer.
+  # A message that came after the last fresh start (or in the instant before posting) gets its own answer.
   def answer_later_messages
     return unless @run.purpose == "chat"
 
-    self.class.chat!(@user) if @user.chat_messages.where(author: "user").where("created_at > ?", @run.started_at).exists?
+    self.class.chat!(@user) if newer_user_message?
   end
+
+  # The newest user message this run has read; its answer is marked as written for it (reply_to).
+  def see_latest_message
+    @seen_message_id = latest_user_message_id
+  end
+
+  def latest_director_answer_id = @user.chat_messages.current.where(author: "director").maximum(:id)
+
+  # An answer the director posted while this check ran was not checked (its own check found this one busy).
+  def check_newer_answer
+    return unless @user.verifier_active? && latest_director_answer_id.to_i > @checked_answer_id.to_i
+
+    self.class.verify!(@user, except: @run)
+  end
+
+  def latest_user_message_id = @user.chat_messages.current.where(author: "user").maximum(:id)
+
+  def newer_user_message? = latest_user_message_id.to_i > @seen_message_id.to_i
 
   def role_name = @run.purpose == "verify" ? "verifier" : "director"
 
   # Spec 019, G4/R1: the verifier answers in plain text; it is posted as a comment and nothing is applied.
   def verify!(agent)
+    see_latest_message
+    @checked_answer_id = latest_director_answer_id
     outcome = AgentCall.new(@run, agent, AgentCall::Prompt.new(system: agent.master_prompt, user: [ context_header, verify_prompt ].join("\n\n")), **@call_options).call
     TaskRunner.finish!(@run, outcome)
+    check_newer_answer
     return fail!("the verifier could not answer: #{outcome.error.to_s.truncate(300).chomp(".")}") unless outcome.state == "succeeded"
 
     comment = outcome.output.to_s.strip.truncate(4000)
     return fail!("the verifier gave no comment") if comment.empty?
+    # Owner fix: the user has moved on; a comment on an earlier answer would break the conversation. The director's
+    # next answer is checked again.
+    return @run if newer_user_message?
 
     say("verifier", comment)
     @run
@@ -171,14 +266,15 @@ class ManagementRunner
   end
 
   def say(author, content, actions_summary: nil)
-    ChatMessage.create!(user: @user, author: author, content: content.to_s.truncate(20_000), actions_summary: actions_summary, task_run: @run)
+    ChatMessage.create!(user: @user, author: author, content: content.to_s.truncate(20_000), actions_summary: actions_summary, task_run: @run,
+                        reply_to_id: @seen_message_id)
   end
 
   # --- Prompts -----------------------------------------------------------------------------------
 
-  def prompt_for(agent)
+  def prompt_for(agent, proposing_changes: false)
     rules = case @run.purpose
-            when "chat" then chat_prompt
+            when "chat" then chat_prompt(proposing_changes:)
             when "director" then plan_prompt
             end
     AgentCall::Prompt.new(system: agent.master_prompt, user: [ context_header, rules ].join("\n\n"))
@@ -261,7 +357,6 @@ class ManagementRunner
     now = Time.current
     budget = EPIC_EXCERPT_BYTES
     steps = item.active_steps.reorder(position: :desc).includes(:agent).limit(MAX_PROGRESS_STEPS + 1).to_a
-    @rendered_step_context = true if steps.any?
     lines = steps.first(MAX_PROGRESS_STEPS).reverse.map do |step|
       columns = %i[id state started_at finished_at]
       columns << :output if step.state == "succeeded"
@@ -341,19 +436,18 @@ class ManagementRunner
     lines.join("\n")
   end
 
-  def chat_prompt
-    change = change_request?
-    @evidence_turn = evidence_chat? unless change
-    list = visible_items.map { |item| item_line(item, progress: !change) }
-    history = if change
-      [ "#{@user.username}: #{user_request.content.delete_prefix('/change ')}" ]
+  def chat_prompt(proposing_changes: false)
+    list = visible_items.map { |item| item_line(item, progress: !proposing_changes) }
+    if proposing_changes
+      conversation = "Latest user message from #{@user.username}:\n#{user_request.content}"
+      request_rule = "Propose work-list or space changes only if the latest user message clearly asks for them, including requests phrased politely as questions. If the user only asks for information or the requested change is unclear, reply with no actions."
     else
-      @user.chat_messages.current.ordered.last(HISTORY).map { |m| "#{m.author == "user" ? @user.username : m.author.capitalize}: #{m.content}" }
-    end
-    action_rules = if change
-      "Apply only the work-list or space changes explicitly requested in this message. Use a normal chat turn for step retries."
-    elsif @evidence_turn || @rendered_step_context
-      "#{EVIDENCE_ONLY} For work-list or space changes, ask the user to send /change followed by their request."
+      history = @user.chat_messages.current.ordered.last(HISTORY).map { |m| "#{m.author == "user" ? @user.username : m.author.capitalize}: #{m.content}" }
+      conversation = <<~CONVERSATION.chomp
+        Conversation (latest last; "Verifier" is a second model #{@user.username} may ask to check you — take its comments seriously, answer them honestly):
+        #{history.join("\n")}
+      CONVERSATION
+      request_rule = "Answer #{@user.username}'s latest messages. Propose actions only in response to their own clear request."
     end
     <<~PROMPT
       You are the director. #{@user.username} talks only to you. Keep their work list from the conversation; when an item's time comes, you will plan it for your team members.
@@ -362,18 +456,16 @@ class ManagementRunner
 
       #{spaces_text}
 
-      Work list (open, planned and running, and finished in the last day)#{", with the live progress of each step — this is current; report it, do not tell #{@user.username} to look it up" unless change}:
+      Work list (open, planned and running, and finished in the last day)#{", with the live progress of each step — this is current; report it, do not tell #{@user.username} to look it up" unless proposing_changes}:
       #{list.presence&.join("\n") || "(empty)"}
 
-      #{EXCERPT_RULES unless change}
+      #{EXCERPT_RULES unless proposing_changes}
 
-      Conversation (latest last; "Verifier" is a second model #{@user.username} may ask to check you — take its comments seriously, answer them honestly):
-      #{history.join("\n")}
+      #{conversation}
 
-      Answer #{@user.username}'s latest messages. #{reply_language} These instructions are in English only for you. Messages may come from speech recognition, so forgive small transcription errors.
+      #{request_rule} #{reply_language} These instructions are in English only for you. Messages may come from speech recognition, so forgive small transcription errors.
       Reply with ONLY one JSON object, no other text:
       {"reply": "your message to #{@user.username}", "actions": [ ... ]}
-      #{action_rules}
       Actions (at most #{MAX_ACTIONS}, may be empty):
       {"type": "add_item", "space": <space id, or the name of a space added in this reply>, "title": "...", "description": "...", "starts_at": "YYYY-MM-DDTHH:MM" or null, "due_on": "YYYY-MM-DD" or null, "priority": "normal" or "high"}
       {"type": "update_item", "id": 1, "space": ..., "title": "...", "description": "...", "starts_at": ..., "due_on": ..., "priority": ...} (give only fields to change; items in state new or blocked can change everything, planned items that have not started only title, starts_at and priority)
@@ -382,10 +474,19 @@ class ManagementRunner
       A project space works towards a goal; a team space has no goal and takes care of ongoing work.
       {"type": "cancel_item", "id": 1}
       {"type": "reprioritize", "id": 1, "priority": "normal" or "high"}
-      {"type": "retry_step", "id": <epic id>, "step": <step number>, "attempt": <the attempt number shown on that failed step>} (only when #{@user.username} asks in their message to retry or run that failed step again; it runs that step once more with the earlier answers and the epic goes on from there. If it is not clear which epic or step they mean, ask and add nothing.)
+      #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
       Every item belongs to a space. When it is not clear which space a new item belongs to, do not guess: ask in your reply and add nothing.
     PROMPT
+  end
+
+  def retry_action_rule
+    <<~RULE.squish
+      {"type": "retry_step", "id": <epic id>, "step": <step number>, "attempt": <the attempt number shown on that failed step>}
+      (only when #{@user.username} asks in their message to retry or run that failed step again; it runs that step
+      once more with the earlier answers and the epic goes on from there. If it is not clear which epic or step
+      they mean, ask and add nothing.)
+    RULE
   end
 
   # Spec 019, G3: the conversation, the director's latest answer with what Agentaro applied, and the user's spaces
@@ -450,11 +551,8 @@ class ManagementRunner
       if actions.any? && user_request&.id != current_user_request&.id
         raise Invalid, "the user's request changed while this reply was being prepared"
       end
-      if actions.any? { |action| action.is_a?(Hash) && action["type"] == "retry_step" }
+      if retry_proposed?(actions)
         raise Invalid, "retry_step: only one retry and no other changes in a reply" unless actions.one?
-        raise Invalid, "retry_step: use a normal chat turn to retry a step" if change_request?
-      elsif actions.any? && !change_request? && (@evidence_turn || @rendered_step_context || evidence_chat?)
-        raise Invalid, "work-list and space changes require /change followed by the user's request in a new message"
       end
       actions.map { |action| check_action(action) }.map(&:call)
     end
@@ -570,15 +668,13 @@ class ManagementRunner
     current.where(author: "user", id: (last_reply || 0).succ..).order(:id).last
   end
 
-  def change_request?
-    user_request&.content&.start_with?("/change ") && user_request.content.delete_prefix("/change ").present?
+  def work_changes_proposed?(data)
+    actions = data["actions"]
+    actions.is_a?(Array) && actions.any? && !retry_proposed?(actions)
   end
 
-  EVIDENCE_ONLY = "Only retry_step is available in this turn."
-
-  def evidence_chat?
-    @user.work_items.where(id: EpicStep.select(:work_item_id)).exists? ||
-      @user.chat_messages.current.joins(:task_run).where("instr(task_runs.prompt, ?) > 0 OR instr(task_runs.prompt, ?) > 0", EXCERPT_LABEL, EVIDENCE_ONLY).exists?
+  def retry_proposed?(actions)
+    actions.is_a?(Array) && actions.any? { |action| action.is_a?(Hash) && action["type"] == "retry_step" }
   end
 
   # Match a complete affirmative request against known names. Extra prose, questions and

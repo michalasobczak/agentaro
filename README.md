@@ -76,8 +76,9 @@ Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything e
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
 - **Spaces and epics (specs 013, 014, 016, 018, 021)** — project spaces have a goal, and team spaces organise ongoing work. Each space has a kanban board. Breadcrumbs lead from the board to an epic, its steps and full run answers. A space can give its steps a working folder for editing, commands, Docker and network access. Claude Code applies the folder read restrictions described in spec 018. Codex and Docker have the access limits documented there. **Give Agentaro accounts only to people you trust with the Mac account running it.** Epics are planned when added and start at the scheduled time or immediately. Steps run in order and receive earlier successful answers from the active plan, up to 30 KiB. A stopped step blocks the epic. Use **Try again** on the epic page to resume a failed, timed-out or skipped step. Moving or replanning an epic starts a new plan and keeps prior attempts in its history. The calendar shows the epic as a bar from start to finish.
-- **Director and verifier (specs 011, 012, 015, 017, 019, 021)** — talk to the director on the Director page or in the side panel. **New conversation** archives the current chat. Replies stream, and hands-free voice uses local Whisper and Piper. The director keeps your work list and plans epics for the members assigned on the Team page. The verifier checks the director's answers and posts its own comments. Both see step progress and quoted excerpts from successful steps in the live work list, including epics finished in the past 24 hours. Excerpts are limited to 1 KiB per step and 10 KiB per epic. Ask what a completed step found while later steps are running, and open its run for the full answer.
-- **Chat actions (spec 021)** — send a request such as `Retry step 2 of World review` to retry one failed step. Agentaro matches the request to the latest failed attempt, queues it once, and carries forward earlier successful answers. The chain continues from there on success. Use `/change` followed by a work-list or space request, such as `/change Cancel World review`, in chat with step context. Agentaro handles the change in a separate turn using your request and work-list metadata.
+- **Director and verifier (specs 011, 012, 015, 017, 019, 021)** — talk to the director on the Director page or in the side panel. **New conversation** archives the current chat. Replies stream, and hands-free voice uses local Whisper and Piper. The director always answers the latest state of the conversation: an answer written before your newer message is not posted (the director answers again), and voice mode speaks only the answer to your latest words. The director keeps your work list and plans epics for the members assigned on the Team page. The verifier checks the director's answers and posts its own comments. Both see step progress and quoted excerpts from successful steps in the live work list, including epics finished in the past 24 hours. Excerpts are limited to 1 KiB per step and 10 KiB per epic. Ask what a completed step found while later steps are running, and open its run for the full answer.
+- **Voice recordings (spec 017)** — send as many recordings as needed. Each clip is transcribed on the host and saved to the chat as a spoken message. The typed-chat and speech synthesis rates are managed separately.
+- **Chat actions (spec 021)** — ask the director in ordinary chat, for example `Add an epic to research backups in General` or `Cancel World review`. The director proposes changes in a separate call using your latest request and work-list metadata. Agentaro checks each action before applying the batch. Send `Retry step 2 of World review` to retry a failed step. Agentaro checks the latest failed attempt, queues it once and carries forward earlier successful answers. The chain continues from there on success.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
 - **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model and effort (spec 022). Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
 - **Executors (spec 008):** the AI tools Agentaro can use, managed by admins from built-in presets — command-line tools logged in on this computer (Claude Code, Codex, Gemini CLI, Grok CLI, Ollama, LM Studio) and local APIs that need no key (Ollama, LM Studio, OpenAI-compatible servers). On-demand check: version of the program, or list of models. Users see the list read-only. No keys or tokens are stored; subscriptions are used by logging in on the host (`claude login`, `codex login`).
@@ -124,6 +125,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-20: spec 021 drafted — bounded step-result excerpts in director and verifier chat, plus a targeted retry of one failed step.
 - 2026-11-20: spec 022 implemented — model lists per executor, effort, Check model; model names can no longer pass as options. Tests: 282.
 - 2026-11-20: spec 021 implemented and reviewed — the director and verifier see bounded excerpts, and the director can retry one failed step from a clear user request. The review tightened action authority, cancellation, plan isolation and prompt limits. Tests: 262. Q1, Q2 and the configured-model browser gate await review.
+- 2026-11-20: spec 021 updated — ordinary chat requests can order work or change a space. Agentaro checks a fresh proposal that excludes step evidence and earlier chat replies. Tests: 284.
 - Next: later, without numbers yet: feedback loop (results back to the director, budgets, stop), isolation of agents (F12, F15), memory (per space and per agent), self-improvement.
 
 ## Specifications
@@ -146,18 +148,21 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 014 | [Spaces: project spaces and team spaces](specs/014-spaces.md) | implemented |
 | 015 | [New conversation with the director](specs/015-new-conversation.md) | implemented |
 | 016 | [Epics start at a time; steps run one after another](specs/016-sequential-steps.md) | implemented |
-| 017 | [Talking to the director: voice and streamed answers](specs/017-voice-and-streaming.md) | implemented (E2E with a microphone: owner) |
+| 017 | [Talking to the director: voice and streamed answers](specs/017-voice-and-streaming.md) | implemented; 241 consecutive recordings verified in integration (microphone walkthrough pending) |
 | 018 | [A working folder for a space](specs/018-working-folders.md) | implemented (F17, F18 accepted) |
 | 019 | [A verifier in the chat](specs/019-verifier.md) | implemented |
 | 020 | [Pages without reloading: the conversation keeps going](specs/020-pages-without-reloading.md) | implemented |
-| 021 | [Director sees the output of each step](specs/021-director-sees-step-output.md) | implemented and review fixes tested (Q1, Q2 and configured-model browser gate open) |
+| 021 | [Director sees the output of each step](specs/021-director-sees-step-output.md) | implemented, including plain chat ordering (Q1, Q2 and configured-model browser gate open) |
 | 022 | [Model lists, effort and a "Check model" button](specs/022-model-lists-and-check.md) | implemented |
+| 023 | [Agent status: busy or free](specs/023-agent-status.md) | draft, implementation pending (Q1–Q9 open, incl. agent icons in the chat G7; space scope [TO BE DETERMINED]) |
 | — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per space and per agent | not written |
 | — | Self-improvement | not written |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
+
+Spec 023 review: existing step tests cover cancellation and recovery after restart. Agent status is still missing from the Team page, both chat views and the director and verifier prompts. The draft scopes activity to the account. The requested space isolation still needs a rule for the account-wide Team page and chat.
 
 ## License
 

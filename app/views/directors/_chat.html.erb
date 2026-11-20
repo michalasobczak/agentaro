@@ -45,7 +45,9 @@
         <p class="chat-empty muted" data-empty>Say hello to <%= director.name %>. For example: "Research the best way to back up a Mac and write a one-page summary by Friday."</p>
       <% end %>
       <% day = nil %>
+      <% latest_user = 0 %>
       <% messages.each do |message| %>
+        <% latest_user = message.id if message.author == "user" %>
         <% data = chat_message_json(message) %>
         <% if data[:day] != day %><% day = data[:day] %><div class="chat-day" data-day="<%= day %>"><span><%= day %></span></div><% end %>
         <div class="bubble-row from-<%= message.author %>" data-id="<%= message.id %>">
@@ -53,6 +55,7 @@
             <% unless message.author == "user" %><div class="bubble-name"><%= data[:name] %></div><% end %>
             <div class="bubble-text"><%= message.content %></div>
             <% if message.actions_summary %><div class="bubble-actions"><%= message.actions_summary %></div><% end %>
+            <% if message.author != "user" && message.reply_to_id && message.reply_to_id < latest_user %><div class="bubble-earlier">Answer to an earlier message</div><% end %>
             <div class="bubble-time"><%= data[:time] %></div>
           </div>
         </div>

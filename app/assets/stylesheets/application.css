@@ -611,3 +611,4 @@ body:has(.chat-dock.is-voice) .content > .chat-app { display: none; }
 .model-check-result[data-state="ok"] { color: var(--ok); }
 .model-check-result[data-state="bad"] { color: var(--bad); }
 .model-check-result[data-state="warn"], .model-check-result[data-state="busy"] { color: var(--muted); }
+.bubble-earlier { margin-top: 0.3rem; font-size: 0.72rem; color: var(--muted); font-style: italic; }

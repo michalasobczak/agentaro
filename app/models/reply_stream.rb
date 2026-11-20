@@ -5,8 +5,10 @@ module ReplyStream
 
   module_function
 
-  def write(run_id, text) = @texts[run_id] = text
-  def read(run_id) = @texts[run_id]
+  # reply_to: the user message the reply is written for (owner fix: an outdated reply is never spoken).
+  def write(run_id, text, reply_to: nil) = @texts[run_id] = [ text, reply_to ]
+  def read(run_id) = @texts[run_id]&.first
+  def reply_to(run_id) = @texts[run_id]&.last
   def clear(run_id) = @texts.delete(run_id)
 
   # The "reply" text so far from a partial JSON answer like {"reply": "Hello, I wi — decoded, unfinished escapes

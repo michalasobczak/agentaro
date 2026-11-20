@@ -12,7 +12,7 @@ The user can **talk** to the director. A voice button starts a hands-free conver
 - the director's answer **streams** into the chat word by word, and a natural **Piper** voice on the host reads it sentence by sentence;
 - then the browser listens again.
 
-Everything runs on the host: no audio or text goes to any outside service. Confirmed by tests with stand-in tools and by a real conversation on the owner's Mac and phone.
+Whisper and Piper run on the host. The recording flow is verified with stand-ins. The microphone walkthrough for the updated flow is pending.
 
 ## 2. Abstract
 
@@ -35,7 +35,7 @@ Everything runs on the host: no audio or text goes to any outside service. Confi
 **Goals**
 - G1. **Voice button** in the chat composer (Director page and floating chat). It starts and stops voice mode. Voice mode shows animated dots for its state: *listening*, *thinking*, *speaking*.
 - G2. **Listening:** the browser records the microphone (with echo cancellation) and detects speech and the following silence (about 1 second). Each utterance (at most 30 seconds) is sent to Agentaro as 16 kHz mono WAV.
-- G3. **Transcription:** Agentaro runs whisper.cpp on the audio, recognising the language. The text is shown and sent to the director as a normal chat message, so the rate limits and checks of spec 011 apply. Empty or noise-only recordings are dropped.
+- G3. **Transcription:** Agentaro runs whisper.cpp on the audio, recognising the language, and saves the text as a spoken chat message in the same request. Chat validation applies to the transcript. Empty or noise-only recordings are dropped. Stopping voice mode ends listening and playback. An already submitted recording can finish processing.
 - G4. **Streaming:** while the director answers, the text of its `reply` appears in a streaming bubble that grows word by word. The final message replaces the bubble, with its actions as before. Streaming is supported for Claude Code (stream-json), the Ollama API and OpenAI-compatible APIs; other executors answer at once at the end, as today.
 - G5. **Speaking:** in voice mode, every complete sentence of the reply is turned into speech by Piper on the host and played in order, starting while the rest of the answer is still being written. When the director is done, listening starts again.
 - G6. **Interrupting:** speaking while the director talks stops the audio and starts a new turn.
@@ -48,22 +48,23 @@ Everything runs on the host: no audio or text goes to any outside service. Confi
 - S1. A spoken sentence becomes a chat message with its text, and the director's answer is heard, without touching the screen after starting voice mode (owner's Mac and iPhone).
 - S2. The first words of a Claude answer appear in the chat before the whole answer is finished (stand-in test, and seen on the host).
 - S3. No audio or text leaves the host. Audio is kept only as a temporary file, deleted after transcription (test).
-- S4. Only signed-in users can transcribe and synthesize. Sizes and rates are limited, and the tools run without a shell, with fixed arguments and a timeout (tests).
+- S4. Only signed-in users can transcribe and synthesize. Upload size, speech request size and synthesis rate are bounded. The tools run without a shell, with fixed arguments and a timeout (tests).
 - S5. Text chat is unchanged when the voice tools are missing (test).
+- S6. A signed-in user can submit and save 241 consecutive recordings in the same rate-limit window in which they exhaust the typed-chat quota (integration test).
 
 ## 4. Artefact Inventory
 
 | Area | Element | State |
 |---|---|---|
 | Host | whisper.cpp (Homebrew), Whisper model, Piper (Python venv) with a Polish voice, in `storage/voice/` | to install |
-| System | `Voice` (transcribe with whisper.cpp, speak with Piper; no shell, timeouts, limits); endpoints `POST /director/voice/transcribe`, `POST /director/voice/speak` | to create |
+| System | `Voice` (transcribe with whisper.cpp and speak with Piper using fixed arguments and timeouts); `POST /director/voice/transcribe` saves spoken chat messages, `POST /director/voice/speak` synthesizes replies | implemented |
 | System | Streaming: `HostProcess` passes output as it arrives; `AgentCall` streams Claude (`ClaudeStream`), Ollama and OpenAI-compatible answers; the partial reply is kept in the server's memory (`ReplyStream`), not in the database (each write would add a data changelog entry); the chat poll returns it | to change |
 | System | `chat.js` voice mode (recording, silence detection, WAV encoding, sentence queue, playback, interrupting) and streaming bubble | to change |
 
 ## 5. Functional Domain Changes
 
 **Rules**
-- R1. Audio upload: at most 2 MB (about 60 s of 16 kHz WAV), WAV only. Transcription: at most 60 per user per 10 minutes, with a 60-second timeout.
+- R1. Audio upload: at most 2 MiB (about 60 s of 16 kHz WAV), WAV only. Transcription has a 60-second timeout. The number of recordings that can be transcribed and sent is unlimited.
 - R2. Speech: at most 600 characters per request, plain text only. At most 300 requests per user per 10 minutes, with a 30-second timeout.
 - R3. Temporary audio files are written to a private temp folder and deleted after use. Audio and transcripts are not logged; the chat message keeps the text, as typing would.
 - R4. The partial reply lives only in the server's memory while the run lasts (the scheduler runs inside the web server), and is cleared when the run ends. Only the run's owner sees it.
@@ -82,7 +83,7 @@ Install tools → `Voice` with stand-in tests → endpoints → streaming in `Ho
 | Gate | Pass condition | Verification | Blocks | Negative gate |
 |---|---|---|---|---|
 | Unit | transcribe/speak with stand-in programs; limits; partial reply extraction from streamed JSON | `test/models/voice_test.rb`, `agent_call_stream_test.rb` | merge | oversize or non-WAV audio refused; no shell; temp files removed |
-| Integration | endpoints: sign-in, limits, missing tools; poll returns the partial reply only to its owner | `test/integration/voice_test.rb` | merge | other users never see a partial reply |
+| Integration | sign-in, invalid audio and owner-only reply polling in `director_chat_test.rb`; 241 sequential recordings with a live rate-limit store and silent audio handling in `voice_test.rb` | Rails integration tests | merge | typed-chat quota applies even with a client-supplied spoken flag; other users never see a partial reply |
 | E2E | spoken conversation on the Mac and the iPhone | owner | release | — |
 
 ## 8. Expected Outcome
@@ -112,15 +113,26 @@ Install tools → `Voice` with stand-in tests → endpoints → streaming in `Ho
 - "wpisz w prompty systemowe, żeby odpowiadali krócej w rozmowie głosowej": messages sent from voice mode are marked (`chat_messages.spoken`). When the user's latest message was spoken, the prompts ask the director for at most 3 short spoken sentences and the verifier for at most 2, with no lists, Markdown or emoji.
 - "zwiększ tempo syntezy mowy, tak x1.5 co najmniej" and "przełącznik prędkości wymowy": a speed switch in the voice panel (1× / 1,25× / 1,5× / 2×, saved per user, default 1,5×). It sets Piper's `--length-scale` to speed^-1.35, because pauses shrink less than sounds. Measured on the host: 1.26×, 1.55× and 1.9×. Whisper still understands the 2× speech.
 
+- Owner fix ("wiadomości czasami się rozsynchronizowują… raz mówisz, że agent przyjmuje zadanie, a za chwilę, że nie wiesz, o co chodzi"; "ma to być turbo odporne i w rozmowie, i w pisaniu tekstem"). The owner's data showed 6 answers in two days that were written for an earlier message and posted after a newer one. Voice mode then spoke them as the answer to the newer message. The fix covers typed and spoken chat (specs 011, 017 and 019):
+  - **The director answers the latest state.** When the user writes again while an answer is being written, that answer is not posted. The director answers again with the whole conversation, up to 3 times; after that the newest message gets its own run.
+  - **The streamed reply stops.** Once the user writes again, an outdated reply being written is no longer shown or spoken (checked once a second).
+  - **One director at a time.** Checking "nothing is running" and creating the run are one locked step, so two messages sent at the same moment can no longer start two directors.
+  - **Every answer records its message.** Each director, verifier and Agentaro message stores `reply_to_id`, the user message it was written for.
+  - **Voice speaks only answers to the latest words.** Anything older is shown but not spoken, and the chat labels it "Answer to an earlier message".
+  - **Bubbles stay in saved order.** They are always in the order the server saved them, including when a reply arrives while the user's own message is still being sent.
+  - **The verifier follows the conversation.** A verifier comment on an answer the user has already moved past is not posted, and the director's newer answer is checked instead.
+  - Tests: `test/models/chat_order_test.rb`, `director_chat_test.rb`.
+
 ## Security analysis (B20), after spec 017
 
 Scope: this spec and specs 001–016.
 
 - **Nothing leaves the host.** whisper.cpp and Piper run locally; no keys and no outside services. The browser sends audio only to Agentaro.
 - **Programs.** Both tools run through `HostProcess`: no shell, fixed arguments, the minimal environment, timeouts. The text to speak goes on standard input, never as an argument (test with shell-like text). Recordings must be WAV, at most 2 MB, and are deleted after transcription (tests). Speech requests are at most 600 characters, with control characters removed.
-- **Access and limits.** Voice endpoints require sign-in (test). They are limited to 60 recordings and 300 speech requests per user per 10 minutes. The partial reply goes only to the owner of the chat run (test) and is never stored.
+- **Access and limits.** Voice endpoints require sign-in (test). Synthesis has an independent limit of 300 requests per user per 10 minutes. The transcription endpoint saves the server-produced text under the current user after the normal chat checks. Transcription and sending recordings have no count limit. Text submissions, including those with a spoken flag supplied by the client, still go through the typed-chat limit. Only the owner can read a partial reply, which lives in memory during the run.
 - **Audit log.** Recordings are not stored in the audit log; it keeps only "[N bytes, audio/wav, not stored]" (spec 003 behaviour, unchanged). Text sent for speech is the director's own reply, already in the chat.
 - **Microphone.** Used only after the user presses the voice button, and released when voice mode ends or the page is left.
 - **Found on the way.** Text with Polish letters given to a program on standard input could fail with an encoding error; the pipe is now binary (test through the speech path). A variable kept from an earlier loop pass duplicated the end of a streamed reply; fixed and tested.
 - **Language switch.** Only auto, pl or en are stored and passed to whisper (test with a forged value); the voice file is chosen from settings, never from the request.
 - **Regressions in 001–016.** Brakeman: no warnings. `bundle-audit`: no vulnerabilities.
+- **B20 recheck after removal of the recording quota (specs 001–022).** Reviewed the changed route for authentication, CSRF, account scoping, audio handling and the chat validation and queue path. A signed-in user can initiate repeated Whisper work up to the existing per-request timeout and generate successive chat runs. The existing budget gap (spec 011, F14) also applies to voice. The full suite, Brakeman and the refreshed dependency audit passed.

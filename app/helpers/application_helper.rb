@@ -133,7 +133,7 @@ module ApplicationHelper
     verifier = message.user.verifier_role&.agent if message.author == "verifier"
     { id: message.id, author: message.author,
       name: { "user" => "You", "director" => director&.name || "Director", "verifier" => "#{verifier&.name || "Verifier"} · verifier", "system" => "Agentaro" }[message.author],
-      content: message.content, actions: message.actions_summary,
+      content: message.content, actions: message.actions_summary, reply_to: message.reply_to_id,
       time: l(message.created_at, format: "%H:%M"), day: l(message.created_at.to_date, format: :long) }
   end
 end

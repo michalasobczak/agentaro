@@ -2,7 +2,7 @@
 # The chat page talks JSON (owner fix: "chat niech będzie naprawdę chatem"); without the script the form
 # posts normally and the page reloads.
 class ChatMessagesController < ApplicationController
-  # Every message starts a run on a subscription or the host, so writing is limited per user (like Run now, F13).
+  # Typed chat is limited per user (like Run now, F13). Recordings are handled by transcribe.
   rate_limit to: 20, within: 10.minutes, only: :create, by: -> { current_user.id }, store: RATE_LIMIT_STORE,
              with: -> { reject("Too many messages. Try again in a few minutes.", :too_many_requests) }
 
@@ -12,16 +12,35 @@ class ChatMessagesController < ApplicationController
     after = params[:after].to_i
     scope = current_user.chat_messages.current # spec 015
     messages = after.positive? ? scope.where("id > ?", after).ordered.limit(100) : scope.ordered.last(100)
-    render json: { messages: messages.map { |m| helpers.chat_message_json(m) }, writing: director_writing?, streaming: streaming_reply }
+    run_id = streaming_run_id
+    render json: { messages: messages.map { |m| helpers.chat_message_json(m) }, writing: director_writing?,
+                   streaming: run_id && ReplyStream.read(run_id).presence, streaming_reply_to: run_id && ReplyStream.reply_to(run_id) }
   end
 
   def create
-    content = params.dig(:chat_message, :content).to_s.strip
+    send_message(params.dig(:chat_message, :content).to_s.strip, spoken: false)
+  end
+
+  # Spec 017: a submitted WAV is transcribed and saved as a spoken message.
+  def transcribe
+    return reject("The recording is too long.", :content_too_large) if request.content_length.to_i > Voice::MAX_AUDIO
+
+    content = Voice.transcribe(request.raw_post.to_s.b, language: current_user.chat_language).strip
+    return render(json: { ok: true, message: nil }) if content.empty?
+
+    send_message(content, spoken: true)
+  rescue Voice::Error => e
+    reject(e.message)
+  end
+
+  private
+
+  def send_message(content, spoken:)
     return reject("Choose a director on the Team page first.") unless current_user.director_role
     return reject("Write a message.") if content.empty?
     return reject("Messages are at most 5,000 characters.") if content.length > 5000
 
-    message = current_user.chat_messages.create!(author: "user", content: content, spoken: params.dig(:chat_message, :spoken) == "1") # owner fix: voice
+    message = current_user.chat_messages.create!(author: "user", content: content, spoken: spoken)
     ManagementRunner.chat!(current_user)
     respond_to do |format|
       format.json { render json: { ok: true, message: helpers.chat_message_json(message), writing: director_writing? } }
@@ -29,15 +48,10 @@ class ChatMessagesController < ApplicationController
     end
   end
 
-  private
-
   def director_writing? = TaskRun.where(user: current_user, purpose: %w[chat verify], state: %w[queued running]).exists? # spec 019: or the verifier
 
   # Spec 017, G4: the director's reply so far (own chat run only, R4).
-  def streaming_reply
-    run_id = TaskRun.where(user: current_user, purpose: "chat", state: "running").order(:id).pick(:id)
-    run_id && ReplyStream.read(run_id).presence
-  end
+  def streaming_run_id = TaskRun.where(user: current_user, purpose: "chat", state: "running").order(:id).pick(:id)
 
   def reject(error, status = :unprocessable_content)
     respond_to do |format|

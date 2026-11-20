@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_125000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_126000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -41,6 +41,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_125000) do
     t.datetime "updated_at", null: false
     t.datetime "archived_at"
     t.boolean "spoken", default: false, null: false
+    t.integer "reply_to_id"
     t.index ["task_run_id"], name: "index_chat_messages_on_task_run_id"
     t.index ["user_id", "archived_at"], name: "index_chat_messages_on_user_id_and_archived_at"
     t.index ["user_id"], name: "index_chat_messages_on_user_id"
