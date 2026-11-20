@@ -16,7 +16,7 @@ Agents: each has a name, a short description, a **master prompt** (who it is, wr
 
 **Plan of the following specs (owner).**
 - 010: running a task on its agent's executor.
-- 011: the agent's memory and the context it gets ([draft](011-agent-memory.md)).
+- 011: the agent's memory and the context it gets ([draft](014-agent-memory.md)); renumbered to 014 when the owner set the roadmap (work list and management first).
 - 012: self-improvement, where memory is reorganized on a schedule.
 
 ## 3. Objective

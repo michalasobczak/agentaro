@@ -19,6 +19,10 @@ module ApplicationHelper
     chevron_right: '<path d="m9 6 6 6-6 6"/>',
     repeat: '<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
     agent: '<rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5M2 12v3M22 12v3"/>',
+    send: '<path d="M4 12 20 4l-4 16-4-7-8-1Z"/><path d="m12 13 8-9"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4V5Z"/><path d="M8 9.5h8M8 12.5h5"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>',
+    org: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
     play: '<path d="M7 4.5v15l12-7.5-12-7.5Z"/>',
     chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M10 10h4v4h-4zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
     pin: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>'
@@ -72,5 +76,20 @@ module ApplicationHelper
     tag.div(class: "callout mobile-note") do
       safe_join([ icon(:info), tag.div { "Admin tools are designed for larger screens. Open this page on a tablet or computer." } ])
     end
+  end
+
+  # Spec 011: states of work items.
+  def item_state_badge(item)
+    kind = { "planned" => "accent", "done" => "ok", "blocked" => "bad", "with_manager" => "warn", "cancelled" => nil, "new" => nil }[item.state]
+    badge(item.state_label, kind)
+  end
+
+  # Spec 011: a chat message as the chat page shows it (rendered by the server and by chat.js alike).
+  def chat_message_json(message)
+    director = message.user.director_role&.agent
+    { id: message.id, author: message.author,
+      name: { "user" => "You", "director" => director&.name || "Director", "system" => "Agentaro" }[message.author],
+      content: message.content, actions: message.actions_summary,
+      time: l(message.created_at, format: "%H:%M"), day: l(message.created_at.to_date, format: :long) }
   end
 end

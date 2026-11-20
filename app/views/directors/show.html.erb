@@ -1,0 +1,52 @@
+<% content_for :title, "Director · Agentaro" %>
+<% content_for :content_class, "full" %>
+<% content_for :scripts do %><%= javascript_include_tag "chat", defer: true %><% end %>
+
+<% if @director.nil? %>
+  <%= page_header "Director" %>
+  <div class="card"><p>You have no director yet. <%= link_to "Choose one on the Team page", team_path %>.</p></div>
+<% else %>
+  <div class="chat-app" data-messages-url="<%= chat_messages_path %>" data-last-id="<%= @messages.last&.id.to_i %>" data-writing="<%= @writing %>">
+    <header class="chat-head">
+      <span class="chat-avatar is-director" aria-hidden="true"><%= @director.name.first.upcase %></span>
+      <div class="chat-who">
+        <strong><%= @director.name %></strong>
+        <span class="chat-status muted small" data-status><%= @writing ? "writing…" : "your director" %></span>
+      </div>
+      <nav class="chat-links">
+        <%= link_to work_items_path, class: "button secondary small" do %><%= icon(:list) %> List<% end %>
+        <%= link_to team_path, class: "button secondary small" do %><%= icon(:org) %> Team<% end %>
+      </nav>
+    </header>
+
+    <div class="chat-scroll" id="chat-scroll">
+      <div class="chat-stream" id="chat-stream" aria-live="polite">
+        <% if @messages.empty? %>
+          <p class="chat-empty muted" data-empty>Say hello to <%= @director.name %>. For example: "Research the best way to back up a Mac and write a one-page summary by Friday."</p>
+        <% end %>
+        <% day = nil %>
+        <% @messages.each do |message| %>
+          <% data = chat_message_json(message) %>
+          <% if data[:day] != day %><% day = data[:day] %><div class="chat-day" data-day="<%= day %>"><span><%= day %></span></div><% end %>
+          <div class="bubble-row from-<%= message.author %>" data-id="<%= message.id %>">
+            <div class="bubble">
+              <% unless message.author == "user" %><div class="bubble-name"><%= data[:name] %></div><% end %>
+              <div class="bubble-text"><%= message.content %></div>
+              <% if message.actions_summary %><div class="bubble-actions"><%= message.actions_summary %></div><% end %>
+              <div class="bubble-time"><%= data[:time] %></div>
+            </div>
+          </div>
+        <% end %>
+        <div class="bubble-row from-director typing" data-typing <%= "hidden" unless @writing %>>
+          <div class="bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <%= form_with model: ChatMessage.new, url: chat_messages_path, class: "chat-composer", id: "chat-composer" do |f| %>
+      <%= f.text_area :content, rows: 1, maxlength: 5000, required: true, placeholder: "Message #{@director.name}…", "aria-label": "Message", autofocus: true, id: "chat-input" %>
+      <button type="submit" class="send" aria-label="Send" title="Send (Enter)"><%= icon(:send) %></button>
+    <% end %>
+    <p class="chat-hint muted small desktop-only">Enter sends · Shift+Enter for a new line</p>
+  </div>
+<% end %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -25,6 +25,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
     t.index ["executor_id"], name: "index_agents_on_executor_id"
     t.index ["kind", "user_id", "name"], name: "index_agents_on_kind_and_user_id_and_name"
     t.index ["user_id"], name: "index_agents_on_user_id"
+  end
+
+  create_table "chat_messages", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "author", null: false
+    t.text "content", null: false
+    t.text "actions_summary"
+    t.integer "task_run_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["task_run_id"], name: "index_chat_messages_on_task_run_id"
+    t.index ["user_id"], name: "index_chat_messages_on_user_id"
   end
 
   create_table "executors", force: :cascade do |t|
@@ -85,7 +97,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
   end
 
   create_table "task_runs", force: :cascade do |t|
-    t.integer "task_id", null: false
+    t.integer "task_id"
     t.datetime "occurrence_start", null: false
     t.string "trigger", null: false
     t.string "state", default: "queued", null: false
@@ -102,9 +114,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
     t.datetime "finished_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "purpose", default: "step", null: false
+    t.integer "user_id"
+    t.integer "work_item_id"
+    t.integer "agent_id"
+    t.index ["agent_id"], name: "index_task_runs_on_agent_id"
     t.index ["state", "created_at"], name: "index_task_runs_on_state_and_created_at"
     t.index ["task_id", "occurrence_start"], name: "index_task_runs_one_scheduled_per_occurrence", unique: true, where: "\"trigger\" = 'scheduled'"
     t.index ["task_id"], name: "index_task_runs_on_task_id"
+    t.index ["user_id"], name: "index_task_runs_on_user_id"
+    t.index ["work_item_id"], name: "index_task_runs_on_work_item_id"
   end
 
   create_table "tasks", force: :cascade do |t|
@@ -125,10 +144,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
     t.datetime "updated_at", null: false
     t.integer "agent_id"
     t.datetime "agent_assigned_at"
+    t.integer "work_item_id"
     t.index ["agent_id"], name: "index_tasks_on_agent_id"
     t.index ["calendar", "starts_at"], name: "index_tasks_on_calendar_and_starts_at"
     t.index ["user_id", "starts_at"], name: "index_tasks_on_user_id_and_starts_at"
     t.index ["user_id"], name: "index_tasks_on_user_id"
+    t.index ["work_item_id"], name: "index_tasks_on_work_item_id"
+  end
+
+  create_table "team_roles", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "agent_id", null: false
+    t.string "role", null: false
+    t.integer "parent_id"
+    t.string "role_text"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_team_roles_on_agent_id"
+    t.index ["parent_id"], name: "index_team_roles_on_parent_id"
+    t.index ["user_id", "role", "parent_id", "agent_id"], name: "index_team_roles_unique", unique: true
+    t.index ["user_id"], name: "index_team_roles_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -145,13 +180,47 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 
+  create_table "work_items", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.datetime "handle_from"
+    t.date "due_on"
+    t.string "priority", default: "normal", null: false
+    t.integer "position", default: 0, null: false
+    t.string "state", default: "new", null: false
+    t.integer "manager_agent_id"
+    t.text "director_note"
+    t.text "proposed_plan"
+    t.text "plan_summary"
+    t.text "review_comment"
+    t.integer "replan_count", default: 0, null: false
+    t.text "blocked_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["manager_agent_id"], name: "index_work_items_on_manager_agent_id"
+    t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"
+    t.index ["user_id"], name: "index_work_items_on_user_id"
+  end
+
   add_foreign_key "agents", "executors"
   add_foreign_key "agents", "users"
+  add_foreign_key "chat_messages", "task_runs"
+  add_foreign_key "chat_messages", "users"
   add_foreign_key "password_links", "users"
   add_foreign_key "password_links", "users", column: "created_by_id"
   add_foreign_key "sessions", "users"
   add_foreign_key "task_exceptions", "tasks"
+  add_foreign_key "task_runs", "agents"
   add_foreign_key "task_runs", "tasks"
+  add_foreign_key "task_runs", "users"
+  add_foreign_key "task_runs", "work_items"
   add_foreign_key "tasks", "agents"
   add_foreign_key "tasks", "users"
+  add_foreign_key "tasks", "work_items"
+  add_foreign_key "team_roles", "agents"
+  add_foreign_key "team_roles", "team_roles", column: "parent_id"
+  add_foreign_key "team_roles", "users"
+  add_foreign_key "work_items", "agents", column: "manager_agent_id"
+  add_foreign_key "work_items", "users"
 end

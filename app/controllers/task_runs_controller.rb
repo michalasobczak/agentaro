@@ -6,7 +6,7 @@ class TaskRunsController < ApplicationController
              with: -> { redirect_back fallback_location: calendar_path, alert: "Too many runs started by hand. Try again in a few minutes." }
 
   def show
-    @run = TaskRun.joins(:task).merge(Task.visible_to(current_user)).find(params[:id])
+    @run = TaskRun.visible_to(current_user).find(params[:id])
     @task = @run.task
   end
 

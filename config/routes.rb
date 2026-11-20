@@ -15,6 +15,16 @@ Rails.application.routes.draw do
   end
 
   resources :agents # spec 009
+  # Spec 011: chat with the director, the work list, the team
+  resource :director, only: :show do
+    get :stamp
+  end
+  resources :chat_messages, only: %i[index create], path: "director/messages"
+  resources :work_items, only: %i[index show], path: "list" do
+    post :retry, on: :member
+  end
+  resource :team, only: :show
+  resources :team_roles, only: %i[create update destroy], path: "team/roles"
   resources :task_runs, only: :show, path: "runs" # spec 010
   resources :executors, only: :index # spec 008 (read-only for everyone, Q4)
 

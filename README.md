@@ -75,6 +75,7 @@ Run folders (files agents wrote) live in `var/runs/<environment>/`. Everything e
 
 Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No external resources; two small first-party scripts (`app/assets/javascripts/`), no JavaScript libraries.
 
+- **Director and management (spec 011):** you talk only to your director in a chat. The director keeps your work list, picks a manager for each item, and approves the manager's plan; the steps go into the calendar for the manager's team members. Your team (director, managers, members with roles) is set up on the Team page and shown as an org chart. Agents answer in JSON; Agentaro checks every answer before applying it.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
 - **Agents (spec 009):** a name, a master prompt (who the agent is, written by people) and the executor it runs on, with an optional model. Every user has private agents; admins also make shared agents for everyone. Calendar tasks can be assigned to an agent.
 - **Executors (spec 008):** the AI tools Agentaro can use, managed by admins from built-in presets — command-line tools logged in on this computer (Claude Code, Codex, Gemini CLI, Grok CLI, Ollama, LM Studio) and local APIs that need no key (Ollama, LM Studio, OpenAI-compatible servers). On-demand check: version of the program, or list of models. Users see the list read-only. No keys or tokens are stored; subscriptions are used by logging in on the host (`claude login`, `codex login`).
@@ -100,7 +101,8 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - 2026-11-19: spec 008 implemented — executors (CLI and local API presets, check, read-only list for users). Tests: 117. Security analysis: F9, F10 fixed.
 - 2026-11-19: spec 009 implemented — agents (private and shared) with a master prompt and an executor, assignable to calendar tasks. Tests: 137. Security analysis: F11 fixed.
 - 2026-11-19: spec 010 implemented — tasks run on their agents' executors at their time (Claude Code, Codex verified on the host). Tests: 156. Security analysis: F13 fixed, F12 (agents can read files outside their folder) deferred by the owner — until it is decided, give agents on Claude Code or Codex only to people you trust with your Mac account's files.
-- Next: 011 memory and context (draft), 012 self-improvement; F12 still to be decided.
+- 2026-11-19: spec 011 implemented — chat with the director, work list, managers' plans approved by the director, org chart; verified with Claude. Tests: 175. Security analysis: F14 (no budget yet) and F15 (management runs have full tools) open for specs 012 and 013.
+- Next: 012 feedback loop (results back to the managers and director, reports in the chat, budgets, stop), 013 isolation of agents (F12, F15), 014 memory (draft), 015 self-improvement.
 
 ## Specifications
 
@@ -116,8 +118,11 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 008 | [Executors](specs/008-executors.md) | implemented |
 | 009 | [Agents and task assignment](specs/009-agents.md) | implemented |
 | 010 | [Running tasks on agents](specs/010-task-execution.md) | implemented (F12 deferred) |
-| 011 | [Agent memory and context](specs/011-agent-memory.md) | draft |
-| 012 | Self-improvement | not written |
+| 011 | [Director chat, work list and management](specs/011-list-and-management.md) | implemented (F14, F15 open) |
+| 012 | Feedback loop: results back to managers, budgets, stop | not written |
+| 013 | Isolation of agents (F12) | not written |
+| 014 | [Agent memory and context](specs/014-agent-memory.md) | draft |
+| 015 | Self-improvement | not written |
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 

@@ -38,7 +38,7 @@ When a calendar task with an agent reaches its start time, Agentaro runs it: it 
 - G9. Missed runs: never run late (Q2). An occurrence is due only within 2 minutes after its start; past occurrences without a run are shown as *missed* (computed, not stored) and can be run by hand.
 
 **Out of scope**
-- Memory and context beyond the master prompt (spec 011); self-improvement (spec 012); notifications; agents creating or changing tasks; retries other than "Run now"; tools beyond Q1.
+- Memory and context beyond the master prompt (spec 014); self-improvement (spec 015); notifications; agents creating or changing tasks; retries other than "Run now"; tools beyond Q1.
 
 **Success criteria**
 - S1. A task assigned to an agent on Claude Code, Codex and Ollama runs at its start time on the owner's Mac and stores the answer.

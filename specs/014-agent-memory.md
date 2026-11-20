@@ -1,12 +1,12 @@
-# 011 — Agent memory and context
+# 014 — Agent memory and context
 
 Status: **draft**
 Date: 2026-11-19
-Depends on: [009](009-agents.md), 010 (running tasks, not written yet)
+Depends on: [009](009-agents.md), [010](010-task-execution.md), [011](011-list-and-management.md)
 
 ## 1. TL;DR
 
-Each agent (spec 009) gets a **memory graph** that holds what it has learned, and the context for a task is assembled from its master prompt and the most relevant memories. The memory is designed so that the self-improvement spec (012) can reorganize it on a schedule. Confirmed by tests of the memory model, revisions and context assembly, and by a browser walk-through.
+Each agent (spec 009) gets a **memory graph** that holds what it has learned, and the context for a task is assembled from its master prompt and the most relevant memories. The memory is designed so that the self-improvement spec (015) can reorganize it on a schedule. Confirmed by tests of the memory model, revisions and context assembly, and by a browser walk-through.
 
 ## 2. Abstract
 
@@ -45,7 +45,7 @@ Retrieval mixes relevance (text search, optionally embeddings), graph neighbourh
 - G6. Context assembly, used by task runs (spec 010): a function that builds what the agent would get for a task — master prompt, the self node, the most relevant memories (text search, embeddings (Q3), graph neighbours, recency and importance, within a size budget). Shown on the task page as a preview.
 
 **Out of scope**
-- Self-improvement and the scheduled reorganization (next spec, owner).
+- Self-improvement and the scheduled reorganization (spec 015).
 - Teams of agents; agents talking to each other; tools and permissions of agents.
 - Agents and assignment (spec 009); running tasks (spec 010).
 
@@ -66,7 +66,7 @@ Retrieval mixes relevance (text search, optionally embeddings), graph neighbourh
 ## 5. Functional Domain Changes
 
 **Rules**
-- R1. The master prompt is written by people only, never by self-improvement (Q4); the agent's own view of itself lives in its `self` node, which spec 012 lets it rewrite.
+- R1. The master prompt is written by people only, never by self-improvement (Q4); the agent's own view of itself lives in its `self` node, which spec 015 lets it rewrite.
 - R2. Memories are never deleted by the system: they are closed (`valid_to`) or superseded via an edge; the owner may purge them for good, e.g. personal data (Q5).
 - R3. Every memory carries its source; memories from task results are marked as such and start with lower confidence than the owner's own.
 - R4. An agent's memory belongs to that agent only; no agent reads another's memory.

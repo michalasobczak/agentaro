@@ -13,6 +13,11 @@ class User < ApplicationRecord
   has_many :password_links, dependent: :destroy
   has_many :tasks, dependent: :destroy # spec 007 (accounts are deactivated, not deleted)
   has_many :agents, dependent: :destroy # spec 009
+  has_many :team_roles, dependent: :destroy # spec 011
+  has_many :work_items, dependent: :destroy
+  has_many :chat_messages, dependent: :destroy
+
+  def director_role = team_roles.directors.includes(agent: :executor).first
 
   normalizes :username, with: ->(u) { u.to_s.strip.downcase }
 

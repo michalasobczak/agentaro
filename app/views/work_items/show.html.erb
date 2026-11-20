@@ -1,0 +1,48 @@
+<%= page_header @item.title, "Item on your list" do %>
+  <%= link_to "Your list", work_items_path, class: "button secondary" %>
+<% end %>
+<div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
+<div class="grid grid-2">
+  <div class="card">
+    <dl class="facts">
+      <dt>State</dt><dd><%= item_state_badge(@item) %></dd>
+      <dt>Priority</dt><dd><%= @item.priority %></dd>
+      <% if @item.handle_from %><dt>Handle from</dt><dd><%= l @item.handle_from, format: :long %></dd><% end %>
+      <% if @item.due_on %><dt>Due</dt><dd><%= l @item.due_on, format: :long %></dd><% end %>
+      <% if @item.description.present? %><dt>Details</dt><dd class="pre"><%= @item.description %></dd><% end %>
+      <% if @item.manager_agent %><dt>Manager</dt><dd><%= @item.manager_agent.name %></dd><% end %>
+      <% if @item.director_note.present? %><dt>Director's note</dt><dd class="pre"><%= @item.director_note %></dd><% end %>
+      <% if @item.plan_summary.present? %><dt>Plan</dt><dd class="pre"><%= @item.plan_summary %></dd><% end %>
+      <% if @item.review_comment.present? && @item.state != "planned" %><dt>Director's comment</dt><dd class="pre"><%= @item.review_comment %></dd><% end %>
+      <% if @item.blocked_reason.present? && @item.state == "blocked" %><dt>Blocked</dt><dd class="pre"><%= @item.blocked_reason %></dd><% end %>
+    </dl>
+    <% if @item.state == "blocked" %>
+      <div class="actions spaced"><%= button_to "Try again", retry_work_item_path(@item), class: "secondary" %></div>
+    <% end %>
+  </div>
+  <div class="card">
+    <div class="card-header"><h2>Steps</h2></div>
+    <% if @steps.empty? %>
+      <p class="muted small">No steps yet.<% if @item.plan %> A plan is waiting for the director's review.<% end %></p>
+    <% else %>
+      <ul class="run-list">
+        <% @steps.each do |task| %>
+          <% last = task.runs.max_by(&:id) %>
+          <li><%= link_to edit_task_path(task) do %><span class="small"><%= l task.starts_at, format: :short %></span> <strong><%= task.title %></strong> <span class="muted small"><%= task.agent&.name %></span><% end %> <%= last ? run_badge(last) : badge("scheduled") %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header"><h2>Management</h2></div>
+  <% if @runs.empty? %>
+    <p class="muted small">Not picked up yet.</p>
+  <% else %>
+    <ul class="run-list">
+      <% @runs.each do |run| %>
+        <li><%= link_to task_run_path(run) do %><%= run_badge(run) %> <span class="small"><%= { "director" => "director chose a manager", "manager" => "manager planned", "review" => "director reviewed the plan", "chat" => "chat" }[run.purpose] %></span> <span class="muted small"><%= run.agent_name %> · <%= l run.created_at, format: :short %></span><% end %></li>
+      <% end %>
+    </ul>
+  <% end %>
+</div>

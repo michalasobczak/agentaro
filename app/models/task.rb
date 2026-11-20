@@ -21,6 +21,7 @@ class Task < ApplicationRecord
 
   belongs_to :user # author
   belongs_to :agent, optional: true # spec 009
+  belongs_to :work_item, optional: true # spec 011: a step of an item planned by a manager
   attr_accessor :agent_refused # set by the form when the chosen agent may not be assigned (R3)
   has_many :exceptions, class_name: "TaskException", dependent: :destroy
   has_many :runs, class_name: "TaskRun", dependent: :destroy # spec 010

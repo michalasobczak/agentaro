@@ -27,6 +27,9 @@
         <% main_nav = capture do %>
           <%= nav_link "Home", root_path, :home %>
           <%= nav_link "Calendar", calendar_path, :calendar, active: controller_path.in?(%w[calendar tasks]) %>
+          <%= nav_link "Director", director_path, :chat, active: controller_path.in?(%w[directors chat_messages]) %>
+          <%= nav_link "List", work_items_path, :list, active: controller_path == "work_items" %>
+          <%= nav_link "Team", team_path, :org, active: controller_path.in?(%w[teams team_roles]) %>
           <%= nav_link "Agents", agents_path, :agent, active: controller_path == "agents" %>
           <%= nav_link "Executors", executors_path, :chip, active: controller_path.in?(%w[executors admin/executors]) %>
           <%= nav_link "My sessions", account_sessions_path, :sessions %>

@@ -1,0 +1,110 @@
+<%= page_header "Team", "Who works for you: the director you talk to, managers who plan, and their members who do the steps." %>
+<% role_badge_for = ->(agent) { agent.usable? ? nil : badge("not available", "warn") } %>
+
+<div class="card org-card">
+  <div class="card-header"><h2>Org chart</h2></div>
+  <% if @director.nil? && @managers.empty? %>
+    <p class="muted">No team yet. Choose a director below, then add managers and their members.</p>
+  <% else %>
+    <ul class="org">
+      <li>
+        <div class="org-node is-director">
+          <span class="org-role">Director</span>
+          <% if @director %>
+            <strong><%= @director.agent.name %></strong> <%= role_badge_for.(@director.agent) %>
+            <span class="muted small"><%= @director.agent.runtime_label %></span>
+          <% else %>
+            <span class="muted">not chosen</span>
+          <% end %>
+        </div>
+        <% if @managers.any? %>
+          <ul>
+            <% @managers.each do |manager| %>
+              <li>
+                <div class="org-node is-manager">
+                  <span class="org-role">Manager</span>
+                  <strong><%= manager.agent.name %></strong> <%= role_badge_for.(manager.agent) %>
+                  <span class="muted small"><%= manager.agent.runtime_label %></span>
+                </div>
+                <% if manager.members.any? %>
+                  <ul>
+                    <% manager.members.each do |member| %>
+                      <li>
+                        <div class="org-node">
+                          <span class="org-role"><%= member.role_text || "Member" %></span>
+                          <strong><%= member.agent.name %></strong> <%= role_badge_for.(member.agent) %>
+                          <span class="muted small"><%= member.agent.runtime_label %></span>
+                        </div>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </li>
+    </ul>
+  <% end %>
+</div>
+
+<% agent_options = @candidates.map { |a| [ "#{a.name}#{" (shared)" if a.shared?}#{" — not available" unless a.usable?}", a.id ] } %>
+<% if @candidates.empty? %>
+  <div class="card"><p class="muted">You have no agents yet. <%= link_to "Create an agent", new_agent_path %> first.</p></div>
+<% else %>
+  <div class="grid grid-2 team-forms">
+    <div class="card">
+      <div class="card-header"><h2>Director</h2></div>
+      <% if @director %>
+        <p><strong><%= @director.agent.name %></strong> is your director.</p>
+        <%= button_to "Change director", team_role_path(@director), method: :delete, class: "secondary", form: { data: { confirm: "Remove #{@director.agent.name} as director? You can then choose another." } } %>
+      <% else %>
+        <%= form_with model: TeamRole.new, url: team_roles_path, class: "form" do |f| %>
+          <%= f.hidden_field :role, value: "director" %>
+          <div class="field"><%= f.label :agent_id, "Agent" %><%= f.select :agent_id, agent_options %></div>
+          <div><%= f.submit "Make director" %></div>
+        <% end %>
+      <% end %>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Add a manager</h2></div>
+      <%= form_with model: TeamRole.new, url: team_roles_path, class: "form" do |f| %>
+        <%= f.hidden_field :role, value: "manager" %>
+        <div class="field"><%= f.label :agent_id, "Agent" %><%= f.select :agent_id, agent_options %></div>
+        <div><%= f.submit "Add manager" %></div>
+      <% end %>
+    </div>
+  </div>
+
+  <% @managers.each do |manager| %>
+    <div class="card">
+      <div class="card-header">
+        <h2><%= manager.agent.name %>'s team</h2>
+        <%= button_to "Remove manager", team_role_path(manager), method: :delete, class: "danger small", form: { data: { confirm: "Remove #{manager.agent.name} and their team?" } } %>
+      </div>
+      <% if manager.members.any? %>
+        <ul class="rows member-rows">
+          <% manager.members.each do |member| %>
+            <li class="member-row">
+              <strong><%= member.agent.name %></strong>
+              <%= form_with model: member, url: team_role_path(member), method: :patch, class: "inline-form" do |f| %>
+                <%= f.text_field :role_text, maxlength: 100, placeholder: "Role, e.g. researcher", "aria-label": "Role of #{member.agent.name}" %>
+                <%= f.submit "Save", class: "secondary small" %>
+              <% end %>
+              <%= button_to "Remove", team_role_path(member), method: :delete, class: "link" %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="muted small">No members yet.</p>
+      <% end %>
+      <%= form_with model: TeamRole.new, url: team_roles_path, class: "inline-form spaced" do |f| %>
+        <%= f.hidden_field :role, value: "member" %>
+        <%= f.hidden_field :parent_id, value: manager.id %>
+        <%= f.select :agent_id, agent_options, {}, "aria-label": "Agent" %>
+        <%= f.text_field :role_text, maxlength: 100, placeholder: "Role, e.g. researcher", "aria-label": "Role" %>
+        <%= f.submit "Add member", class: "secondary" %>
+      <% end %>
+    </div>
+  <% end %>
+<% end %>

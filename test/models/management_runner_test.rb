@@ -1,0 +1,173 @@
+require "test_helper"
+
+# Spec 011: chat actions (G1), director's choice (G5), manager's plan (G6), director's review (G7),
+# checks of every answer (R1, R2, S3), retry, blocking, scheduling of due items (Q4, S1).
+class ManagementRunnerTest < ActiveSupport::TestCase
+  setup do
+    @user = create_user
+    @executor = Executor.create!(name: "Claude", preset: "claude_code")
+    mk = ->(name) { Agent.create!(user: @user, name: name, master_prompt: "You are #{name}.", executor: @executor) }
+    @director, @manager, @writer = mk.("Dyrektor"), mk.("Kierownik"), mk.("Pisarz")
+    @user.team_roles.create!(agent: @director, role: "director")
+    @manager_role = @user.team_roles.create!(agent: @manager, role: "manager")
+    @user.team_roles.create!(agent: @writer, role: "member", parent: @manager_role, role_text: "writer")
+    @answers = Dir.mktmpdir
+  end
+
+  teardown { FileUtils.rm_rf(@answers) }
+
+  # A stand-in "claude": answers with the file named after the mode in its prompt (and a second file on retry).
+  def with_management(answers)
+    answers.each { |mode, text| File.write(File.join(@answers, mode), text.is_a?(String) ? text : text.to_json) }
+    Dir.mktmpdir do |bin|
+      File.write(File.join(bin, "claude"), <<~SH)
+        #!/bin/sh
+        input=$(cat)
+        mode=$(printf '%s' "$input" | sed -n 's/^Mode: //p' | head -1)
+        if printf '%s' "$input" | grep -q "previous answer was not accepted" && [ -f "#{@answers}/$mode.retry" ]; then cat "#{@answers}/$mode.retry"; else cat "#{@answers}/$mode"; fi
+        printf '%s' "$input" > "#{@answers}/last-$mode-prompt"
+      SH
+      File.chmod(0o755, File.join(bin, "claude"))
+      original = ENV["PATH"]
+      ENV["PATH"] = "#{bin}:#{original}"
+      yield
+    ensure
+      ENV["PATH"] = original
+    end
+  end
+
+  def run_all
+    10.times do
+      run = TaskRun.where(state: "queued", purpose: %w[chat director manager review]).order(:id).first or break
+      ManagementRunner.new(run).perform!
+    end
+  end
+
+  def prompt(mode) = File.read(File.join(@answers, "last-#{mode}-prompt"))
+
+  def in_days(days, hour) = (Time.zone.now.to_date + days).in_time_zone.change(hour: hour).strftime("%Y-%m-%dT%H:%M")
+
+  test "S1, S2: a chat message becomes a planned item, end to end" do
+    @user.chat_messages.create!(author: "user", content: "Research backups and write a summary by Friday")
+    with_management(
+      "chat" => { reply: "On it.", actions: [ { type: "add_item", title: "Backup summary", description: "Compare 3 tools", due_on: (Date.current + 10).iso8601, priority: "high" } ] },
+      "director" => { manager: @manager.id, note: "Keep it short" },
+      "manager" => { summary: "Research then write", steps: [ { title: "Research", description: "Find 3 tools", agent: @writer.id, starts_at: in_days(1, 9), minutes: 60 },
+                                                              { title: "Write", description: "One page", agent: @writer.id, starts_at: in_days(1, 11), minutes: 30 } ] },
+      "review" => { approve: true, note: "Good plan." }
+    ) do
+      ManagementRunner.chat!(@user)
+      run_all
+    end
+    item = @user.work_items.sole
+    assert_equal [ "Backup summary", "high", "planned", @manager ], [ item.title, item.priority, item.state, item.manager_agent ]
+    assert_equal [ "Research", "Write" ], item.tasks.order(:starts_at).pluck(:title)
+    assert item.tasks.all? { |t| t.agent == @writer && t.calendar == "private" && t.user == @user }
+    messages = @user.chat_messages.ordered.map { |m| [ m.author, m.content ] }
+    assert_equal [ "director", "On it." ], messages[1]
+    assert_match "Added to the list: Backup summary", @user.chat_messages.where(author: "director").first.actions_summary
+    assert_match(/Planned "Backup summary": 2 steps, first on/, messages.last[1])
+    assert_match "Member id #{@writer.id}: Pisarz, role: writer", prompt("director")
+    assert_match "Director's note: Keep it short", prompt("manager")
+    assert_equal %w[chat director manager review], TaskRun.where(user: @user).order(:id).pluck(:purpose)
+  end
+
+  test "R1, S3: invalid steps change nothing; one retry with the errors, then blocked and told in the chat" do
+    item = @user.work_items.create!(title: "Plan a trip", state: "with_manager", manager_agent: @manager)
+    outsider = Agent.create!(user: @user, name: "Outsider", master_prompt: "x", executor: @executor)
+    bad = { summary: "x", steps: [ { title: "Book", agent: outsider.id, starts_at: in_days(1, 9), minutes: 30 } ] }
+    with_management("manager" => bad, "manager.retry" => { summary: "x", steps: [ { title: "Book", agent: @writer.id, starts_at: "2020-01-01T09:00", minutes: 30 } ] }) do
+      run = ManagementRunner.queue!(user: @user, purpose: "manager", work_item: item, agent: @manager)
+      ManagementRunner.new(run).perform!
+      assert_match "agent #{outsider.id} is not one of your team members", prompt("manager"), "the retry tells the errors"
+      assert_equal "failed", run.reload.state
+    end
+    assert_equal 0, Task.count
+    assert_equal "blocked", item.reload.state
+    assert_match "starts_at must be in the future", item.blocked_reason
+    assert_match "\"Plan a trip\" is blocked", @user.chat_messages.last.content
+  end
+
+  test "R2: limits on steps, horizon, due date and handle-from" do
+    travel_to Time.zone.parse("2026-11-20 10:00") # the checks are relative to now; a fixed time keeps the test stable
+    item = @user.work_items.create!(title: "Limits", state: "with_manager", manager_agent: @manager, due_on: Date.current + 2, handle_from: Time.zone.now + 1.day)
+    step = ->(**over) { { title: "S", agent: @writer.id, starts_at: in_days(1, 23), minutes: 30 }.merge(over) }
+    runner = ManagementRunner.new(TaskRun.new(user: @user, work_item: item, purpose: "manager"))
+    check = ->(data) { runner.send(:apply_plan!, data.deep_stringify_keys) rescue $! }
+    assert_match "1 to 10 steps", check.({ steps: Array.new(11) { step.() } }).message
+    assert_match "within 14 days", check.({ steps: [ step.(starts_at: in_days(20, 9)) ] }).message
+    assert_match "ends after the due date", check.({ steps: [ step.(starts_at: in_days(2, 23), minutes: 120) ] }).message
+    assert_match "before the handle-from time", check.({ steps: [ step.(starts_at: in_days(0, 23)) ] }).message
+    assert_match "minutes must be 1 to 5760", check.({ steps: [ step.(minutes: 0) ] }).message
+    assert_equal 0, Task.count
+  end
+
+  test "chat actions are checked together: one bad action applies none" do
+    @user.chat_messages.create!(author: "user", content: "add two")
+    other = WorkItem.create!(user: create_user(username: "bob"), title: "Bob's item")
+    answer = { reply: "Done", actions: [ { type: "add_item", title: "Mine" }, { type: "cancel_item", id: other.id } ] }
+    with_management("chat" => answer, "chat.retry" => answer) do
+      ManagementRunner.chat!(@user)
+      run_all
+    end
+    assert_equal 0, @user.work_items.count, "nothing added"
+    assert_equal "new", other.reload.state, "other users' items are not reachable"
+    assert_match "No answer from the director", @user.chat_messages.last.content
+    assert_match "no item with id #{other.id}", @user.chat_messages.last.content
+  end
+
+  test "Q4, S1: items wait for their handle-from time" do
+    later = @user.work_items.create!(title: "Later", handle_from: 2.hours.from_now)
+    now = @user.work_items.create!(title: "Now")
+    assert_equal [ now ], ManagementRunner.dispatch_due.map(&:work_item)
+    assert_empty ManagementRunner.dispatch_due, "one management run per item at a time (R3)"
+    assert_equal [ later ], ManagementRunner.dispatch_due(now: 3.hours.from_now).map(&:work_item)
+  end
+
+  test "the director can ask the user instead of choosing; rejected plans are re-planned at most 3 times" do
+    item = @user.work_items.create!(title: "Unclear")
+    with_management("director" => { blocked: "Which city?" }) do
+      ManagementRunner.dispatch_due
+      run_all
+    end
+    assert_equal [ "blocked", "Which city?" ], [ item.reload.state, item.blocked_reason ]
+    assert_equal "About \"Unclear\": Which city?", @user.chat_messages.last.content
+
+    item.update!(state: "with_manager", manager_agent: @manager, blocked_reason: nil)
+    plan = { summary: "x", steps: [ { title: "S", agent: @writer.id, starts_at: in_days(1, 9), minutes: 30 } ] }
+    with_management("manager" => plan, "review" => { approve: false, comment: "Too vague" }) do
+      ManagementRunner.queue!(user: @user, purpose: "manager", work_item: item, agent: @manager)
+      run_all
+    end
+    assert_equal [ "blocked", 3 ], [ item.reload.state, item.replan_count ]
+    assert_match "Too vague", prompt("manager")
+    assert_equal 0, Task.count
+  end
+
+  test "an unusable director blocks the item and says why" do
+    @director.update!(enabled: false)
+    item = @user.work_items.create!(title: "X")
+    ManagementRunner.dispatch_due
+    run_all
+    assert_equal "blocked", item.reload.state
+    assert_match "not available", item.blocked_reason
+  end
+
+  test "cancelling an item removes its steps that have not started" do
+    item = @user.work_items.create!(title: "X", state: "planned")
+    past = Task.create!(user: @user, title: "Done step", starts_at: 2.hours.ago, ends_at: 1.hour.ago, work_item: item)
+    future = Task.create!(user: @user, title: "Next step", starts_at: 1.day.from_now, ends_at: 1.day.from_now + 1.hour, work_item: item)
+    item.cancel!
+    assert Task.exists?(past.id)
+    assert_not Task.exists?(future.id)
+    assert_equal "cancelled", item.reload.state
+  end
+
+  test "team rules: one director, members under own managers, agents visible to the user" do
+    assert_not @user.team_roles.new(agent: @manager, role: "director").valid?
+    assert @user.team_roles.new(agent: @director, role: "manager").valid?, "Q5: one agent may hold several roles"
+    bobs = Agent.create!(user: create_user(username: "bob"), name: "Bob's", master_prompt: "x", executor: @executor)
+    assert_not @user.team_roles.new(agent: bobs, role: "manager").valid?
+    assert_not @user.team_roles.new(agent: @writer, role: "member").valid?, "a member needs a manager"
+  end
+end

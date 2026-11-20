@@ -1,6 +1,13 @@
 <% unless @run.finished? %><% content_for :head, tag.meta("http-equiv": "refresh", content: "5") %><% end %>
-<%= page_header "Run of #{@task.title}", "#{l @run.occurrence_start.in_time_zone, format: :long} · #{@run.trigger}" do %>
-  <%= link_to "Back to task", (@task.editable_by?(current_user) ? edit_task_path(@task, occurrence: (@run.occurrence_start.iso8601 if @task.recurring?)) : task_path(@task, occurrence: (@run.occurrence_start.iso8601 if @task.recurring?))), class: "button secondary" %>
+<% if @task %>
+  <%= page_header "Run of #{@task.title}", "#{l @run.occurrence_start.in_time_zone, format: :long} · #{@run.trigger}" do %>
+    <%= link_to "Back to task", (@task.editable_by?(current_user) ? edit_task_path(@task, occurrence: (@run.occurrence_start.iso8601 if @task.recurring?)) : task_path(@task, occurrence: (@run.occurrence_start.iso8601 if @task.recurring?))), class: "button secondary" %>
+  <% end %>
+<% else %>
+  <%# Spec 011: a management run — the director or a manager answering in JSON. %>
+  <%= page_header({ "chat" => "Director answering you", "director" => "Director choosing a manager", "manager" => "Manager planning", "review" => "Director reviewing a plan" }[@run.purpose], [ @run.work_item&.title, l(@run.created_at, format: :long) ].compact.join(" · ")) do %>
+    <%= link_to (@run.work_item ? "Back to the item" : "Back to the chat"), (@run.work_item ? work_item_path(@run.work_item) : director_path), class: "button secondary" %>
+  <% end %>
 <% end %>
 <div class="card">
   <dl class="facts">

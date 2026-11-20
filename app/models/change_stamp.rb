@@ -13,6 +13,14 @@ module ChangeStamp
            Agent.visible_to(user).maximum(:updated_at))
   end
 
+  # Spec 011: chat, list and management runs of the user.
+  def management(user)
+    runs = TaskRun.where(user: user)
+    digest(user.chat_messages.count, user.chat_messages.maximum(:updated_at), user.work_items.count, user.work_items.maximum(:updated_at),
+           runs.count, runs.maximum(:updated_at), Task.where(work_item_id: user.work_items.select(:id)).maximum(:updated_at),
+           TaskRun.where(task_id: Task.where(work_item_id: user.work_items.select(:id)).select(:id)).maximum(:updated_at))
+  end
+
   def task(task)
     digest(task.updated_at, task.exceptions.count, task.runs.count, task.runs.maximum(:updated_at), task.agent&.updated_at)
   end

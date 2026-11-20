@@ -8,6 +8,7 @@ class Agent < ApplicationRecord
   belongs_to :user # author; owner of a private agent
   belongs_to :executor
   has_many :tasks, dependent: nil # unassigned in before_destroy, with the changelog (R5)
+  has_many :team_roles, dependent: :destroy # spec 011
 
   normalizes :name, :description, :model, with: ->(value) { value.to_s.strip.presence }
   normalizes :master_prompt, with: ->(value) { value.to_s.strip.presence }
@@ -62,5 +63,7 @@ class Agent < ApplicationRecord
 
   def unassign_tasks
     tasks.find_each { |task| task.update_attribute(:agent_id, nil) } # runs callbacks: recorded in the changelog
+    TaskRun.where(agent_id: id).find_each { |run| run.update_attribute(:agent_id, nil) } # runs keep the agent's name
+    WorkItem.where(manager_agent_id: id).find_each { |item| item.update_attribute(:manager_agent_id, nil) }
   end
 end

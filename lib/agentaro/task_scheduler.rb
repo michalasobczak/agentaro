@@ -34,6 +34,7 @@ module Agentaro
 
       # Creates scheduled runs for due occurrences; returns them. Called by the ticker and by tests.
       def tick(now: Time.current)
+        ManagementRunner.dispatch_due(now: now) # spec 011: work items whose time has come go to the director
         due(now).filter_map do |occurrence|
           run = TaskRun.create!(task: occurrence.task, occurrence_start: occurrence.original_start, trigger: "scheduled")
           enqueue(run.id)
@@ -81,7 +82,9 @@ module Agentaro
           id = @queue.pop
           Rails.application.executor.wrap do
             run = TaskRun.find_by(id: id, state: "queued")
-            TaskRunner.new(run).perform! if run
+            next unless run
+
+            run.step? ? TaskRunner.new(run).perform! : ManagementRunner.new(run).perform!
           end
         rescue StandardError => e
           Rails.logger.error("[runs] worker failed on run #{id}: #{e.class}: #{e.message}")
