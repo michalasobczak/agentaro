@@ -60,6 +60,26 @@ class SpacesTest < ActionDispatch::IntegrationTest
     assert Space.exists?(theirs.id)
   end
 
+  # Owner fix ("dlaczego to, co jest w trakcie, nazywasz planned?"): an epic whose steps have started is "running".
+  test "a started epic is in the Running column with a running badge; a waiting one stays Planned" do
+    space = make_space("House")
+    waiting = @user.work_items.create!(title: "Later", space: space, state: "planned", starts_at: 1.day.from_now)
+    running = @user.work_items.create!(title: "Now", space: space, state: "planned", started_at: 5.minutes.ago)
+    get space_path(space)
+    assert_select ".kanban-col.s-planned .kanban-card", text: /Later/
+    assert_select ".kanban-col.s-running .kanban-card", text: /Now/
+    assert_select ".kanban-col.s-running .kanban-card", 1
+    get work_item_path(running)
+    assert_select ".badge", text: "running"
+    get work_item_path(waiting)
+    assert_select ".badge", text: "planned"
+    get spaces_path
+    assert_select ".space-counts .s-running", text: "1 running"
+    assert_select ".space-counts .s-planned", text: "1 planned"
+    patch order_space_path(space), params: { ids: [ running.id, waiting.id ] }
+    assert_response :unprocessable_content, "running and waiting epics are different columns"
+  end
+
   test "Q8–Q10: the board has a column per state; order is set within a column; Done and Cancel" do
     space = make_space("House")
     a, b, c = %w[A B C].map { |t| @user.work_items.create!(title: t, space: space) }

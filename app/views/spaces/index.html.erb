@@ -16,7 +16,7 @@
         <div class="space-card-head"><strong><%= space.name %></strong> <%= badge(space.project? ? "project" : "team", space.project? ? "accent" : nil) %><% unless space.active? %> <%= badge("archived") %><% end %></div>
         <p class="muted small space-goal"><%= space.purpose %></p>
         <div class="space-counts">
-          <% WorkItem::STATE_ORDER.each do |state| %>
+          <% WorkItem::BOARD_STATES.each do |state| %>
             <% n = @counts[[ space.id, state ]].to_i %>
             <span class="count <%= "is-zero" if n.zero? %> s-<%= state %>"><strong><%= n %></strong> <%= state %></span>
           <% end %>

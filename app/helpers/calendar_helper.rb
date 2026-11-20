@@ -51,7 +51,7 @@ module CalendarHelper
     classes = [ "epic", "epic-block", "e-#{item.state}", ("is-running" if item.running?), seg.placement_classes,
                 ("cont-before" if seg.continues_before), ("cont-after" if seg.continues_after) ].compact.join(" ")
     link_to work_item_path(item), class: classes, title: epic_title(seg.occurrence) do
-      safe_join([ tag.span(item.title, class: "task-title"), tag.span("#{item.space.name} · #{item.running? ? "running" : item.state_label}", class: "task-time") ])
+      safe_join([ tag.span(item.title, class: "task-title"), tag.span("#{item.space.name} · #{item.board_state.tr("_", " ")}", class: "task-time") ])
     end
   end
 

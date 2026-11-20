@@ -14,12 +14,12 @@ class SpacesController < ApplicationController
 
   def index
     @spaces = current_user.spaces.ordered
-    @counts = current_user.work_items.group(:space_id, :state).count
+    @counts = current_user.work_items.select(:space_id, :state, :started_at).each_with_object(Hash.new(0)) { |i, h| h[[ i.space_id, i.board_state ]] += 1 }
   end
 
   def show
     items = @space.work_items.includes(tasks: :runs).order(:position, :id).to_a
-    @columns = WorkItem::STATE_ORDER.index_with { |state| items.select { |i| i.state == state } }
+    @columns = WorkItem::BOARD_STATES.index_with { |state| items.select { |i| i.board_state == state } }
     @cancelled = items.select { |i| i.state == "cancelled" }
   end
 
@@ -74,7 +74,7 @@ class SpacesController < ApplicationController
   def order
     ids = Array(params[:ids]).map(&:to_i)
     items = @space.work_items.where(id: ids).index_by(&:id)
-    return head :unprocessable_content if ids.empty? || items.size != ids.size || items.values.map(&:state).uniq.size != 1
+    return head :unprocessable_content if ids.empty? || items.size != ids.size || items.values.map(&:board_state).uniq.size != 1
 
     WorkItem.transaction { ids.each_with_index { |id, i| items[id].update!(position: i + 1) if items[id].position != i + 1 } }
     head :no_content

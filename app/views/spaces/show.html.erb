@@ -22,7 +22,7 @@
 <% end %>
 
 <div class="kanban" data-order-url="<%= order_space_path(@space) %>">
-  <% { "new" => "New", "planned" => "Planned", "blocked" => "Blocked", "done" => "Done" }.each do |state, label| %>
+  <% { "new" => "New", "planned" => "Planned", "running" => "Running", "blocked" => "Blocked", "done" => "Done" }.each do |state, label| %>
     <section class="kanban-col s-<%= state %>" aria-label="<%= label %>">
       <header class="kanban-col-head"><span><%= label %></span><span class="count-pill"><%= @columns[state].size %></span></header>
       <ol class="kanban-cards" data-state="<%= state %>">
@@ -51,7 +51,7 @@
           </li>
         <% end %>
       </ol>
-      <% if @columns[state].empty? %><p class="kanban-empty small muted"><%= { "new" => "Tell the director what needs doing.", "planned" => "Nothing scheduled.", "blocked" => "Nothing stuck.", "done" => "Nothing finished yet." }[state] %></p><% end %>
+      <% if @columns[state].empty? %><p class="kanban-empty small muted"><%= { "new" => "Tell the director what needs doing.", "planned" => "Nothing waiting to start.", "running" => "Nothing running.", "blocked" => "Nothing stuck.", "done" => "Nothing finished yet." }[state] %></p><% end %>
     </section>
   <% end %>
 </div>

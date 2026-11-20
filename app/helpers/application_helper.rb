@@ -112,8 +112,8 @@ module ApplicationHelper
 
   # Spec 011: states of work items.
   def item_state_badge(item)
-    kind = { "planned" => "accent", "done" => "ok", "blocked" => "bad", "cancelled" => nil, "new" => nil }[item.state]
-    badge(item.state_label, kind)
+    kind = { "planned" => "accent", "running" => "warn", "done" => "ok", "blocked" => "bad", "cancelled" => nil, "new" => nil }[item.board_state]
+    badge(item.board_state.tr("_", " "), kind)
   end
 
   # Spec 011/012: what a management run did. Before spec 012 a "director" run of an item chose a manager.

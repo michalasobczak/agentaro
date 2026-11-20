@@ -20,7 +20,10 @@ class WorkItem < ApplicationRecord
   before_update :retire_plan_on_move, if: :will_save_change_to_space_id?
   before_validation(on: :create) { self.space ||= Space.default_for(user) if user } # the only active space, or "General"
 
-  STATE_ORDER = %w[new planned blocked done].freeze # spec 013: kanban columns; cancelled folded below
+  STATE_ORDER = %w[new planned blocked done].freeze # spec 013: the stored states, in order
+  # Owner fix ("dlaczego to, co jest w trakcie, nazywasz planned?"): what the user sees — a planned epic whose steps
+  # have started is "running" (the stored state stays planned). Board columns; cancelled folded below.
+  BOARD_STATES = %w[new planned running blocked done].freeze
 
   scope :listed, -> { order(Arel.sql("CASE state WHEN 'done' THEN 2 WHEN 'cancelled' THEN 3 ELSE 1 END"), Arel.sql("CASE priority WHEN 'high' THEN 0 ELSE 1 END"), :position, :id) }
   # Spec 016, G2: new epics are planned at once (their start time only decides when the steps run); never in
@@ -28,6 +31,7 @@ class WorkItem < ApplicationRecord
   scope :due, ->(_now = Time.current) { where(state: "new").where(space_id: Space.active.select(:id)) }
 
   def state_label = state.tr("_", " ")
+  def board_state = running? ? "running" : state
   def open? = OPEN.include?(state)
 
   def active_steps = epic_steps.where(position: active_step_from..)

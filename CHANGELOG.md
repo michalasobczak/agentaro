@@ -228,3 +228,9 @@
   - **A run's agent can now be stopped.** New `RunControl` registers the agent processes Agentaro starts (`HostProcess.run(on_spawn:)`) and kills a run's whole process group. A model reached over HTTP cannot be interrupted; its run is deleted, and its late answer is dropped.
   - **Tests:** `test/models/space_purge_test.rb` (includes killing a real stand-in agent that sleeps 30 s) and `spaces_test.rb`. Full suite: 320 runs.
   - **Checks:** a browser check on demo data deleted an archived space with 3 epics, and nothing of it was left. Brakeman: 0 warnings.
+- Owner fix after specs 013 and 016 ("dlaczego to, co jest w trakcie, nazywasz planned?"). Running epics are no longer shown as "planned".
+  - **Running column.** The space board has a **Running** column (amber) between Planned and Blocked. Planned now holds only epics waiting to start.
+  - **Running label.** A running epic is labelled "running" in the space counts, in its badge on the epic page and in the calendar.
+  - **No data change.** The stored state stays `planned`; `WorkItem#board_state` says what the user sees.
+  - **Ordering.** Cards are ordered within one column, so a running epic cannot be ordered among waiting ones.
+  - **Checks.** Test: `spaces_test.rb`. Browser check at 1440 px with five columns.
