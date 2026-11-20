@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_127000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_128000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -224,6 +224,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_127000) do
     t.string "chat_language", default: "auto", null: false
     t.boolean "verifier_active", default: false, null: false
     t.decimal "speech_speed", precision: 3, scale: 2, default: "1.5", null: false
+    t.string "theme", default: "auto", null: false
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 

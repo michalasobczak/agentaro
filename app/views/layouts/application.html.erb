@@ -19,7 +19,8 @@
     <% if (dock_director = chat_dock_director) %><%= javascript_include_tag "chat", defer: true %><% end %>
   </head>
 
-  <body>
+  <%# Owner fix ("potrzebuję też dark mode"): on body, which Turbo swaps on every visit, so a new choice applies at once. %>
+  <body data-theme="<%= signed_in? ? current_user.theme : "auto" %>">
     <div class="app">
       <% if signed_in? %>
         <% admin_nav = capture do %>
@@ -44,6 +45,7 @@
         <aside class="sidebar">
           <%= link_to root_path, class: "brand" do %><span class="brand-mark">A</span>Agentaro<% end %>
           <nav class="nav" aria-label="Main"><%= main_nav %></nav>
+          <%= render "layouts/theme_switch" %>
           <div class="sidebar-footer">
             <span class="avatar"><%= initials(current_user) %></span>
             <div class="who"><strong><%= current_user.username %></strong><span><%= current_user.role %></span></div>
@@ -58,6 +60,7 @@
             <div class="menu">
               <div class="who"><strong><%= current_user.username %></strong><span><%= current_user.role %></span></div>
               <nav class="nav" aria-label="Main"><%= main_nav %></nav>
+              <%= render "layouts/theme_switch" %>
               <%= button_to "Sign out", session_path, method: :delete, class: "secondary", form: { data: { turbo: false } } %>
             </div>
           </details>

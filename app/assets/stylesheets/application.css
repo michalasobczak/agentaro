@@ -38,8 +38,9 @@
   --content-max: 1600px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Dark colours (spec 006); owner fix ("potrzebuję też dark mode"): also chosen by hand. body[data-theme] is the
+   user's choice — "dark" always, "light" never, "auto" follows the system. */
+body[data-theme="dark"] {
     --bg: #0e1018;
     --surface: #171a26;
     --surface-2: #1d2130;
@@ -56,7 +57,31 @@
     --bad: #ff7b7f;  --bad-soft: #3a1618;
     --sidebar-bg: #0a0c14;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+body[data-theme="light"] { color-scheme: light; }
+html:has(> body[data-theme="dark"]) { background: #0e1018; color-scheme: dark; } /* no white edge when scrolling past */
+@media (prefers-color-scheme: dark) {
+  body:not([data-theme="light"]) {
+    --bg: #0e1018;
+    --surface: #171a26;
+    --surface-2: #1d2130;
+    --fg: #eceef6;
+    --muted: #9aa1b8;
+    --line: #272c3d;
+    --line-strong: #353b50;
+    --accent: #8b85ff;
+    --accent-strong: #a5a0ff;
+    --accent-soft: #242650;
+    --accent-fg: #0e1018;
+    --ok: #4cc98a;   --ok-soft: #12301f;
+    --warn: #f0a24a; --warn-soft: #33240f;
+    --bad: #ff7b7f;  --bad-soft: #3a1618;
+    --sidebar-bg: #0a0c14;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+    color-scheme: dark;
   }
+  html:has(> body:not([data-theme="light"])) { background: #0e1018; color-scheme: dark; }
 }
 
 /* ---------- Base ---------- */
@@ -346,6 +371,12 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .bubble-name { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.1rem; overflow-wrap: anywhere; }
 .from-system .bubble-name { color: var(--warn); }
 .bubble-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+/* Owner fix: Markdown in messages (ChatFormatHelper, chatFormat in chat.js). */
+.bubble-text > * + * { margin-top: 0.5rem; }
+.bubble-text ul, .bubble-text ol { margin: 0; padding-left: 1.3rem; white-space: normal; }
+.bubble-text li + li { margin-top: 0.15rem; }
+.bubble-text .md-h { font-weight: 700; }
+.bubble-text code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; padding: 0.05rem 0.3rem; border-radius: 0.3rem; background: color-mix(in srgb, currentColor 10%, transparent); }
 .bubble-actions { margin-top: 0.4rem; padding: 0.35rem 0.55rem; border-radius: 0.6rem; background: var(--surface-2); color: var(--muted); font-size: 0.8rem; white-space: pre-wrap; }
 .bubble-time { text-align: right; font-size: 0.68rem; margin-top: 0.15rem; color: var(--muted); }
 .from-user .bubble-time { color: rgba(255, 255, 255, 0.75); }
@@ -725,3 +756,12 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .org-node, .member-row { overflow-wrap: anywhere; }
 .org-node .agent-icon, .member-row .agent-icon { align-self: center; }
 .is-outdated .agent-status::after { content: "may be outdated"; font-size: 0.75rem; color: var(--muted); }
+
+/* Owner fix: the colour theme switch (Auto / Light / Dark) in the sidebar and the phone menu. */
+.theme-switch { display: flex; gap: 0.25rem; margin: 0.5rem 0.75rem 0; padding: 0.2rem; border-radius: 999px; background: var(--sidebar-hover); }
+.theme-form { flex: 1; margin: 0; }
+.theme-option { width: 100%; min-height: 0; padding: 0.25rem 0.4rem; border: 0; border-radius: 999px; background: transparent; color: var(--sidebar-fg); font-size: 0.78rem; font-weight: 600; box-shadow: none; }
+.theme-option:hover { background: var(--sidebar-hover); color: var(--sidebar-active); }
+.theme-option.is-on { background: var(--accent); color: #fff; }
+.menu .theme-switch { margin: 0.6rem 0; background: var(--surface-2); }
+.menu .theme-option { color: var(--fg); }

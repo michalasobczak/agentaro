@@ -23,8 +23,10 @@ class User < ApplicationRecord
 
   # Owner fix after spec 017: the language of the chat with the director.
   CHAT_LANGUAGES = { "auto" => "Auto", "pl" => "PL", "en" => "EN" }.freeze
+  THEMES = { "auto" => "Auto", "light" => "Light", "dark" => "Dark" }.freeze # owner fix: dark mode on demand
   LANGUAGE_NAMES = { "pl" => "Polish", "en" => "English" }.freeze
   validates :chat_language, inclusion: { in: CHAT_LANGUAGES.keys }
+  validates :theme, inclusion: { in: THEMES.keys }
   SPEECH_SPEEDS = [ 1.0, 1.25, 1.5, 2.0 ].freeze # owner fix: how fast Piper speaks
   validates :speech_speed, inclusion: { in: SPEECH_SPEEDS }
 

@@ -1,0 +1,7 @@
+<%# Owner fix ("potrzebuję też dark mode"): Auto (the system's), Light or Dark, saved on the account. %>
+<div class="theme-switch" role="group" aria-label="Colour theme">
+  <% User::THEMES.each do |value, label| %>
+    <%= button_to label, account_theme_path, method: :patch, params: { theme: value }, class: ["theme-option", ("is-on" if current_user.theme == value)].compact.join(" "),
+                  "aria-pressed": current_user.theme == value, form: { class: "theme-form" } %>
+  <% end %>
+</div>

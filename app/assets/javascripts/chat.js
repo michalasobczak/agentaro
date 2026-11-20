@@ -6,6 +6,11 @@
 "use strict";
 
 (() => {
+  // Owner fix ("poprosiłem directora o status i pisał dwie wiadomości jednocześnie"): several copies of the chat were
+  // alive at once, two of them on the same element, each drawing its own reply. Never run this file twice in a tab;
+  // one chat per element (a new one ends the old); a chat whose element left the page ends itself.
+  if (window.agentaroChats) return;
+  window.agentaroChats = new Set(); // the live chats, for checks in the browser
   // Browser storage is a convenience only (open or closed, unsent draft): it may be missing or throw.
   const store = {
     get(area, key) { try { return window[area].getItem(key); } catch (_) { return null; } },
@@ -28,6 +33,50 @@
       timer = setInterval(() => { on = !on; document.title = on ? `(1) New message from ${who}` : base; }, 1000);
     };
   })();
+
+  // Owner fix ("model zwraca formatowanie **xxx**, ale czat tego nie formatuje"): the same small part of Markdown as
+  // ChatFormatHelper — **bold**, *italic*, `code`, "- " and "1. " lists, "# " headings — built with textContent only.
+  const LIST_ITEM = /^\s*(?:([-*•])|(\d+)[.)])\s+(.*)$/;
+  const HEADING = /^\s{0,3}#{1,6}\s+(.*)$/;
+  const INLINE = /\*\*(.+?)\*\*|__(.+?)__|`([^`\n]+)`|(?<![\w*])\*(?=\S)(.+?)(?<=\S)\*(?![\w*])/;
+  function inline(text) {
+    const out = [];
+    let rest = text, m;
+    while ((m = INLINE.exec(rest))) {
+      out.push(document.createTextNode(rest.slice(0, m.index)));
+      const node = document.createElement(m[1] || m[2] ? "strong" : m[3] ? "code" : "em");
+      node.textContent = m[1] || m[2] || m[3] || m[4];
+      out.push(node);
+      rest = rest.slice(m.index + m[0].length);
+    }
+    out.push(document.createTextNode(rest));
+    return out;
+  }
+  function chatFormat(text) {
+    const blocks = [];
+    String(text || "").split("\n").forEach((line) => {
+      const last = blocks[blocks.length - 1];
+      let m;
+      if ((m = LIST_ITEM.exec(line))) {
+        const kind = m[1] ? "ul" : "ol";
+        if (last && last.kind === kind) last.items.push(m[3]); else blocks.push({ kind, items: [ m[3] ] });
+      } else if ((m = HEADING.exec(line))) blocks.push({ kind: "heading", text: m[1] });
+      else if (line.trim() === "") blocks.push({ kind: "gap" });
+      else if (last && last.kind === "p") last.text += `\n${line}`;
+      else blocks.push({ kind: "p", text: line });
+    });
+    return blocks.filter((b) => b.kind !== "gap").map((b) => {
+      if (b.kind === "ul" || b.kind === "ol") {
+        const list = document.createElement(b.kind);
+        b.items.forEach((item) => { const li = document.createElement("li"); li.append(...inline(item)); list.append(li); });
+        return list;
+      }
+      const div = document.createElement("div");
+      div.className = b.kind === "heading" ? "md-h" : "md-p";
+      div.append(...inline(b.text));
+      return div;
+    });
+  }
 
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
@@ -55,7 +104,9 @@
     if (message.author !== "user" && message.icon_kind) row.append(agentIcon(message));
     const box = el("div", `bubble${extraClass ? " " + extraClass : ""}`);
     if (message.author !== "user") box.append(el("div", "bubble-name", message.name));
-    box.append(el("div", "bubble-text", message.content));
+    const text = el("div", "bubble-text");
+    text.append(...chatFormat(message.content));
+    box.append(text);
     if (message.actions) box.append(el("div", "bubble-actions", message.actions));
     if (message.earlier) box.append(el("div", "bubble-earlier", "Answer to an earlier message")); // owner fix: never mistaken for an answer to the latest
     box.append(el("div", "bubble-time", message.time || ""));
@@ -169,7 +220,7 @@
         showTeam(streamRow);
         stream.insertBefore(streamRow, typing);
       }
-      streamRow.querySelector(".bubble-text").textContent = text;
+      streamRow.querySelector(".bubble-text").replaceChildren(...chatFormat(text));
       typing.hidden = true;
       if (stuck) toBottom();
       emit("stream", { text, replyTo });
@@ -194,8 +245,12 @@
     }
 
     // ---------- Receiving: quickly while the director is writing, slowly otherwise, rarely while hidden ----------
+    let detached = 0;
     async function poll() {
       if (stopped) return;
+      // Turbo moves the floating chat between pages, so a moment off the page is normal; three polls are not.
+      if (!app.isConnected) { if (++detached >= 3) return instance.destroy(); return schedulePoll(); }
+      detached = 0;
       if (document.hidden) return schedulePoll();
       try {
         const first = !loaded && visible();
@@ -360,7 +415,16 @@
       saved = null;
     };
     const talk = voice(app, instance);
-    instance.destroy = () => { stopped = true; clearTimeout(pollTimer); life.abort(); talk?.end(); waiting.forEach((w) => w.row.remove()); }; // waiting ones stay stored for the next chat
+    instance.destroy = () => {
+      stopped = true; clearTimeout(pollTimer); life.abort(); talk?.end();
+      waiting.forEach((w) => w.row.remove()); // waiting ones stay stored for the next chat
+      dropStream();
+      window.agentaroChats.delete(instance);
+      if (app.agentaroChat === instance) app.agentaroChat = null;
+    };
+    app.agentaroChat?.destroy(); // one chat per element
+    app.agentaroChat = instance;
+    window.agentaroChats.add(instance);
     return instance;
   }
 

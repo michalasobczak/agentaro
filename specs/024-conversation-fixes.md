@@ -189,3 +189,19 @@ Done when all tests pass and S1–S4 are seen in the browser.
 - **Tools.**
   - Brakeman: 0 warnings.
   - No new gems.
+
+## Owner fixes after release (2026-11-20)
+
+- **"Poprosiłem directora o status i pisał dwie wiadomości jednocześnie."**
+  - The database held one answer and one run. The server log showed several copies of the chat polling at once. Some of them kept asking for messages after an id they had already shown. That happens when two copies work on the same element: one draws the message, and the other sees it "already shown" and never moves on. Each copy draws its own reply being written, so two replies appeared at once.
+  - The exact navigation that made the second copy was not reproduced: the browser pane was hidden during the check. The fix removes every way to get one:
+    - the chat script runs once per tab;
+    - a new chat on an element ends the one already there;
+    - a chat whose element has been off the page for three polls ends itself;
+    - ending a chat also removes its reply bubble.
+  - Checked in the browser: loading the script a second time leaves the same two chats (page and floating).
+- **"Model zwraca formatowanie **xxx**, ale czat tego nie formatuje."**
+  - Messages show a small, safe part of Markdown: **bold**, *italic*, `code`, "- " and "1. " lists, and "# " headings.
+  - The server (`ChatFormatHelper`) and `chat.js` build the same structure from tags whose text is escaped (`textContent`). Nothing from a message becomes HTML.
+  - Voice still reads the plain text.
+  - Tests: `test/helpers/chat_format_helper_test.rb`, including a script tag and lone stars.

@@ -252,3 +252,10 @@
   - **Found in the browser.** Two CSS rules hid the floating chat on the Director page only when the chat was directly in the content. With the new layout both chats would show, so the rules were updated. Notices of spec 026 sit at the bottom left on this page.
   - **Tests:** `test/integration/work_panel_test.rb`; selectors in two older tests follow the new layout.
   - **Browser check on demo data:** at 1440 px and on a phone (no horizontal scroll). The panel changed within 5 s after a step ended.
+- Owner fixes after spec 024.
+  - **Two replies at once.** The owner reported: "poprosiłem directora o status i pisał dwie wiadomości jednocześnie". The database held one answer; several copies of the chat were alive, two on the same element, each drawing a reply. Fix: the chat script runs once per tab, one chat per element, and a chat off the page ends itself.
+  - **Markdown in messages.** The owner reported: "model zwraca formatowanie **xxx**, ale czat tego nie formatuje". Messages now show **bold**, *italic*, `code`, lists and headings. Both the server (`ChatFormatHelper`) and `chat.js` build them without HTML from the message. Test: `chat_format_helper_test.rb`. Checked in the browser.
+- Owner fix ("potrzebuję też dark mode"). Dark mode existed but only followed the system, and the owner's system is light.
+  - **Theme switch.** A switch **Auto / Light / Dark** in the sidebar and the phone menu, saved on the account (`users.theme`, migration `20261121128000`, `Account::ThemesController`).
+  - **Applies at once.** The dark colours are set on `body[data-theme]`, which Turbo swaps on every visit, so a choice applies without a full reload. "Auto" still follows the system.
+  - **Checks.** Test: `theme_test.rb`. Browser check: dark on a light system, at once; the chat still had exactly two live copies after the visit.

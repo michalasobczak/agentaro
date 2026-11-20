@@ -72,6 +72,7 @@ Rails.application.routes.draw do
       delete :others, on: :collection
     end
     resource :password, only: %i[edit update]
+    resource :theme, only: :update # owner fix: auto, light or dark
   end
 
   namespace :admin do

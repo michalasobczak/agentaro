@@ -74,7 +74,7 @@
           <%= chat_message_icon(data, statuses) %>
           <div class="bubble">
             <% unless message.author == "user" %><div class="bubble-name"><%= data[:name] %></div><% end %>
-            <div class="bubble-text"><%= message.content %></div>
+            <div class="bubble-text"><%= chat_text(message.content) %></div>
             <% if message.actions_summary %><div class="bubble-actions"><%= message.actions_summary %></div><% end %>
             <% if message.author != "user" && message.reply_to_id && message.reply_to_id < latest_user %><div class="bubble-earlier">Answer to an earlier message</div><% end %>
             <div class="bubble-time"><%= data[:time] %></div>

@@ -22,7 +22,7 @@ Agentaro gets a designed interface: a sidebar layout that uses the full width on
 - G1. Desktop and tablet (≥ 640 px; narrower sidebar between 640 and 1099 px): fixed sidebar with brand, navigation with icons and the signed-in user; content centered and using the available width (up to 1600 px).
 - G2. Larger type: 17 px base on desktop and tablet, 16 px on phones; clear headings.
 - G3. Components: page header, cards, stat tiles on the home page, tables with sticky headers and horizontal scrolling, status badges (role, TOTP, account state), primary/secondary/danger buttons, larger form fields, styled flash messages, centered sign-in card.
-- G4. Light and dark mode following the system setting.
+- G4. Light and dark mode following the system setting. *Owner fix (2026-11-20, "potrzebuję też dark mode"): a switch **Auto / Light / Dark** in the sidebar and the phone menu, saved on the account (`users.theme`, migration `20261121128000`); the choice is set on `body`, so it applies at once with Turbo, and "auto" still follows the system.*
 - G5. Phones (< 640 px): top bar with a collapsible menu (`<details>`, no JavaScript). *(interpretation)* Available on phones: sign-in, TOTP, home, my sessions, change password. Admin tools (users, audit log, data changes) are for desktop and tablet: hidden from the phone menu, and opening them on a phone shows a short note instead of the page.
 
 **Out of scope**
