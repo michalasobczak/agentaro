@@ -134,8 +134,8 @@ module ApplicationHelper
     verifier = message.user.verifier_role&.agent if message.author == "verifier"
     agent = { "director" => director, "verifier" => verifier }[message.author]
     icon = case message.author
-           when "director" then { icon_letter: agent_icon_letter(director&.name || "Director"), icon_kind: "director" }
-           when "verifier" then { icon_letter: agent_icon_letter(verifier&.name || "Verifier"), icon_kind: "verifier" }
+           when "director" then { icon_letter: agent_initials(director&.name || "Director"), icon_kind: "director" }
+           when "verifier" then { icon_letter: agent_initials(verifier&.name || "Verifier"), icon_kind: "verifier" }
            when "system" then { icon_letter: "A", icon_kind: "system" }
            else {}
            end
@@ -149,9 +149,13 @@ module ApplicationHelper
   # --- Spec 023: agent icons and busy/free status ---------------------------------------------------------------
 
   # R10: the first letter of the name, upper case; "?" when the name does not start with a letter.
-  def agent_icon_letter(name)
-    first = name.to_s.strip[0]
-    first&.match?(/\p{L}/) ? first.upcase : "?"
+  # Owner fix after spec 023 ("wystarczy inicjały, max 2"): the first letters of the first two words of the name,
+  # e.g. "Discovery Agent" → "DA", "Anna" → "A"; a name that does not start with a letter gets "?" (R10).
+  def agent_initials(name)
+    words = name.to_s.strip.split(/[\s_.-]+/)
+    return "?" unless words.first.to_s[0]&.match?(/\p{L}/)
+
+    words.filter_map { |word| word[0] if word[0]&.match?(/\p{L}/) }.first(2).join.upcase
   end
 
   def agent_tone(agent) = "tone-#{agent.id % 8}"

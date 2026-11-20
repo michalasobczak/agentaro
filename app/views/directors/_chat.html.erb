@@ -10,7 +10,7 @@
      data-voice="<%= voice_ready ? "ready" : "missing" %>" data-voice-transcribe-url="<%= voice_transcribe_path %>" data-voice-speak-url="<%= voice_speak_path %>"
      data-writing="<%= writing %>" data-team-stamp="<%= team_status[:stamp] %>"<% if dock %> data-lazy="true" data-latest-reply-id="<%= latest_reply_id.to_i %>"<% end %>>
   <header class="chat-head">
-    <span class="chat-avatar is-director" aria-hidden="true" data-agent-icon="<%= director.id %>"><%= agent_icon_letter(director.name) %><%= status_dot(statuses[director.id]) %></span>
+    <span class="chat-avatar is-director" aria-hidden="true" data-agent-icon="<%= director.id %>"><%= agent_initials(director.name) %><%= status_dot(statuses[director.id]) %></span>
     <div class="chat-who">
       <strong><%= director.name %></strong>
       <span class="chat-status muted small" data-status><%= writing ? "writing…" : "your director" %></span>
@@ -48,7 +48,7 @@
       <ul class="team-list">
         <% strip.each do |member| %>
           <li class="team-chip" data-team-agent="<%= member[:id] %>" title="<%= member[:name] %>: <%= member[:label] %>">
-            <%= agent_icon(agent_icon_letter(member[:name]), tone: "tone-#{member[:id] % 8}", size: "strip", agent_id: member[:id], status: member) %>
+            <%= agent_icon(agent_initials(member[:name]), tone: "tone-#{member[:id] % 8}", size: "strip", agent_id: member[:id], status: member) %>
             <span class="team-name"><%= member[:name] %></span>
             <span class="team-label small" data-team-label><%= agent_strip_label(member) %></span>
           </li>

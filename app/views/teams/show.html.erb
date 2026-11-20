@@ -14,7 +14,7 @@
         <div class="org-node is-director">
           <span class="org-role">Director</span>
           <% if @director %>
-            <%= agent_icon(agent_icon_letter(@director.agent.name), kind: "director", size: "strip", agent_id: @director.agent_id, status: @statuses[@director.agent_id]) %>
+            <%= agent_icon(agent_initials(@director.agent.name), kind: "director", size: "strip", agent_id: @director.agent_id, status: @statuses[@director.agent_id]) %>
             <strong><%= @director.agent.name %></strong> <%= role_badge_for.(@director.agent) %>
             <span class="muted small"><%= @director.agent.runtime_label %></span>
             <%= status_for.(@director.agent) %>
@@ -25,7 +25,7 @@
         <% if @verifier %>
           <div class="org-node is-verifier">
             <span class="org-role">Verifier</span>
-            <%= agent_icon(agent_icon_letter(@verifier.agent.name), kind: "verifier", size: "strip", agent_id: @verifier.agent_id, status: @statuses[@verifier.agent_id]) %>
+            <%= agent_icon(agent_initials(@verifier.agent.name), kind: "verifier", size: "strip", agent_id: @verifier.agent_id, status: @statuses[@verifier.agent_id]) %>
             <strong><%= @verifier.agent.name %></strong> <%= role_badge_for.(@verifier.agent) %>
             <span class="muted small"><%= @verifier.agent.runtime_label %></span>
             <%= status_for.(@verifier.agent) %>
@@ -37,7 +37,7 @@
               <li>
                 <div class="org-node">
                   <span class="org-role"><%= member.role_text || "Member" %></span>
-                  <%= agent_icon(agent_icon_letter(member.agent.name), tone: agent_tone(member.agent), size: "strip", agent_id: member.agent_id, status: @statuses[member.agent_id]) %>
+                  <%= agent_icon(agent_initials(member.agent.name), tone: agent_tone(member.agent), size: "strip", agent_id: member.agent_id, status: @statuses[member.agent_id]) %>
                   <strong><%= member.agent.name %></strong> <%= role_badge_for.(member.agent) %>
                   <span class="muted small"><%= member.agent.runtime_label %></span>
                   <%= status_for.(member.agent) %>
@@ -101,7 +101,7 @@
       <ul class="rows member-rows">
         <% @members.each do |member| %>
           <li class="member-row">
-            <%= agent_icon(agent_icon_letter(member.agent.name), tone: agent_tone(member.agent), size: "strip", agent_id: member.agent_id, status: @statuses[member.agent_id]) %>
+            <%= agent_icon(agent_initials(member.agent.name), tone: agent_tone(member.agent), size: "strip", agent_id: member.agent_id, status: @statuses[member.agent_id]) %>
             <strong><%= member.agent.name %></strong>
             <%= status_for.(member.agent) %>
             <%= form_with model: member, url: team_role_path(member), method: :patch, class: "inline-form" do |f| %>

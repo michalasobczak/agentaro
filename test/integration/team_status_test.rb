@@ -35,7 +35,7 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
     assert_select ".org-node [data-agent-status='#{@analyst.id}'] .badge", text: "free"
     assert_select ".member-row [data-agent-status='#{@evidence.id}'] .badge", text: "busy"
     assert_select ".org-node.is-director [data-agent-status='#{@director.id}'][hidden]", 1, "R11: the director shows a status only when it runs a step"
-    assert_select ".org-node .agent-icon.tone-#{@evidence.id % 8}[aria-hidden='true']", text: "E"
+    assert_select ".org-node .agent-icon.tone-#{@evidence.id % 8}[aria-hidden='true']", text: "EA"
     assert_select ".org-node.is-director .agent-icon.is-director", text: "D"
     assert_select ".org-node.is-verifier .agent-icon.is-verifier", text: "W"
     assert_select "[data-agent-icon='#{@evidence.id}'] .status-dot.is-busy[title='busy · World review · step 2/4: Collect evidence']"
@@ -88,7 +88,7 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
     assert_select ".content > .chat-app[data-team-stamp] .team-strip[data-team-strip]" do
       assert_select "[data-team-count]", text: "1 of 2 busy"
       assert_select ".team-chip", 2
-      assert_select ".team-chip[data-team-agent='#{@evidence.id}'] .agent-icon.is-strip.tone-#{@evidence.id % 8}", text: "E"
+      assert_select ".team-chip[data-team-agent='#{@evidence.id}'] .agent-icon.is-strip.tone-#{@evidence.id % 8}", text: "EA"
       assert_select ".team-chip[data-team-agent='#{@evidence.id}'] .status-dot.is-busy:not([hidden])"
       assert_select ".team-chip[data-team-agent='#{@evidence.id}'] [data-team-label]", text: "busy · World review · step 2/4: Collect evidence · for 3 min"
       assert_select ".team-chip[data-team-agent='#{@analyst.id}'] .status-dot.is-free"
@@ -137,9 +137,13 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
 
   test "R10: a name that does not start with a letter gets a question mark; tones come from the id" do
     helper = ApplicationController.helpers
-    assert_equal "?", helper.agent_icon_letter("42 bot")
-    assert_equal "?", helper.agent_icon_letter("")
-    assert_equal "Ż", helper.agent_icon_letter("żaba")
+    assert_equal "?", helper.agent_initials("42 bot")
+    assert_equal "?", helper.agent_initials("")
+    assert_equal "Ż", helper.agent_initials("żaba")
+    # Owner fix ("wystarczy inicjały, max 2"): the first letters of the first two words.
+    assert_equal "DA", helper.agent_initials("Discovery Agent")
+    assert_equal "MA", helper.agent_initials("market analyst 2")
+    assert_equal "JK", helper.agent_initials("Jan  Kowalski-Nowak")
     assert_equal "tone-#{@analyst.id % 8}", helper.agent_tone(@analyst)
   end
 

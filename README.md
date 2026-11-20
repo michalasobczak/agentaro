@@ -163,7 +163,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 
 Template: [`specs/TEMPLATE.md`](specs/TEMPLATE.md).
 
-Spec 023: the Team page, the chat strip and both prompts show when a member is **busy** running a step of one of your epics. Team polls every 5 s. The idle chat polls every 8 s and exceeded the 5 s release gate in the browser. The director, the verifier and Agentaro notices use letter icons in chat. Consecutive messages from the same author share one visible icon. Team members have icons on the strip. The director and verifier get a chat status dot while executing a step. Status is per account. A shared agent busy for someone else shows free. A per-space scope is [TO BE DETERMINED].
+Spec 023: the Team page, the chat strip and both prompts show when a member is **busy** running a step of one of your epics. Team polls every 5 s. The idle chat polls every 8 s and exceeded the 5 s release gate in the browser. The director, the verifier and Agentaro notices use icons with up to two initials in chat ("Discovery Agent" → DA). Consecutive messages from the same author share one visible icon. Team members have icons on the strip. The director and verifier get a chat status dot while executing a step. Status is per account. A shared agent busy for someone else shows free. A per-space scope is [TO BE DETERMINED].
 
 ## License
 

@@ -3,7 +3,7 @@
 <% writing = TaskRun.where(user: current_user, purpose: "chat", state: %w[queued running]).exists? %>
 <aside id="chat-dock" class="chat-dock" data-chat-dock data-turbo-permanent aria-label="Chat with <%= director.name %>">
   <button type="button" class="chat-launcher" data-dock-open aria-expanded="false" aria-controls="chat-dock-panel" title="Chat with <%= director.name %>">
-    <span class="chat-avatar is-director" aria-hidden="true"><%= director.name.first.upcase %></span>
+    <span class="chat-avatar is-director" aria-hidden="true"><%= agent_initials(director.name) %></span>
     <span class="chat-launcher-label"><%= director.name %></span>
     <span class="chat-unread" data-unread hidden aria-label="New message"></span>
   </button>
