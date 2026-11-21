@@ -21,4 +21,18 @@ class ThemeTest < ActionDispatch::IntegrationTest
     assert_equal "dark", @user.reload.theme
     assert_select "[style]", 0
   end
+
+  # Spec 028: Light and the return to Auto also persist across pages.
+  test "light and back to auto are saved and set on the next page" do
+    patch account_theme_path, params: { theme: "light" }, headers: { "HTTP_REFERER" => spaces_url }
+    assert_equal "light", @user.reload.theme
+    get root_path
+    assert_select "body[data-theme=light]"
+    assert_select ".theme-switch button.is-on", text: "Light"
+    patch account_theme_path, params: { theme: "auto" }
+    assert_equal "auto", @user.reload.theme
+    get calendar_path
+    assert_select "body[data-theme=auto]"
+    assert_select ".theme-switch button.is-on", text: "Auto"
+  end
 end

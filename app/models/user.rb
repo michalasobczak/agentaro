@@ -29,6 +29,13 @@ class User < ApplicationRecord
   validates :theme, inclusion: { in: THEMES.keys }
   SPEECH_SPEEDS = [ 1.0, 1.25, 1.5, 2.0 ].freeze # owner fix: how fast Piper speaks
   validates :speech_speed, inclusion: { in: SPEECH_SPEEDS }
+  # Spec 029, R1/R3: the chat background patterns (value => label in the selector); Solid is the default.
+  CHAT_BACKGROUNDS = { "solid" => "Solid", "dots" => "Dots", "grid" => "Grid", "gradient" => "Gradient", "animated" => "Animated" }.freeze
+  DEFAULT_CHAT_BACKGROUND = "solid"
+  validates :chat_background, inclusion: { in: CHAT_BACKGROUNDS.keys }
+
+  # Spec 029, R3: only an allowlisted value ever reaches the page; anything else is shown as Solid.
+  def shown_chat_background = CHAT_BACKGROUNDS.key?(chat_background) ? chat_background : DEFAULT_CHAT_BACKGROUND
 
   normalizes :username, with: ->(u) { u.to_s.strip.downcase }
 

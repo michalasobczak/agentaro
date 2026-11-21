@@ -34,6 +34,53 @@
     };
   })();
 
+  // Spec 029: the chat background pattern. One handler per tab for every selector (full chat and floating chat).
+  // The body attribute is the confirmed choice; a change is saved on the account and applied only when the server
+  // confirms it; a failure puts the selectors back and says so. One save at a time.
+  (() => {
+    let saving = null; // the value being saved
+    const selects = () => document.querySelectorAll("[data-chat-background-select]");
+    const confirmed = () => document.body.dataset.chatBackground || "solid";
+    const announce = (text) => document.querySelectorAll("[data-chat-background-status]").forEach((s) => { s.textContent = text; });
+    const show = (value) => selects().forEach((s) => { if (s.value !== value) s.value = value; });
+    const sync = () => {
+      document.querySelectorAll("[data-chat-background-apply]").forEach((b) => { b.hidden = true; });
+      show(saving || confirmed());
+    };
+
+    async function save(select) {
+      const value = select.value;
+      if (saving) { select.value = saving; return; }
+      if (value === confirmed()) return;
+      saving = value;
+      show(value);
+      announce("");
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+      const response = await fetch(select.form.action, { method: "PATCH", body: JSON.stringify({ chat_background: value }),
+        headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin" }).catch(() => null);
+      const data = response?.ok ? await response.json().catch(() => null) : null;
+      saving = null;
+      if (data?.chat_background) {
+        document.body.dataset.chatBackground = data.chat_background;
+        window.Turbo?.cache?.clear?.(); // pages restored from the cache would show the old choice
+        announce("Chat background saved.");
+      } else {
+        announce("The chat background could not be saved. Try again.");
+      }
+      show(confirmed());
+    }
+
+    document.addEventListener("change", (event) => {
+      if (event.target.matches?.("[data-chat-background-select]")) save(event.target);
+    });
+    document.addEventListener("submit", (event) => {
+      if (!event.target.matches?.("[data-chat-background-form]")) return;
+      event.preventDefault();
+      save(event.target.querySelector("[data-chat-background-select]"));
+    }, true);
+    window.agentaroOnPage(sync); // the floating chat stays across visits; its selector follows the new page
+  })();
+
   // Owner fix ("model zwraca formatowanie **xxx**, ale czat tego nie formatuje"): the same small part of Markdown as
   // ChatFormatHelper — **bold**, *italic*, `code`, "- " and "1. " lists, "# " headings — built with textContent only.
   const LIST_ITEM = /^\s*(?:([-*•])|(\d+)[.)])\s+(.*)$/;

@@ -123,4 +123,30 @@ class UserTest < ActiveSupport::TestCase
       assert_equal 0, user.sessions.count, "sessions revoked after #{name} change"
     end
   end
+
+  # Spec 029, R3: exactly five chat background patterns; Solid by default; nothing else reaches the page.
+  test "chat background: five allowed values, Solid by default, unknown values are invalid and shown as Solid" do
+    user = create_user
+    assert_equal "solid", user.chat_background
+    assert_equal "solid", User.new.chat_background, "database default"
+    assert_equal %w[solid dots grid gradient animated], User::CHAT_BACKGROUNDS.keys
+    User::CHAT_BACKGROUNDS.each_key do |value|
+      user.chat_background = value
+      assert user.valid?, value
+      assert_equal value, user.shown_chat_background
+    end
+    [ "", nil, "Dots", "pink", "dots; x" ].each do |value|
+      user.chat_background = value
+      assert_not user.valid?, value.inspect
+      assert_equal "solid", user.shown_chat_background
+    end
+  end
+
+  test "chat background survives a reload and changing it keeps the sessions" do
+    user = create_user
+    user.sessions.create!
+    user.update!(chat_background: "grid")
+    assert_equal "grid", User.find(user.id).chat_background
+    assert_equal 1, user.sessions.count
+  end
 end

@@ -73,6 +73,7 @@ Rails.application.routes.draw do
     end
     resource :password, only: %i[edit update]
     resource :theme, only: :update # owner fix: auto, light or dark
+    resource :chat_background, only: :update # spec 029: the chat background pattern
   end
 
   namespace :admin do

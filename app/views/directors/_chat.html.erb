@@ -23,6 +23,16 @@
                       title: { "auto" => "Language of your latest message", "pl" => "Polski", "en" => (Voice.english_voice? ? "English" : "English (English voice not installed: Polish voice reads it)") }[code] %>
       <% end %>
     </div>
+    <%# Spec 029: the chat background pattern, saved on the account. chat.js saves on change (and hides Apply);
+        without it the form posts normally. %>
+    <% background_id = dock ? "chat-dock-background" : "chat-background" %>
+    <%= form_with url: account_chat_background_path, method: :patch, class: "chat-bg", data: { chat_background_form: true } do %>
+      <label class="visually-hidden" for="<%= background_id %>">Chat background</label>
+      <%= select_tag :chat_background, options_for_select(User::CHAT_BACKGROUNDS.invert, current_user.shown_chat_background),
+                     id: background_id, class: "chat-bg-select", title: "Chat background", data: { chat_background_select: true } %>
+      <button type="submit" class="secondary chat-bg-apply" data-chat-background-apply>Apply</button>
+      <span class="visually-hidden" role="status" data-chat-background-status></span>
+    <% end %>
     <nav class="chat-links">
       <% if current_user.verifier_role %>
         <% on = current_user.verifier_active? %>

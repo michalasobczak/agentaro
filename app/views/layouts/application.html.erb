@@ -20,7 +20,7 @@
   </head>
 
   <%# Owner fix ("potrzebuję też dark mode"): on body, which Turbo swaps on every visit, so a new choice applies at once. %>
-  <body data-theme="<%= signed_in? ? current_user.theme : "auto" %>">
+  <body data-theme="<%= signed_in? ? current_user.theme : "auto" %>" data-chat-background="<%= signed_in? ? current_user.shown_chat_background : User::DEFAULT_CHAT_BACKGROUND %>">
     <div class="app">
       <% if signed_in? %>
         <% admin_nav = capture do %>

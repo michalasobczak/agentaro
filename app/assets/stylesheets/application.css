@@ -25,6 +25,8 @@
   --ok: #138a52;      --ok-soft: #e6f6ee;
   --warn: #b25e09;    --warn-soft: #fff4e5;
   --bad: #c62a2f;     --bad-soft: #fdecec;
+  /* Spec 029 fix (S3): text on the soft fills, at least 4.5:1 (the plain colours are for icons and borders). */
+  --ok-text: #0f6e43;  --warn-text: #8a4704; --bad-text: #a61e25;
 
   --sidebar-bg: #121527;
   --sidebar-fg: #c9cde0;
@@ -36,6 +38,16 @@
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 4px 16px rgba(16, 24, 40, 0.06);
   --sidebar-width: 260px;
   --content-max: 1600px;
+
+  /* Spec 028: page-only background glow (light). Only the body::before layer uses these. */
+  --page-glow-1: rgba(99, 102, 241, 0.08);
+  --page-glow-2: rgba(34, 211, 238, 0.06);
+
+  /* Spec 029: chat background patterns (light). Only the chat viewport pattern rules use these. */
+  --chat-dot: rgba(79, 70, 229, 0.16);
+  --chat-line: rgba(79, 70, 229, 0.07);
+  --chat-tint-1: #e8eaf8;
+  --chat-tint-2: #e6f3f6;
 }
 
 /* Dark colours (spec 006); owner fix ("potrzebuję też dark mode"): also chosen by hand. body[data-theme] is the
@@ -55,8 +67,15 @@ body[data-theme="dark"] {
     --ok: #4cc98a;   --ok-soft: #12301f;
     --warn: #f0a24a; --warn-soft: #33240f;
     --bad: #ff7b7f;  --bad-soft: #3a1618;
+    --ok-text: #4cc98a; --warn-text: #f0a24a; --bad-text: #ff8f92;
     --sidebar-bg: #0a0c14;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+    --page-glow-1: rgba(139, 133, 255, 0.12);
+    --page-glow-2: rgba(56, 185, 189, 0.08);
+    --chat-dot: rgba(139, 133, 255, 0.2);
+    --chat-line: rgba(139, 133, 255, 0.08);
+    --chat-tint-1: #171a33;
+    --chat-tint-2: #0f1d24;
   color-scheme: dark;
 }
 body[data-theme="light"] { color-scheme: light; }
@@ -77,8 +96,15 @@ html:has(> body[data-theme="dark"]) { background: #0e1018; color-scheme: dark; }
     --ok: #4cc98a;   --ok-soft: #12301f;
     --warn: #f0a24a; --warn-soft: #33240f;
     --bad: #ff7b7f;  --bad-soft: #3a1618;
+    --ok-text: #4cc98a; --warn-text: #f0a24a; --bad-text: #ff8f92;
     --sidebar-bg: #0a0c14;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+    --page-glow-1: rgba(139, 133, 255, 0.12);
+    --page-glow-2: rgba(56, 185, 189, 0.08);
+    --chat-dot: rgba(139, 133, 255, 0.2);
+    --chat-line: rgba(139, 133, 255, 0.08);
+    --chat-tint-1: #171a33;
+    --chat-tint-2: #0f1d24;
     color-scheme: dark;
   }
   html:has(> body:not([data-theme="light"])) { background: #0e1018; color-scheme: dark; }
@@ -94,6 +120,20 @@ body {
   font-family: var(--font); font-size: 1rem; line-height: 1.55;
   color: var(--fg); background: var(--bg);
 }
+/* Spec 028: a slow, subtle background behind the application pages (body[data-theme]; the sign-in layout is
+   not included). One fixed decorative layer under the content: isolation keeps z-index -1 above the body fill,
+   pointer-events none keeps it out of every click, and only transform moves, so the browser composites it
+   without layout or repaint. The chat (.chat-scroll) keeps its own opaque surface (spec 029 owns it). */
+body[data-theme] { isolation: isolate; }
+body[data-theme]::before {
+  content: ""; position: fixed; inset: -8%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side at 28% 30%, var(--page-glow-1), transparent),
+              radial-gradient(closest-side at 74% 72%, var(--page-glow-2), transparent);
+  animation: page-drift 60s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes page-drift { from { transform: translate3d(-4%, -3%, 0); } to { transform: translate3d(4%, 3%, 0); } }
+@media (prefers-reduced-motion: reduce) { body[data-theme]::before { animation: none; will-change: auto; } }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3 { line-height: 1.25; margin: 0; letter-spacing: -0.01em; }
@@ -363,13 +403,19 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .bubble { position: relative; max-width: min(36rem, 82%); padding: 0.55rem 0.8rem 0.4rem; border-radius: 1.1rem; background: var(--surface); border: 1px solid var(--line);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); animation: bubble-in 0.18s ease-out; }
 .from-director .bubble, .from-system .bubble { border-bottom-left-radius: 0.35rem; }
-.from-user .bubble { background: var(--accent); border-color: var(--accent); color: #fff; border-bottom-right-radius: 0.35rem; }
+.from-user .bubble { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); border-bottom-right-radius: 0.35rem; } /* spec 029, S3: 6.2:1 in both palettes */
 .from-system .bubble { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
-.bubble.is-pending { opacity: 0.6; }
-.bubble.is-waiting { opacity: 0.6; border-style: dashed; } /* spec 024: waits until the director has finished */
-.bubble.is-failed { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+/* Spec 024: waits until the director has finished, then is being sent. Spec 029, S3: an opaque outlined bubble (no
+   translucency, which fell below 4.5:1 and let the chat background show through); the dashed outline is the cue. */
+.bubble.is-pending, .bubble.is-waiting { background: var(--surface); color: var(--fg); border: 1px dashed var(--accent); }
+.bubble.is-pending .bubble-time, .bubble.is-waiting .bubble-time { color: var(--muted); }
+.bubble.is-failed { background: var(--bad-soft); border-color: var(--bad); color: var(--bad-text); }
+/* Spec 029 fix (S3): the error replaces the time of a failed message; it was the user bubble's light time colour on
+   the pale red fill (1.1:1). Inline code keeps an opaque backing there. */
+.bubble.is-failed .bubble-time { color: var(--bad-text); font-weight: 600; }
+.bubble.is-failed .bubble-text code { background: var(--surface); }
 .bubble-name { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.1rem; overflow-wrap: anywhere; }
-.from-system .bubble-name { color: var(--warn); }
+.from-system .bubble-name { color: var(--warn-text); } /* spec 029 fix (S3) */
 .bubble-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
 /* Owner fix: Markdown in messages (ChatFormatHelper, chatFormat in chat.js). */
 .bubble-text > * + * { margin-top: 0.5rem; }
@@ -379,7 +425,7 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .bubble-text code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; padding: 0.05rem 0.3rem; border-radius: 0.3rem; background: color-mix(in srgb, currentColor 10%, transparent); }
 .bubble-actions { margin-top: 0.4rem; padding: 0.35rem 0.55rem; border-radius: 0.6rem; background: var(--surface-2); color: var(--muted); font-size: 0.8rem; white-space: pre-wrap; }
 .bubble-time { text-align: right; font-size: 0.68rem; margin-top: 0.15rem; color: var(--muted); }
-.from-user .bubble-time { color: rgba(255, 255, 255, 0.75); }
+.from-user .bubble-time { color: color-mix(in srgb, var(--accent-fg) 85%, var(--accent)); }
 .typing .bubble { display: inline-flex; gap: 0.3rem; align-items: center; padding: 0.75rem 0.9rem; }
 .typing .dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--muted); animation: typing 1.2s infinite ease-in-out; }
 .typing .dot:nth-child(2) { animation-delay: 0.15s; }
@@ -387,6 +433,24 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-0.3rem); opacity: 1; } }
 @keyframes bubble-in { from { transform: translateY(0.4rem); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .bubble, .typing .dot { animation: none; } }
+/* Spec 029: chat background patterns, chosen on the account (body[data-chat-background], rendered by the server
+   from an allowlist). Drawn only on the chat viewport, over its opaque --bg fill, under the messages; the colours
+   come from the palette tokens above, so light, dark and Auto each get their own. Labels that sit on the pattern
+   itself get an opaque backing; bubbles keep their own surfaces. */
+body[data-chat-background="dots"] .chat-scroll { background-image: radial-gradient(circle, var(--chat-dot) 1.2px, transparent 1.7px); background-size: 18px 18px; }
+body[data-chat-background="grid"] .chat-scroll { background-image: linear-gradient(var(--chat-line) 1px, transparent 1px), linear-gradient(90deg, var(--chat-line) 1px, transparent 1px); background-size: 24px 24px; }
+body[data-chat-background="gradient"] .chat-scroll { background-image: linear-gradient(160deg, var(--chat-tint-1), var(--bg) 55%, var(--chat-tint-2)); }
+body[data-chat-background="animated"] .chat-scroll { background-image: linear-gradient(135deg, var(--chat-tint-1), var(--bg), var(--chat-tint-2), var(--bg), var(--chat-tint-1));
+  background-size: 300% 300%; animation: chat-bg-drift 40s ease-in-out infinite alternate; }
+@keyframes chat-bg-drift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+/* Reduced motion: the animated pattern stands still and stays a static gradient (the choice stays Animated). */
+@media (prefers-reduced-motion: reduce) { body[data-chat-background="animated"] .chat-scroll { animation: none; } }
+body:not([data-chat-background="solid"]) .chat-empty { background: var(--bg); padding: 0.5rem 0.9rem; border-radius: var(--radius-sm); }
+/* The selector in the chat header (spec 029, R2): compact; on narrow chats (and the floating one) its own row. */
+.chat-bg { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0; flex: none; }
+.chat-bg .chat-bg-select { width: auto; min-height: 0; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 600; border-radius: 999px; background: var(--surface-2); color: var(--fg); }
+.chat-bg .chat-bg-apply { min-height: 0; padding: 0.2rem 0.6rem; font-size: 0.75rem; }
+.lang-switch + .chat-bg + .chat-links { margin-left: 0.4rem; }
 .chat-composer { display: flex; align-items: flex-end; gap: 0.5rem; padding: 0.65rem 0.75rem; border-top: 1px solid var(--line); background: var(--surface); }
 .chat-composer textarea { flex: 1; min-height: 2.75rem; max-height: 10rem; resize: none; border-radius: 1.4rem; padding: 0.65rem 1rem; line-height: 1.4; }
 .chat-composer .send { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; border-radius: 50%; flex: none; }
@@ -652,7 +716,7 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .folder-status[data-state="missing"] { color: var(--muted); }
 /* The verifier (spec 019) */
 .bubble-row.from-verifier .bubble { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); background: color-mix(in srgb, var(--ok-soft) 55%, var(--surface)); border-bottom-left-radius: 0.35rem; }
-.from-verifier .bubble-name { color: var(--ok); }
+.from-verifier .bubble-name { color: var(--ok-text); } /* spec 029 fix (S3) */
 .org-node.is-verifier { border-color: var(--ok); background: var(--ok-soft); margin-left: 0.6rem; }
 .chat-tool.verify-tool { color: var(--ok); }
 .chat-tool.verify-tool:disabled { opacity: 0.4; cursor: default; }
@@ -676,6 +740,9 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
   .chat-links { gap: 0.15rem; }
 }
 @container (max-width: 470px) { .lang-switch .lang { padding: 0.2rem 0.4rem; } }
+/* Spec 029 fix: the selector takes its own row below 760 px of chat width (the full chat beside the work panel at
+   a 1280 px window was ~516 px and clipped the action buttons). */
+@container (max-width: 760px) { .chat-head { flex-wrap: wrap; } .chat-head .chat-bg { order: 10; flex-basis: 100%; } }
 @container (max-width: 620px) { .chat-head .chat-tool, .chat-links .verify-tool { width: 1.95rem; height: 1.95rem; } .chat-head { gap: 0.5rem; padding: 0.6rem 0.75rem; } }
 /* The verifier as a switch, and the speech speed switch (owner fixes) */
 .chat-links .verify-tool:not(.is-on) { background: var(--surface); color: var(--muted); border-color: var(--line); }
@@ -688,6 +755,11 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 /* Spec 020, Q1: on the Director page the floating chat shows only while voice mode runs in it, and then the
    page's own chat steps aside, so the conversation is never shown twice. */
 body:has(.content > .chat-app, .director-layout > .chat-app) .chat-dock:not(.is-voice) { display: none; }
+/* Spec 029 fix: the floating chat left open on another page is hidden here, so it must not keep its room either
+   (the Director chat was squeezed to ~110 px at 1280 px beside the work panel, clipping its header). */
+@media (min-width: 1100px) {
+  body:has(.content > .chat-app, .director-layout > .chat-app):has(.chat-dock.is-open:not(.is-voice)) .main { margin-right: 0; }
+}
 body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice) .director-layout > .chat-app { display: none; }
 /* The floating chat maximized (owner fix): over the page, next to the menu */
 .chat-dock.is-max .chat-dock-panel { left: var(--sidebar-width, 260px); width: auto; max-width: none; box-shadow: none; }
