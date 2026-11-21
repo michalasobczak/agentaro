@@ -779,10 +779,12 @@ body:has(.content > .chat-app, .director-layout > .chat-app) .chat-dock:not(.is-
 body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice) .director-layout > .chat-app { display: none; }
 /* Fix 2026-11-21: on the Director page (900 px and wider) the floating chat in voice mode takes the page chat's place
    on the left, over the first column of .director-layout, and the work panel stays on the right (spec 027 G1).
-   The offsets repeat .main's side padding, the centring of .content (max 1600 px) and the panel column (24rem) + gap. */
+   The offsets repeat .main's side padding, the centring of .content (max 1600 px) and the panel column (24rem) + gap.
+   Fix (owner: tasks not visible in voice mode): this holds even when the floating chat was maximized before — the
+   choice is remembered in the browser, and a maximized panel covered the work panel. */
 @media (min-width: 900px) {
   body:has(.director-layout) { --director-pad: 1.5rem; }
-  body:has(.director-layout) .chat-dock.is-voice:not(.is-max) .chat-dock-panel {
+  body:has(.director-layout) .chat-dock.is-voice .chat-dock-panel { /* fix: also when it was maximized earlier */
     --director-side: calc(var(--director-pad) + (100vw - var(--sidebar-width, 260px) - 2 * var(--director-pad)
       - min(var(--content-max), 100vw - var(--sidebar-width, 260px) - 2 * var(--director-pad))) / 2);
     top: 1rem; bottom: 1rem; left: calc(var(--sidebar-width, 260px) + var(--director-side)); right: calc(var(--director-side) + 25rem);
@@ -790,7 +792,7 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 }
 @media (min-width: 1100px) {
   body:has(.director-layout) { --director-pad: clamp(1.25rem, 3vw, 3rem); }
-  body:has(.director-layout):has(.chat-dock.is-open.is-voice:not(.is-max)) .main { margin-right: 0; }
+  body:has(.director-layout):has(.chat-dock.is-open.is-voice) .main { margin-right: 0; }
 }
 /* The floating chat maximized (owner fix): over the page, next to the menu */
 .chat-dock.is-max .chat-dock-panel { left: var(--sidebar-width, 260px); width: auto; max-width: none; box-shadow: none; }

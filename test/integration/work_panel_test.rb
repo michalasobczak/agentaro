@@ -57,11 +57,14 @@ class WorkPanelTest < ActionDispatch::IntegrationTest
     assert_match(/\.director-layout \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(16rem, 24rem\)/, css, "wide chat column first, panel column second")
     assert_match(/^\.director-layout > \.work-panel \{ grid-column: 2; \}/, css, "the panel keeps the right column without the page chat")
     assert_match(/@media \(max-width: 899px\) \{[^@]*\.director-layout > \.work-panel \{ grid-column: auto; \}/, css, "one column on narrow screens")
-    dock = css[/body:has\(\.director-layout\) \.chat-dock\.is-voice:not\(\.is-max\) \.chat-dock-panel \{[^}]*\}/]
+    dock = css[/body:has\(\.director-layout\) \.chat-dock\.is-voice \.chat-dock-panel \{[^}]*\}/]
     assert dock, "the floating chat in voice mode has its own place on the Director page"
     assert_match(/left: calc\(var\(--sidebar-width, 260px\) \+ var\(--director-side\)\)/, dock, "it starts where the page chat starts")
     assert_match(/right: calc\(var\(--director-side\) \+ 25rem\)/, dock, "it ends before the panel column (24rem + 1rem gap)")
-    assert_match(/body:has\(\.director-layout\):has\(\.chat-dock\.is-open\.is-voice:not\(\.is-max\)\) \.main \{ margin-right: 0; \}/, css)
+    assert_match(/body:has\(\.director-layout\):has\(\.chat-dock\.is-open\.is-voice\) \.main \{ margin-right: 0; \}/, css)
+    # Fix 2026-11-21 (owner: "nie widzę zadań po prawej stronie od czatu, tylko w trybie voice"): a floating chat
+    # maximized earlier (the choice is remembered in the browser) covered the panel in voice mode.
+    assert_no_match(/body:has\(\.director-layout\)[^{]*is-voice:not\(\.is-max\)/, css, "a maximized floating chat keeps the left column too")
     assert_no_match(/\.work-panel \{[^}]*(\border:|grid-column: 1)/, css, "nothing moves the panel before the chat")
     assert_no_match(/\.director-layout \{[^}]*(direction: rtl|grid-auto-flow: dense|row-reverse)/, css)
   end
