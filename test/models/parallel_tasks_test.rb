@@ -18,8 +18,10 @@ class ParallelTasksTest < ActiveSupport::TestCase
     FileUtils.rm_rf(@dirs)
   end
 
-  # An epic with one step of the agent, queued (StepChain.start).
-  def queued_step(title, space: @spaces[0], agent: @agent)
+  # An epic with one step of the agent, queued (StepChain.start). Each epic gets a space of its own unless one is
+  # given: spec 037 runs the epics of one space one after another.
+  def queued_step(title, space: nil, agent: @agent)
+    space ||= @user.spaces.create!(name: "Space for #{title}", goal: "G")
     item = @user.work_items.create!(title: title, state: "planned", space: space)
     item.epic_steps.create!(position: 1, title: title, agent: agent)
     StepChain.start(item)
@@ -86,7 +88,7 @@ class ParallelTasksTest < ActiveSupport::TestCase
   end
 
   test "S2, R2: six steps of one agent from two spaces are claimed; the seventh waits, another agent's step does not" do
-    runs = 7.times.map { |i| queued_step("Task #{i}", space: @spaces[i % 2]) }
+    runs = 7.times.map { |i| queued_step("Task #{i}") }
     other = Agent.create!(user: @user, name: "Analityk", master_prompt: "You analyse.", executor: @executor)
     other_run = queued_step("Other", agent: other)
 
@@ -103,7 +105,7 @@ class ParallelTasksTest < ActiveSupport::TestCase
   end
 
   test "S2, R5: overlapping runs — six at once, the seventh starts when one ends, also after a failure" do
-    runs = 7.times.map { |i| queued_step("T#{i}", space: @spaces[i % 2]) }
+    runs = 7.times.map { |i| queued_step("T#{i}") }
     with_waiting_agent do
       workers = 7.times.map do
         Thread.new do
@@ -137,7 +139,7 @@ class ParallelTasksTest < ActiveSupport::TestCase
   end
 
   test "S3, R4: a lowered limit shows 3/2 and starts nothing until fewer than 2 run" do
-    running = 3.times.map { |i| queued_step("R#{i}", space: @spaces[i % 2]).tap { |r| r.update!(state: "running", started_at: Time.current) } }
+    running = 3.times.map { |i| queued_step("R#{i}").tap { |r| r.update!(state: "running", started_at: Time.current) } }
     waiting = queued_step("Waiting")
     assert_equal({ running: 3, limit: 6, full: false, label: "3/6 in progress" }, AgentStatus.capacity(@agent.running_tasks, 6))
     @agent.update!(max_parallel_tasks: 2)
@@ -276,7 +278,7 @@ class ParallelTasksTest < ActiveSupport::TestCase
     fresh = Agent.create!(user: @user, name: "Nowy", master_prompt: "New.", executor: @executor)
     assert_equal 6, fresh.reload.max_parallel_tasks
     @agent.update!(max_parallel_tasks: 2)
-    3.times { |i| queued_step("L#{i}", space: @spaces[i % 2]) }
+    3.times { |i| queued_step("L#{i}") }
     assert_equal 2, 3.times.map { Scheduler.claim_next }.compact.size, "2 of 3 under a limit of 2"
     @agent.update!(max_parallel_tasks: 3)
     assert Scheduler.claim_next, "a raised limit lets the third start without a restart"
@@ -378,7 +380,7 @@ class ParallelTasksTest < ActiveSupport::TestCase
 
   test "S5, R7: at a limit of 10 ten tasks run at once while other threads read and write both databases" do
     @agent.update!(max_parallel_tasks: 10)
-    runs = 11.times.map { |i| queued_step("X#{i}", space: @spaces[i % 2]) }
+    runs = 11.times.map { |i| queued_step("X#{i}") }
     with_waiting_agent do
       threads = workers(11)
       wait_for(20) { started.size == 10 }

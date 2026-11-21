@@ -102,6 +102,7 @@ class StepRetry
   # waiting retry is never queued twice and the worker knows it may start.
   def self.hand_over_due(now: Time.current)
     TaskRun.where(state: "queued", purpose: "epic_step").where(retry_at: ..now).find_each do |run|
+      next if run.work_item&.waits_for # spec 037, R2: keeps waiting (retry_at stays) while another epic holds the space
       run.update!(retry_at: nil)
       StepChain.hand_over(run.id)
     end

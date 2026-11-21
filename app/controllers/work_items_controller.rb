@@ -42,6 +42,7 @@ class WorkItemsController < ApplicationController
     return redirect_back_or_to(work_item_path(item), alert: "This epic is already #{item.state_label}.") if %w[done cancelled].include?(item.state)
 
     item.done!
+    StepChain.start_due(user: current_user) # spec 037, R6: the next epic of the space
     redirect_back_or_to work_item_path(item), notice: "Done: #{item.title}."
   end
 

@@ -353,6 +353,9 @@ class ManagementRunner
     parts << "due #{item.due_on.iso8601}" if item.due_on
     lines = [ "- " + parts.join(", ") ]
     lines << "  plan waiting for #{@user.username}'s approval (approve_plan)" if item.state == "planned" && item.awaiting_approval # spec 033
+    if item.state == "planned" && (holder = item.waits_for) # spec 037: one epic at a time in a space
+      lines << "  waits for id #{holder.id} \"#{holder.title}\" in this space (one epic at a time; starts by itself when that one is done or cancelled)"
+    end
     item.step_decisions.order(:id).last(20).each do |d| # spec 033: questions waiting and assumptions made (the latest 20)
       if d.pending?
         lines << "  question waiting for #{@user.username} (decision #{d.id}): #{d.question.to_s.tr("\n", " ")} — options: #{d.option_list.join(" | ")}; recommended: #{d.recommended}"

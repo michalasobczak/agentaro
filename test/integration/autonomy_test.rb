@@ -47,7 +47,8 @@ class AutonomyPagesTest < ActionDispatch::IntegrationTest
   end
 
   test "G1: Approve starts a plan waiting for approval" do
-    planned = @user.work_items.create!(title: "Plan", state: "planned", space: @space, awaiting_approval: true)
+    other = @user.spaces.create!(name: "Inne", kind: "team") # spec 037: @item holds @space
+    planned = @user.work_items.create!(title: "Plan", state: "planned", space: other, awaiting_approval: true)
     planned.epic_steps.create!(position: 1, title: "Do", agent: @writer)
     get work_item_path(planned)
     assert_select "#decisions", text: /The plan waits for your approval/

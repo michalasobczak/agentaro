@@ -55,6 +55,7 @@ class WorkItem < ApplicationRecord
       step_decisions.pending.each { |d| d.update!(status: "answered", answer: "(the epic was cancelled)") }
       update!(state: "cancelled", finished_at: (Time.current if started_at))
     end
+    StepChain.start_due(user: user) if space_id # spec 037, R6: the next epic of the space
   end
 
   # Spec 013, Q10: the user closes an epic by hand.
@@ -62,6 +63,21 @@ class WorkItem < ApplicationRecord
 
   # Spec 016: started and not finished — its steps are running or about to.
   def running? = state == "planned" && started_at.present?
+
+  # Spec 037, R1: started and neither done nor cancelled (blocked and waiting for an answer count).
+  IN_PROGRESS = %w[planned blocked].freeze
+  scope :in_progress, -> { where(state: IN_PROGRESS).where.not(started_at: nil) }
+  def in_progress? = started_at.present? && state.in?(IN_PROGRESS)
+
+  # Spec 037, R2–R4: the epic of the same space this one waits for, or nil. The holder of a space is its
+  # earliest-ordered (lowest id) epic in progress; an epic not started yet waits for any epic in progress.
+  def waits_for
+    return unless space_id
+
+    others = WorkItem.in_progress.where(user_id: user_id, space_id: space_id).where.not(id: id) # B20: the owner's own, also by account
+    others = others.where(id: ...id) if in_progress?
+    others.order(:id).first
+  end
 
   # Spec 016, G8: in the calendar an epic runs from its start to its end — "now" while running, a short mark while
   # waiting. Epics planned before spec 016 span their calendar steps (Q7).

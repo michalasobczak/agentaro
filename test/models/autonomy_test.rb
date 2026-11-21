@@ -200,6 +200,7 @@ class AutonomyTest < ActiveSupport::TestCase
 
   test "S1: at Pytaj the director asks clarifying questions first, then plans, and the plan waits for Approve" do
     @space.update!(autonomy_level: 1)
+    @item.update!(state: "done") # spec 037: the earlier epic of the space would go first
     item = @user.work_items.create!(title: "Przygotuj raport o backupach", state: "new", space: @space)
     plan_json = { summary: "Raport.", steps: [ { title: "Research", description: "x", agent: @writer.id } ] }
     with_director({ blocked: "Dla kogo raport? Jaki format?" }, plan_json) do

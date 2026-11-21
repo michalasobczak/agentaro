@@ -42,6 +42,7 @@
             </div>
             <% if steps.any? %><div class="kanban-progress" aria-hidden="true"><% steps.each do |t| %><span class="<%= t.is_a?(EpicStep) ? "run-#{t.state.tr("_", "-")}" : run_class_for_step(t) %>"></span><% end %></div><% end %>
             <% if item.state == "blocked" && item.blocked_reason.present? %><p class="kanban-note small"><%= item.blocked_reason.truncate(160) %></p><% end %>
+            <% if item.state == "planned" && (holder = item.waits_for) %><p class="kanban-note small">Waits for “<%= holder.title.truncate(80) %>” in this space</p><% end %>
             <% unless item.state == "done" %>
               <div class="kanban-actions">
                 <%= button_to "Done", done_work_item_path(item), class: "secondary small" %>

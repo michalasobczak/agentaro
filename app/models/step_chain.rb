@@ -25,6 +25,7 @@ class StepChain
       item.reload
       next unless item.state == "planned"
       next if item.awaiting_approval # spec 033, G1: level 1 waits for Approve
+      next if item.waits_for # spec 037: one epic at a time in a space
       next if item.active_steps.where(state: %w[queued running]).exists?
 
       step = item.active_steps.find_by(state: "pending")
@@ -36,6 +37,7 @@ class StepChain
                       trigger: "scheduled", occurrence_start: Time.current, state: "queued")
     end
     hand_over(run.id) if run
+    start_due(user: item.user) if item.state == "done" && item.space_id # spec 037, R6: the next epic of the space
     run
   end
 
@@ -123,6 +125,8 @@ class StepChain
     return "the step has no agent" unless step.agent
     return "#{step.agent.name} is not available" unless step.agent.usable?
     return "a run of this epic is still queued or running" if item.active_run? || item.active_steps.where(state: %w[queued running]).exists?
+    holder = item.waits_for
+    return "\"#{item.title}\" waits for \"#{holder.title}\" in this space (one epic at a time)" if holder # spec 037, R2
 
     nil
   end

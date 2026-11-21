@@ -634,7 +634,7 @@ class StepExcerptsTest < ActiveSupport::TestCase
     @epic.update!(state: "blocked")
     @user.chat_messages.create!(author: "user", content: "Please try it again")
     retry_it = { type: "retry_step", id: @epic.id, step: 1, attempt: failed.id }
-    other = @user.work_items.create!(title: "Other epic", state: "blocked")
+    other = @user.work_items.create!(title: "Other epic", state: "blocked", space: @user.spaces.create!(name: "Inna", kind: "team")) # spec 037: not behind @epic
     other_failed = attempt(step(1, "Other search", "failed", item: other), "failed", error: "y")
     assert_match "has not asked", try_apply(reply: "x", actions: [ retry_it ]).message, "two candidates: ambiguous"
     other_failed.update!(state: "succeeded") # the other epic is no longer retryable

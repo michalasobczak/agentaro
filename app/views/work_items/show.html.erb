@@ -17,6 +17,7 @@
       <% if @item.description.present? %><dt>Details</dt><dd class="pre"><%= @item.description %></dd><% end %>
       <% if @item.plan_summary.present? %><dt>Plan</dt><dd class="pre"><%= @item.plan_summary %></dd><% end %>
       <% if @item.blocked_reason.present? && @item.state == "blocked" %><dt>Blocked</dt><dd class="pre"><%= @item.blocked_reason %></dd><% end %>
+      <% if @item.state == "planned" && (holder = @item.waits_for) %><dt>Waiting</dt><dd>Waits for “<%= link_to holder.title, work_item_path(holder) %>” in this space: one epic at a time (spec 037).</dd><% end %>
     </dl>
     <% unless %w[done cancelled].include?(@item.state) %>
       <div class="actions spaced">
