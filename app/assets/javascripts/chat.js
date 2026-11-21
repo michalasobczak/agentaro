@@ -498,6 +498,11 @@
     const note = panel.querySelector("[data-voice-note]");
     const dots = [...panel.querySelectorAll(".voice-dots i")];
     const doneButton = panel.querySelector("[data-voice-done]");
+    // Spec 035: the microphone mute toggle and its announcement for screen readers.
+    const muteButton = panel.querySelector("[data-voice-mute]");
+    const muteLabel = muteButton?.querySelector(".voice-mute-label");
+    const muteStatus = panel.querySelector("[data-voice-mute-status]");
+    const MUTED_NOTE = "Microphone muted — nothing you say is sent.";
     const LABELS = { listening: "Listening…", hearing: "Listening…", transcribing: "Writing down…", thinking: "Thinking…", speaking: "Speaking…", error: "Voice problem" };
     const SILENCE_MS = 1000, MIN_SPEECH_MS = 600, MAX_SPEECH_MS = 30000, TARGET_RATE = 16000;
 
@@ -507,15 +512,58 @@
     let awaitingAfter = null, spoken = 0, finalText = null, generation = 0, playing = null, queue = Promise.resolve(), pending = 0;
     let waitingVerifier = false; // owner fix: an active verifier speaks after the director
     let waitingToListen = false; // owner fix: voice mode started while the director was still writing
+    let muted = false; // spec 035: a flag beside the state; the director's states go on while muted
+    let lastNote = note.textContent; // the note to show again after unmuting
 
     function setState(next, text) {
       state = next;
       chat.hold?.(next === "speaking"); // owner fix: typed messages wait while the answer is read aloud
       panel.dataset.state = next;
       stateLabel.textContent = LABELS[next] || "";
-      if (text != null) note.textContent = text;
+      if (text != null) lastNote = text;
       if (next !== "hearing") dots.forEach((d) => { d.style.height = ""; });
-      doneButton.hidden = next !== "listening" && next !== "hearing";
+      showMute();
+    }
+
+    // Spec 035, R2/R3: the toggle, the panel, the label and the note follow the flag; Done is hidden while muted.
+    function showMute() {
+      panel.dataset.muted = String(muted);
+      if (muteButton) {
+        muteButton.classList.toggle("is-on", muted);
+        muteButton.setAttribute("aria-pressed", String(muted));
+        muteButton.title = muted ? "Microphone muted — click to listen again" : "Mute the microphone — nothing you say is sent";
+        if (muteLabel) muteLabel.textContent = muted ? "Muted" : "Mute";
+      }
+      if (muted && (state === "listening" || state === "hearing")) stateLabel.textContent = "Microphone muted";
+      note.textContent = muted && state !== "error" ? MUTED_NOTE : lastNote;
+      doneButton.hidden = muted || (state !== "listening" && state !== "hearing");
+    }
+
+    // Spec 035, R4/R5: nothing is kept from now on, and a recording in progress is thrown away.
+    function forget() {
+      chunks = []; preroll = []; heard = []; loudMs = quietMs = speechMs = heardMs = peak = 0;
+    }
+
+    function setMicrophone(on) {
+      mic?.getAudioTracks().forEach((t) => { t.enabled = on; }); // the browser delivers silence while off
+    }
+
+    function setMuted(value) {
+      if (state === "off" || muted === value) return;
+      muted = value;
+      forget();
+      setMicrophone(!muted);
+      // R4: hearing becomes listening (shown as muted); R7: unmuting resumes listening with empty buffers.
+      if (state === "listening" || state === "hearing") listen(muted ? lastNote : "Speak; I send when you pause.");
+      else showMute(); // thinking, speaking, transcribing, error: they go on; listening comes back after them
+      if (muteStatus) muteStatus.textContent = muted ? "Microphone muted" : "Microphone on";
+    }
+
+    // R9: every voice session starts with the microphone on; nothing is left over from the previous one.
+    function resetMute() {
+      muted = false;
+      if (muteStatus) muteStatus.textContent = "";
+      showMute();
     }
 
     async function begin() {
@@ -530,6 +578,7 @@
         ctx?.close(); ctx = null; mic = null;
         return;
       }
+      resetMute();
       source = ctx.createMediaStreamSource(mic);
       processor = ctx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (event) => onAudio(event.inputBuffer.getChannelData(0));
@@ -552,17 +601,20 @@
       state = "off";
       chat.hold?.(false);
       awaitingAfter = null;
+      forget();
+      resetMute();
       panel.hidden = true;
       start.hidden = false;
       app.closest("[data-chat-dock]")?.classList.remove("is-voice");
     }
 
     function listen(text) {
-      chunks = []; preroll = []; heard = []; loudMs = quietMs = speechMs = heardMs = peak = 0;
+      forget();
       setState("listening", text ?? "Speak; I send when you pause.");
     }
 
     function onAudio(samples) {
+      if (muted || !ctx) return; // spec 035, R4: no samples kept, no noise floor learnt, nothing can be sent
       let sum = 0;
       for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
       const level = Math.sqrt(sum / samples.length);
@@ -598,6 +650,7 @@
 
     // Owner fix after spec 017: "I am done speaking" — send now, without waiting for the pause.
     function done() {
+      if (muted) return; // spec 035, R4
       if (state === "hearing" && speechMs >= MIN_SPEECH_MS) return transcribe(chunks.slice());
       if (state === "listening" && heardMs >= MIN_SPEECH_MS) return transcribe(heard.slice());
     }
@@ -627,6 +680,7 @@
     }
 
     async function transcribe(parts) {
+      if (muted) return forget(); // spec 035, R4: no path sends while muted
       setState("transcribing", "…");
       const mine = generation;
       try {
@@ -735,6 +789,7 @@
     start.addEventListener("click", begin, { signal: chat.signal });
     panel.querySelector("[data-voice-stop]").addEventListener("click", end, { signal: chat.signal });
     panel.querySelector("[data-voice-done]").addEventListener("click", done, { signal: chat.signal });
+    muteButton?.addEventListener("click", () => setMuted(!muted), { signal: chat.signal }); // spec 035
     // Spec 019, G6: ask the verifier from voice mode; its comment is spoken in its own voice.
     panel.querySelector("[data-voice-verify]")?.addEventListener("click", async () => {
       if (state === "off" || state === "transcribing") return;

@@ -1,0 +1,50 @@
+<%# Spec 033: a plan waiting for approval, questions of steps waiting for the owner (G3) and assumptions (G5).
+    Questions, options and assumptions come from agents: printed escaped, never run (R5). %>
+<% pending = decisions.select(&:pending?) %>
+<% assumed = decisions.select(&:assumption?) %>
+<% if (item.state == "planned" && item.awaiting_approval) || pending.any? || assumed.any? %>
+  <div class="card decisions" id="decisions">
+    <% if item.state == "planned" && item.awaiting_approval %>
+      <div class="decision is-pending">
+        <p><strong>The plan waits for your approval.</strong> <span class="muted small">Autonomy: <%= Autonomy.name(Autonomy.level_for(item.space)) %>. Check the steps, then approve; or tell the director what to change.</span></p>
+        <%= button_to "Approve plan", approve_work_item_path(item), class: "button" %>
+      </div>
+    <% end %>
+    <% pending.each do |d| %>
+      <div class="decision is-pending" id="decision-<%= d.id %>">
+        <p><strong><%= d.epic_step ? "Step #{d.epic_step.position} asks" : "The director asks" %>:</strong> <%= d.question %></p>
+        <% if d.why.present? %><p class="muted small">Why the recommendation: <%= d.why %></p><% end %>
+        <div class="decision-options">
+          <% d.option_list.each do |option| %>
+            <%= button_to option, answer_step_decision_path(d), params: { answer: option }, class: ["button", ("secondary" unless option == d.recommended)].compact.join(" "),
+                          title: (option == d.recommended ? "Recommended" : nil) %>
+          <% end %>
+        </div>
+        <%= form_with url: answer_step_decision_path(d), method: :post, class: "decision-free" do |f| %>
+          <%= text_field_tag :answer, nil, maxlength: StepDecision::MAX_ANSWER, placeholder: "Or answer in your own words", "aria-label": "Your answer", id: "answer-#{d.id}" %>
+          <%= f.submit "Answer", class: "button secondary" %>
+        <% end %>
+      </div>
+    <% end %>
+    <% if assumed.any? %>
+      <h3 class="decisions-title">Assumed</h3>
+      <ul class="decision-list">
+        <% assumed.each do |d| %>
+          <li id="decision-<%= d.id %>">
+            <span><%= d.text %></span> <span class="muted small"><%= d.epic_step ? "step #{d.epic_step.position}" : "plan" %></span>
+            <% if d.corrected_at %>
+              <div class="small">Corrected: <%= d.correction %></div>
+            <% else %>
+              <details class="decision-correct"><summary class="link small">Correct</summary>
+                <%= form_with url: correct_step_decision_path(d), method: :post, class: "decision-free" do |f| %>
+                  <%= text_field_tag :correction, nil, maxlength: StepDecision::MAX_ANSWER, placeholder: "What it should be", "aria-label": "Correction", id: "correction-#{d.id}" %>
+                  <%= f.submit "Save", class: "button secondary" %>
+                <% end %>
+              </details>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+<% end %>

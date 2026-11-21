@@ -8,6 +8,8 @@ class Space < ApplicationRecord
 
   belongs_to :user
   has_many :work_items, dependent: :restrict_with_error # spec 013, R5: only empty spaces can be deleted
+  has_many :recurring_orders, dependent: :destroy # spec 034, R4: deleted with the space
+  after_update_commit :pause_recurring_orders, if: -> { saved_change_to_state? && state == "archived" } # spec 034, R4
   after_destroy_commit { Brain.forget_scope(user_id, "space", id) } # spec 031: its brief and facts go with it
 
   normalizes :name, with: ->(value) { value.to_s.strip.presence }
@@ -19,6 +21,7 @@ class Space < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: 60 }, uniqueness: { scope: :user_id, case_sensitive: false }
   validates :kind, inclusion: { in: KINDS }
+  validates :autonomy_level, inclusion: { in: Autonomy::LEVELS.keys }, allow_nil: true # spec 033: nil = the owner's default
   validates :goal, presence: { message: "is required for a project space" }, if: :project?
   validates :goal, length: { maximum: 2000 }
   validates :description, length: { maximum: 5000 }
@@ -128,4 +131,6 @@ class Space < ApplicationRecord
       errors.add(:working_dir, "cannot be Agentaro's storage or runs folder")
     end
   end
+
+  private def pause_recurring_orders = recurring_orders.active.find_each { |order| order.update!(state: "paused", note: "Paused: the space was archived.") }
 end

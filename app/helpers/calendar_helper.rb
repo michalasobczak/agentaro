@@ -47,6 +47,8 @@ module CalendarHelper
 
   # Spec 016, G8: an epic in the time grid, placed like a task segment (not draggable: it is no calendar task).
   def epic_block(seg)
+    return upcoming_link(seg.occurrence, [ "epic", "epic-block", "e-upcoming", seg.placement_classes ].join(" ")) if seg.occurrence.is_a?(CalendarController::Upcoming)
+
     item = seg.occurrence.item
     classes = [ "epic", "epic-block", "e-#{item.state}", ("is-running" if item.running?), seg.placement_classes,
                 ("cont-before" if seg.continues_before), ("cont-after" if seg.continues_after) ].compact.join(" ")
@@ -60,7 +62,18 @@ module CalendarHelper
     "Epic: #{item.title} · #{item.space.name} · #{item.running? ? "running" : item.state_label} · #{l(epic.starts_at.in_time_zone, format: "%-d %b %H:%M")} – #{l(epic.ends_at.in_time_zone, format: "%-d %b %H:%M")}"
   end
 
+  # Spec 034, G8: a coming occurrence links to its order; nothing to open yet.
+  def upcoming_link(upcoming, classes)
+    order = upcoming.item
+    link_to space_path(order.space, anchor: "order-#{order.id}"), class: classes,
+            title: "Recurring: #{order.title} · #{order.space.name} · #{l(upcoming.starts_at.in_time_zone, format: "%-d %b %H:%M")} · #{order.schedule_text}" do
+      safe_join([ tag.span(order.title, class: "task-title"), tag.span("#{order.space.name} · recurring", class: "task-time") ])
+    end
+  end
+
   def epic_chip(epic, day)
+    return upcoming_link(epic, "epic chip e-upcoming") if epic.is_a?(CalendarController::Upcoming)
+
     item = epic.item
     from, to = day_start(day), day_start(day) + 1.day
     classes = [ "epic", "chip", "e-#{item.state}", ("cont-before" if epic.starts_at < from), ("cont-after" if epic.ends_at > to) ].compact.join(" ")
@@ -143,6 +156,7 @@ module CalendarHelper
     note = step.state == "queued" && step.retry_note
     return badge(note, "warn") if note # spec 032, G4
 
+    return badge("waiting for your answer", "warn") if step.state == "waiting" # spec 033
     kind = { "succeeded" => "ok", "failed" => "bad", "timed_out" => "bad", "skipped" => "warn", "running" => "accent", "queued" => "accent" }[step.state]
     badge(step.state_label, kind)
   end

@@ -691,6 +691,18 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .voice-panel[data-state="speaking"] .voice-dots i:nth-child(4) { animation-delay: 0.3s; }
 .voice-panel[data-state="error"] { background: var(--bad-soft); }
 .voice-panel[data-state="error"] .voice-dots i { background: var(--bad); }
+/* Spec 035: the microphone mute toggle. Muted = warning fill on the button, its own panel colour and still grey dots.
+   The text on the fill is the surface colour: white on dark orange (light theme), dark on light orange (dark theme). */
+.voice-mute { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.45rem 0.85rem; border-radius: 999px; flex: none;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--line-strong); }
+.voice-mute svg.icon { width: 1.1rem; height: 1.1rem; }
+.voice-mute .voice-mute-off { display: none; }
+.voice-mute.is-on { background: var(--warn); color: var(--surface); border-color: var(--warn); font-weight: 600; }
+.voice-mute.is-on .voice-mute-on { display: none; }
+.voice-mute.is-on .voice-mute-off { display: block; }
+.voice-panel[data-muted="true"] { background: var(--warn-soft); box-shadow: inset 4px 0 0 var(--warn); }
+.voice-panel[data-muted="true"] [data-voice-state] { color: var(--warn-text); }
+.voice-panel[data-muted="true"][data-state] .voice-dots i { background: var(--muted); animation: none; height: 0.55rem; opacity: 0.6; }
 @keyframes voice-breathe { 0%, 100% { transform: scale(0.8); opacity: 0.6; } 50% { transform: scale(1.15); opacity: 1; } }
 @keyframes voice-think { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.35rem); } }
 @keyframes voice-speak { from { height: 0.55rem; } to { height: 1.8rem; } }
@@ -887,3 +899,25 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .brain-edit[open] form { margin-top: 0.5rem; }
 .brain-block { border-top: 1px solid var(--line); padding: 0.6rem 0; }
 .brain-block form { margin-top: 0.5rem; }
+
+/* Spec 033: the autonomy slider in the chat header, and decisions on the epic page. */
+.chat-head .lang-switch.chat-autonomy { margin-left: 0.4rem; }
+.decisions { display: grid; gap: 0.9rem; margin-bottom: 1rem; }
+.decision.is-pending { padding: 0.8rem 0.9rem; border: 1px solid var(--warn-text); border-radius: var(--radius); background: var(--surface-2); }
+.decision p { margin: 0 0 0.5rem; }
+.decision-options { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
+.decision-options form { margin: 0; }
+.decision-free { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.decision-free input[type=text] { flex: 1 1 14rem; min-width: 0; }
+.decisions-title { margin: 0; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.decision-list { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.4rem; }
+.decision-correct summary { cursor: pointer; display: inline; }
+.decision-correct[open] .decision-free { margin-top: 0.4rem; }
+
+/* Spec 034: recurring orders. */
+.recurring-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.recurring-order + .recurring-order { padding-top: 1rem; border-top: 1px solid var(--line); }
+.recurring-head { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.recurring-epics { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.recurring-order .actions { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.recurring-order .actions form { margin: 0; }

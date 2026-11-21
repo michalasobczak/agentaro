@@ -251,6 +251,28 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_select ".content .director-layout > .chat-app [data-voice-done]", 1
   end
 
+  test "spec 035: the microphone mute toggle in the voice panel of both chats" do
+    @user.team_roles.create!(agent: @director, role: "director")
+    # The last check is about a computer without voice; make it so here, whatever this computer has installed.
+    original = Voice.method(:listening?)
+    Voice.define_singleton_method(:listening?) { false }
+    get director_path
+    Voice.define_singleton_method(:listening?, original)
+    [ ".content .director-layout > .chat-app", "[data-chat-dock] .chat-app.is-dock" ].each do |app|
+      assert_select "#{app} [data-voice-panel] button[type=button][data-voice-mute][aria-pressed=false][aria-label='Mute microphone']", 1 do
+        assert_select "svg.icon.voice-mute-on", 1
+        assert_select "svg.icon.voice-mute-off", 1, "R3: the crossed-out microphone, shown while muted"
+        assert_select ".voice-mute-label", text: "Mute"
+      end
+      assert_select "#{app} [data-voice-panel] [data-voice-mute-status][role=status]", 1
+      assert_select "#{app} [data-voice-panel] .voice-info + [data-voice-mute]", 1, "R1: right after the state, before the speed switch"
+      assert_select "#{app} [data-voice-panel] [data-voice-mute] + .speed-switch", 1
+    end
+    assert_select ".chat-app[data-voice=missing] [data-voice-start][disabled]", 2, "voice not set up: voice mode cannot start, so the toggle cannot be used"
+    assert_select "[style]", 0
+    assert_select "script:not([src])", 0
+  end
+
   test "spec 019: the verifier on the Team page and the button in the chat; other users cannot use mine" do
     codex = Executor.create!(name: "Codex", preset: "codex")
     wera = Agent.create!(user: @user, name: "Wera", master_prompt: "x", executor: codex)

@@ -71,7 +71,8 @@
         node.remove(); shown.delete(item.key);
         try { await post(item.dismiss_url); } catch (_) { /* shown again by the next poll */ }
       });
-      actions.append(retry, open, close);
+      if (item.retry_url) actions.append(retry); // spec 033: a step's question is answered on the epic's page
+      actions.append(open, close);
       node.append(head, title, reason, actions);
       if ("Notification" in window && Notification.permission === "default") {
         const allow = el("button", "link small notice-allow", "Also show these as Mac notifications");

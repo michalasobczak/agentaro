@@ -1,6 +1,6 @@
 # 033 — Autonomy slider: how often agents ask the owner
 
-Status: **closed** 2026-11-21 (the owner accepted the proposals for Q1–Q4).
+Status: **closed** 2026-11-21 (the owner accepted the proposals for Q1–Q4); **implemented** 2026-11-21.
 Date: 2026-11-21
 Depends on: [011](011-list-and-management.md), [016](016-sequential-steps.md), [021](021-director-sees-step-output.md), [031](031-brain-memory.md)
 
@@ -132,3 +132,32 @@ The owner sets how independent the director and the agents are, globally and per
   - Q3. Is the always-ask list in G4 complete? Anything to add, for example work above some time or cost? (Owner, 2026-11-21: as proposed.)
   - Q4. At **Pytaj**, should every finished step also wait for your OK before the next one starts, or is plan approval enough (proposed)? (Owner, 2026-11-21: as proposed.)
   - Background: Karpathy, "Software 3.0" talk (2025): partial autonomy with an autonomy slider; Anthropic, "Building effective agents" (2024).
+
+## Implementation notes (2026-11-21)
+
+- **Data:** migration `20261121150000`: `users.autonomy_level` (default 2), `spaces.autonomy_level` (empty = the owner's default), `work_items.awaiting_approval` and `work_items.clarifications`, and the table `step_decisions` (pending questions and assumptions of plans and steps).
+- **Plan approval** is a flag on a planned epic, not a new epic state, so the board, the panel and every query that knows "planned" keep working; `StepChain` never starts or queues a step of a plan that waits.
+- **Steps** get a named prompt section `autonomy` (spec 030) with the level, the always-ask list and two line formats: `AGENTARO-DECISION: {json}` to ask and `AGENTARO-ASSUMED: …` for each choice made. After a successful run:
+  - assumption lines become assumptions;
+  - a decision waits for the owner when it is on the always-ask list, at **Pytaj**, or important at **Ważne pytaj**: the step becomes `waiting`, the epic blocks with the question, and the chat says it with the options;
+  - otherwise the recommended option is recorded as an assumption and the step runs again with a `decision` section (the decisions and its previous answer, as data);
+  - a step that asks more than 3 times is taken as it is.
+- **Answering** on the epic page (a button per option, or own words) or in the chat (`answer_decision`) resumes the step; one answer wins. Try again, the chat retry and the pop-up's Try again do nothing while a question waits.
+- **Planning:** at **Pytaj** the director may ask up to 3 questions in one round, then plans; the plan waits for **Approve plan** on the epic page or `approve_plan` in the chat. At **Decyduj** it plans with `assumptions`. Plan assumptions are listed with the plan's note in the chat.
+- **Assumptions** are shown on the epic page with **Correct**; a correction becomes an active fact about the space (spec 031), so the next plans see it. The finished epic's chat note lists them.
+- **Slider:** three buttons in the chat header (Pytaj, Ważne pytaj, Decyduj); a select on the space form; `set_autonomy` in the chat.
+- **Chat (G6):** the chat prompt carries the owner's level; at **Decyduj** the director is told not to end with "Czy mam…?" questions.
+- **Tests:** `test/models/autonomy_test.rb` (12), `test/integration/autonomy_test.rb` (8). Two older tests now expect the `autonomy` prompt section.
+- **Browser check on demo data:** a step's question with its options; answering "PDF" resumed the step, which recorded a new assumption and finished the epic; a correction became a space fact; Approve plan started a waiting plan; the slider switched to Decyduj. No horizontal scroll at 719 px.
+
+## Security analysis (B20), after spec 033
+
+- **Injection (R5).** Questions, options and assumptions come from agents. They are printed through ERB escaping (test with `<b>`), sent back to steps only in a section labelled as data, and never run: an option is chosen only by the owner's click or words, or by the level rule. A recommendation that is not one of the options is replaced by the first option. Malformed decision lines are ignored.
+- **Consent (R4).** The always-ask list is in code and in every step prompt; a decision marked always-ask waits at every level and is never turned into an assumption (test). Honest limit: Agentaro cannot detect an always-ask action a step does without asking inside its working folder; spec 018's limits still apply.
+- **Chat actions.** `approve_plan` and `set_autonomy` need the owner's own latest message to approve or to talk about asking (tests: a plain question changes nothing); `answer_decision` only on the owner's own pending questions.
+- **Access.** Answer, correct and approve are limited to the owner's epics (404 otherwise, test); the level is changed only on the signed-in account; CSRF as everywhere.
+- **Memory.** A correction becomes a fact only through the brain's checks (secrets refused, test).
+- **Concurrency.** Answering and Try again use the same claim; a question blocks the claim, and only one answer wins (test).
+- **Earlier specs.** Spec 016 chain unchanged at level 2 when steps do not ask; spec 021 retries refuse while a question waits; spec 026 pop-up hides Try again then; spec 032 retries only failed runs, never a step that asked. No regressions found.
+- **Tools.** Brakeman: 0 warnings. No new gems.
+

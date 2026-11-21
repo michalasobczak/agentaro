@@ -19,6 +19,7 @@ class NoticesController < ApplicationController
   def notice_json(item)
     { id: item.id, key: "#{item.id}-#{item.updated_at.to_i}", title: item.title, space: item.space.name,
       reason: item.blocked_reason.to_s.truncate(300), url: work_item_path(item),
-      retry_url: retry_work_item_path(item), dismiss_url: dismiss_notice_path(item) }
+      retry_url: (retry_work_item_path(item) unless item.step_decisions.pending.exists?), # spec 033: a question needs an answer
+      dismiss_url: dismiss_notice_path(item) }
   end
 end

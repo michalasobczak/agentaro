@@ -1,0 +1,43 @@
+<%= form_with model: order, class: "stack card" do |f| %>
+  <% if order.errors.any? %>
+    <div class="flash alert" role="alert"><%= order.errors.full_messages.to_sentence %></div>
+  <% end %>
+  <div class="field">
+    <%= f.label :space_id, "Space" %>
+    <%= f.select :space_id, current_user.spaces.active.order(:name).map { |s| [ s.name, s.id ] }, include_blank: "Choose a space" %>
+  </div>
+  <div class="field">
+    <%= f.label :title, "What to do" %>
+    <%= f.text_field :title, maxlength: 200, required: true, placeholder: "Przegląd backupów" %>
+  </div>
+  <div class="field">
+    <%= f.label :description, "Details" %>
+    <%= f.text_area :description, rows: 4, maxlength: 5000, placeholder: "What each occurrence should check or deliver." %>
+  </div>
+  <fieldset class="repeat">
+    <legend>When</legend>
+    <div class="field-row">
+      <div class="field"><%= f.select :kind, [ [ "Every day", "daily" ], [ "On chosen weekdays", "weekly" ], [ "Every month on a day", "monthly" ], [ "Every N hours", "hourly" ] ], {}, "aria-label": "Repeat" %></div>
+      <div class="field"><%= f.label :at_time, "at" %><%= f.time_field :at_time %></div>
+    </div>
+    <div class="weekdays" role="group" aria-label="Weekdays (for “on chosen weekdays”)">
+      <% RecurringOrder::DAY_NAMES.each_with_index do |name, i| %>
+        <label class="day-toggle"><%= check_box_tag "recurring_order[weekdays][]", i + 1, order.weekday_list.include?(i + 1), id: "order_weekday_#{i + 1}" %><span><%= name %></span></label>
+      <% end %>
+    </div>
+    <div class="field-row">
+      <div class="field"><%= f.label :month_day, "Day of the month" %><%= f.number_field :month_day, min: 1, max: 31 %></div>
+      <div class="field"><%= f.label :every_hours, "Every … hours" %><%= f.number_field :every_hours, min: 1, max: 168 %></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><%= f.label :starts_on, "From" %><%= f.date_field :starts_on %></div>
+      <div class="field"><%= f.label :ends_on, "Until (optional)" %><%= f.date_field :ends_on %></div>
+    </div>
+    <p class="hint">Times are in <%= Time.zone.name %>. Weekdays count only for “on chosen weekdays”, the day only for monthly (the last day in shorter months), hours only for “every N hours” (at least 1). With no end date it repeats until you pause or remove it.</p>
+  </fieldset>
+  <div class="field">
+    <%= f.label :report, "Report in the chat" %>
+    <%= f.select :report, [ [ "Every occurrence", "always" ], [ "Only when something needs attention (a failure or a question)", "attention" ] ] %>
+  </div>
+  <div class="actions"><%= f.submit order.persisted? ? "Save changes" : "Add recurring order" %><%= link_to "Cancel", (order.space ? space_path(order.space, anchor: "recurring") : spaces_path), class: "button secondary" %></div>
+<% end %>

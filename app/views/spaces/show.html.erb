@@ -61,3 +61,13 @@
     <ul class="rows"><% @cancelled.each do |item| %><li><%= link_to item.title, work_item_path(item), class: "row-link" %></li><% end %></ul>
   </details>
 <% end %>
+<%# Spec 034: this space's recurring orders. %>
+<% orders = @space.recurring_orders.includes(:work_items).order(:id).to_a %>
+<div class="card recurring-space" id="recurring">
+  <div class="card-header"><h2>Recurring</h2><%= link_to "New recurring order", new_recurring_order_path(space_id: @space.id), class: "button secondary" %></div>
+  <% if orders.empty? %>
+    <p class="muted small">Nothing repeats here yet. Ask the director, for example “co poniedziałek o 8 przejrzyj backupy w <%= @space.name %>”.</p>
+  <% else %>
+    <ul class="recurring-list"><% orders.each do |order| %><%= render "recurring_orders/order", order: order %><% end %></ul>
+  <% end %>
+</div>

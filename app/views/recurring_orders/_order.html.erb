@@ -1,0 +1,24 @@
+<li class="recurring-order" id="order-<%= order.id %>">
+  <div class="recurring-head">
+    <strong><%= order.title %></strong>
+    <%= badge(order.state, order.active? ? "ok" : "warn") %>
+    <% if order.report == "attention" %><%= badge("reports only problems") %><% end %>
+  </div>
+  <div class="muted small"><%= order.schedule_text %><% if order.active? %> · next: <%= order.next_at ? l(order.next_at.in_time_zone, format: :long) : "none (past its end)" %><% end %></div>
+  <% if order.note.present? %><div class="small"><%= order.note %></div><% end %>
+  <% epics = order.work_items.sort_by(&:id).last(5).reverse %>
+  <% if epics.any? %>
+    <ul class="recurring-epics small">
+      <% epics.each do |item| %><li><%= link_to item.title, work_item_path(item) %> <%= item_state_badge(item) %></li><% end %>
+    </ul>
+  <% end %>
+  <div class="actions">
+    <%= link_to "Edit", edit_recurring_order_path(order), class: "button secondary" %>
+    <% if order.active? %>
+      <%= button_to "Pause", pause_recurring_order_path(order), method: :patch, class: "button secondary" %>
+    <% else %>
+      <%= button_to "Resume", resume_recurring_order_path(order), method: :patch, class: "button secondary" %>
+    <% end %>
+    <%= button_to "Remove", recurring_order_path(order), method: :delete, class: "button danger", form: { data: { turbo_confirm: "Remove this recurring order? Its epics stay." } } %>
+  </div>
+</li>

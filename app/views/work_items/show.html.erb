@@ -3,6 +3,7 @@
   <%= link_to "Space board", space_path(@item.space), class: "button secondary" %>
 <% end %>
 <div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
+<%= render "work_items/decisions", item: @item, decisions: @decisions %>
 <div class="grid grid-2">
   <div class="card">
     <dl class="facts">
@@ -19,7 +20,7 @@
     </dl>
     <% unless %w[done cancelled].include?(@item.state) %>
       <div class="actions spaced">
-        <% if @item.state == "blocked" %><%= button_to "Try again", retry_work_item_path(@item), class: "secondary" %><% end %>
+        <% if @item.state == "blocked" && @decisions.none?(&:pending?) %><%= button_to "Try again", retry_work_item_path(@item), class: "secondary" %><% end %>
         <%= button_to "Done", done_work_item_path(@item), class: "secondary" %>
         <%= button_to "Cancel epic", cancel_work_item_path(@item), class: "link", form: { data: { confirm: "Cancel \"#{@item.title}\"? Its steps that have not started are removed." } } %>
       </div>

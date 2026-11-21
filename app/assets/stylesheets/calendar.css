@@ -195,6 +195,8 @@ details.card[open] > summary { margin-bottom: 0.75rem; }
 .epic.chip.e-done { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
 .epic.chip.e-blocked { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
 .legend.epic-legend { background: var(--accent-soft); border: 1px solid var(--accent); margin-left: 0.6rem; }
+/* Spec 034, G8: coming occurrences of recurring orders, read-only, dashed. */
+.epic.e-upcoming { border-style: dashed; background: transparent; }
 
 /* Epics in the time grid (spec 016, G8): from start to end; not draggable */
 .epic-block { position: relative; display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; min-height: 1.15rem; margin: 1px 2px 1px 1px; padding: 0.15rem 0.45rem;

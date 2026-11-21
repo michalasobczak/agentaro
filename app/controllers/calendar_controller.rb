@@ -11,7 +11,7 @@ class CalendarController < ApplicationController
     to = Time.zone.local(@days.last.year, @days.last.month, @days.last.day) + 1.day
     range = from...to
     @occurrences = Task.occurrences_for(current_user, range)
-    @epics = epics_in(range)
+    @epics = (epics_in(range) + upcoming_in(range)).sort_by(&:starts_at)
     # Spec 010, G6: latest run state per occurrence, for the marks on the calendar.
     @run_states = TaskRun.where(task_id: @occurrences.map { |o| o.task.id }.uniq, occurrence_start: (range.begin - Task::MAX_DURATION)...range.end)
                          .order(:id).pluck(:task_id, :occurrence_start, :state)
@@ -31,6 +31,8 @@ class CalendarController < ApplicationController
   Epic = Data.define(:item, :starts_at, :ends_at) do
     def all_day? = false
   end
+  # Spec 034, G8: a coming occurrence of a recurring order (item is the order), read-only, 30 minutes long.
+  Upcoming = Class.new(Epic)
 
   def epics_in(range)
     now = Time.current
@@ -39,6 +41,13 @@ class CalendarController < ApplicationController
       span = item.span(now) or next
       Epic.new(item: item, starts_at: span.begin, ends_at: span.end) if span.begin < range.end && span.end > range.begin
     end.sort_by(&:starts_at)
+  end
+
+  def upcoming_in(range)
+    from = [ range.begin, Time.current ].max
+    current_user.recurring_orders.active.includes(:space).flat_map do |order|
+      order.upcoming(from, range.end).map { |at| Upcoming.new(item: order, starts_at: at, ends_at: at + 30.minutes) }
+    end
   end
 
   def parse_date(value)

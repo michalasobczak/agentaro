@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_160000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -209,6 +209,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
     t.index ["user_id"], name: "index_password_links_on_user_id"
   end
 
+  create_table "recurring_orders", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "space_id", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.string "kind", default: "weekly", null: false
+    t.string "at_time", default: "08:00", null: false
+    t.string "weekdays"
+    t.integer "month_day"
+    t.integer "every_hours"
+    t.date "starts_on", null: false
+    t.date "ends_on"
+    t.string "state", default: "active", null: false
+    t.string "report", default: "always", null: false
+    t.json "last_plan"
+    t.text "last_plan_summary"
+    t.datetime "next_at"
+    t.datetime "last_occurrence_at"
+    t.text "note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["space_id"], name: "index_recurring_orders_on_space_id"
+    t.index ["state", "next_at"], name: "index_recurring_orders_on_state_and_next_at"
+    t.index ["user_id"], name: "index_recurring_orders_on_user_id"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "ip_address"
@@ -239,8 +265,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
     t.datetime "updated_at", null: false
     t.string "kind", default: "project", null: false
     t.string "working_dir"
+    t.integer "autonomy_level"
     t.index ["user_id", "name"], name: "index_spaces_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_spaces_on_user_id"
+  end
+
+  create_table "step_decisions", force: :cascade do |t|
+    t.integer "work_item_id", null: false
+    t.integer "epic_step_id"
+    t.integer "task_run_id"
+    t.string "status", default: "pending", null: false
+    t.string "answered_by"
+    t.text "question"
+    t.json "options"
+    t.text "recommended"
+    t.text "why"
+    t.boolean "important", default: false, null: false
+    t.boolean "always_ask", default: false, null: false
+    t.text "answer"
+    t.text "correction"
+    t.datetime "corrected_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["epic_step_id"], name: "index_step_decisions_on_epic_step_id"
+    t.index ["task_run_id"], name: "index_step_decisions_on_task_run_id"
+    t.index ["work_item_id", "status"], name: "index_step_decisions_on_work_item_id_and_status"
+    t.index ["work_item_id"], name: "index_step_decisions_on_work_item_id"
   end
 
   create_table "task_exceptions", force: :cascade do |t|
@@ -352,6 +402,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
     t.string "theme", default: "auto", null: false
     t.string "chat_background", default: "solid", null: false
     t.boolean "auto_retry", default: true, null: false
+    t.integer "autonomy_level", default: 2, null: false
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 
@@ -373,6 +424,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
     t.datetime "finished_at"
     t.integer "active_step_from", default: 1, null: false
     t.datetime "block_dismissed_at"
+    t.boolean "awaiting_approval", default: false, null: false
+    t.integer "clarifications", default: 0, null: false
+    t.integer "recurring_order_id"
+    t.index ["recurring_order_id"], name: "index_work_items_on_recurring_order_id"
     t.index ["space_id"], name: "index_work_items_on_space_id"
     t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"
     t.index ["user_id"], name: "index_work_items_on_user_id"
@@ -398,8 +453,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
   add_foreign_key "model_calls", "users"
   add_foreign_key "password_links", "users"
   add_foreign_key "password_links", "users", column: "created_by_id"
+  add_foreign_key "recurring_orders", "spaces"
+  add_foreign_key "recurring_orders", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "spaces", "users"
+  add_foreign_key "step_decisions", "epic_steps"
+  add_foreign_key "step_decisions", "task_runs"
+  add_foreign_key "step_decisions", "work_items"
   add_foreign_key "task_exceptions", "tasks"
   add_foreign_key "task_runs", "agents"
   add_foreign_key "task_runs", "epic_steps"
@@ -411,6 +471,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
   add_foreign_key "tasks", "work_items"
   add_foreign_key "team_roles", "agents"
   add_foreign_key "team_roles", "users"
+  add_foreign_key "work_items", "recurring_orders"
   add_foreign_key "work_items", "spaces"
   add_foreign_key "work_items", "users"
 

@@ -341,7 +341,15 @@ class ManagementRunner
     parts << "finished #{item.finished_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if item.finished_at
     parts << "due #{item.due_on.iso8601}" if item.due_on
     lines = [ "- " + parts.join(", ") ]
-    return lines.first unless progress
+    lines << "  plan waiting for #{@user.username}'s approval (approve_plan)" if item.state == "planned" && item.awaiting_approval # spec 033
+    item.step_decisions.order(:id).last(20).each do |d| # spec 033: questions waiting and assumptions made (the latest 20)
+      if d.pending?
+        lines << "  question waiting for #{@user.username} (decision #{d.id}): #{d.question.to_s.tr("\n", " ")} — options: #{d.option_list.join(" | ")}; recommended: #{d.recommended}"
+      elsif d.assumption?
+        lines << "  assumed: #{d.text.tr("\n", " ").truncate(200)}#{" — corrected: #{d.correction.truncate(200)}" if d.correction}"
+      end
+    end
+    return lines.join("\n") unless progress # spec 033: questions and approvals are seen in the proposal pass too
 
     lines << "  blocked: #{TaskRun.prompt_text(item.blocked_reason).tr("\n", " ").truncate(300)}" if item.state == "blocked" && item.blocked_reason.present?
     lines.concat(step_lines(item))
@@ -482,6 +490,8 @@ class ManagementRunner
 
       #{spaces_text}
 
+      #{recurring_text}
+
       Work list (open, planned and running, and finished in the last day)#{", with the live progress of each step — this is current; report it, do not tell #{@user.username} to look it up" unless proposing_changes}:
       #{list.presence&.join("\n") || "(empty)"}
 
@@ -489,6 +499,7 @@ class ManagementRunner
 
       #{conversation}
 
+      #{chat_autonomy_rule}
       #{request_rule} #{reply_language} These instructions are in English only for you. Messages may come from speech recognition, so forgive small transcription errors.
       Reply with ONLY one JSON object, no other text:
       {"reply": "your message to #{@user.username}", "actions": [ ... ]}
@@ -503,10 +514,41 @@ class ManagementRunner
       {"type": "forget", "id": <fact id from the remembered context>} (only when #{@user.username} asks you to forget it)
       {"type": "approve_facts", "ids": [ ... ]} and {"type": "reject_facts", "ids": [ ... ]} (only when #{@user.username} answers the list of things Agentaro learned about them)
       {"type": "reprioritize", "id": 1, "priority": "normal" or "high"}
+      {"type": "add_recurring", "space": <space id>, "title": "...", "description": "what to do each time", "schedule": {"kind": "daily" or "weekly" or "monthly" or "hourly", "time": "HH:MM", "weekdays": [1-7, 1 = Monday] (weekly), "day": 1-31 (monthly), "every_hours": 1 or more (hourly)}, "starts_on": "YYYY-MM-DD" or null, "ends_on": "YYYY-MM-DD" or null, "report": "always" or "attention"} (only when #{@user.username} asks for work that repeats; say the schedule back in your reply)
+      {"type": "update_recurring", "id": <order id>, ...the fields to change...}, {"type": "pause_recurring", "id": ...}, {"type": "resume_recurring", "id": ...}, {"type": "cancel_recurring", "id": ...} (cancel deletes the order; its epics stay)
+      {"type": "answer_decision", "id": <decision id>, "answer": "#{@user.username}'s answer in their words or the option they chose"} (only when #{@user.username} answers a question waiting for them)
+      {"type": "approve_plan", "id": <epic id>} (only when #{@user.username} approves a plan waiting for approval)
+      {"type": "set_autonomy", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks; 1 #{Autonomy.name(1)}: ask more, 2 #{Autonomy.name(2)}, 3 #{Autonomy.name(3)}: agents decide)
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
       Every item belongs to a space. When it is not clear which space a new item belongs to, do not guess: ask in your reply and add nothing.
     PROMPT
+  end
+
+  # Spec 033, G1: how the director plans at the space's autonomy level; R2: at most one round of clarifying questions.
+  def autonomy_plan_rule
+    level = Autonomy.level_for(@item.space, @user)
+    always = "These decisions always belong to #{@user.username}, at every level; plan steps so that the agents ask before them:\n#{Autonomy.always_ask_text}"
+    rule = case level
+           when 1
+             if @item.clarifications.zero?
+               "Autonomy level: #{Autonomy.name(1)}. #{@user.username} wants to be asked: if anything that matters for the result is unclear (scope, format, audience, approach), do not guess — ask at most #{Autonomy::MAX_CLARIFYING} short questions in one \"blocked\" message. If everything is clear, plan; #{@user.username} approves the plan before it starts."
+             else
+               "Autonomy level: #{Autonomy.name(1)}. #{@user.username} has answered your questions: plan now (ask again only if it truly cannot be planned). #{@user.username} approves the plan before it starts."
+             end
+           when 3 then "Autonomy level: #{Autonomy.name(3)}. #{@user.username} wants you to decide: do not ask. Where something is unclear, choose what you would recommend and list it in \"assumptions\". Use \"blocked\" only if the item cannot be planned at all."
+           else "Autonomy level: #{Autonomy.name(2)}. Decide small things yourself and list them in \"assumptions\"; ask with \"blocked\" only when an important decision (costly, hard to undo, or a matter of #{@user.username}'s taste) is unclear."
+           end
+    "#{rule}\n#{always}"
+  end
+
+  # Spec 033, G6: how the director talks at the owner's default level; changes still need the owner's request.
+  def chat_autonomy_rule
+    case @user.autonomy_level
+    when 3 then "#{@user.username}'s autonomy level is #{Autonomy.name(3)}: when your recommendation is clear, do not end with questions such as \"Czy mam…?\" — say what you recommend and what will happen. Changes still need their request."
+    when 1 then "#{@user.username}'s autonomy level is #{Autonomy.name(1)}: when something is unclear, ask before you propose anything."
+    else "#{@user.username}'s autonomy level is #{Autonomy.name(2)}: ask only about what matters."
+    end
   end
 
   def retry_action_rule
@@ -561,8 +603,9 @@ class ManagementRunner
       #{members.presence&.join("\n") || "(none)"}
 
       Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member. Write the summary, titles and descriptions in the language of the work item.
+      #{autonomy_plan_rule}
       Reply with ONLY one JSON object, no other text:
-      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>}]}
+      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>}], "assumptions": ["what you assumed yourself, one short sentence each (may be empty)"]}
       or, if you cannot plan it or need #{@user.username}'s decision: {"blocked": "your question to #{@user.username}"}
     PROMPT
   end
@@ -674,8 +717,107 @@ class ManagementRunner
         "Not retried: step #{step.position} of \"#{item.title}\" — #{e.message}."
       end
     when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
+    when "answer_decision", "approve_plan", "set_autonomy" then autonomy_action(action) # spec 033
+    when "add_recurring", "update_recurring", "pause_recurring", "resume_recurring", "cancel_recurring" then recurring_action(action) # spec 034
     else
       raise Invalid, "unknown action #{action["type"].inspect}"
+    end
+  end
+
+  # Spec 034: recurring orders from the chat. R2: the schedule is checked in code; the director's wording never
+  # becomes code. Only the owner's own orders and spaces.
+  def recurring_action(action)
+    type = action["type"]
+    if type == "add_recurring"
+      order = @user.recurring_orders.new
+    else
+      order = @user.recurring_orders.find_by(id: action["id"].to_s.to_i) or raise Invalid, "#{type}: no recurring order with id #{action["id"].inspect}"
+    end
+
+    case type
+    when "pause_recurring" then return -> { order.update!(state: "paused"); "Paused: #{order.title}" }
+    when "resume_recurring"
+      order.state = "active"
+      raise Invalid, "resume_recurring: #{order.errors.full_messages.to_sentence}" unless order.valid?
+      return -> { order.save!; "Resumed: #{order.title} — next #{order.next_at&.strftime("%-d %b %H:%M") || "never (past its end)"}" }
+    when "cancel_recurring" then return -> { order.destroy!; "Recurring order removed: #{order.title} (its epics stay)" }
+    end
+
+    if action.key?("space") || order.new_record?
+      order.space = @user.spaces.find_by(id: action["space"].to_s.to_i) or raise Invalid, "#{type}: \"space\" must be the id of one of your spaces"
+    end
+    order.title = action["title"] if action.key?("title") || order.new_record?
+    order.description = action["description"].to_s.presence if action.key?("description")
+    order.report = action["report"] if action["report"].present?
+    %w[starts_on ends_on].each do |field|
+      next unless action.key?(field)
+
+      order[field] = action[field].present? ? (Date.iso8601(action[field].to_s) rescue raise(Invalid, "#{type}: #{field} must be YYYY-MM-DD")) : nil
+    end
+    if (schedule = action["schedule"])
+      raise Invalid, "#{type}: \"schedule\" must be an object" unless schedule.is_a?(Hash)
+
+      order.kind = schedule["kind"].to_s
+      order.at_time = schedule["time"].to_s.strip if schedule["time"].present?
+      order.weekdays = Array(schedule["weekdays"]).map { |d| d.to_s.to_i }.join(",") if order.kind == "weekly"
+      order.month_day = schedule["day"].to_s.to_i if order.kind == "monthly"
+      order.every_hours = schedule["every_hours"].to_s.to_i if order.kind == "hourly"
+    elsif order.new_record?
+      raise Invalid, "add_recurring: \"schedule\" is required"
+    end
+    order.starts_on = Time.zone.today if order.new_record? && order.starts_on.nil?
+    raise Invalid, "#{type}: #{order.errors.full_messages.to_sentence}" unless order.valid?
+
+    verb = order.new_record? ? "Recurring order added" : "Recurring order updated"
+    -> { order.save!; "#{verb}: #{order.title}, #{order.schedule_text}; next #{order.next_at&.in_time_zone&.strftime("%a %-d %b %H:%M") || "never (past its end)"}" }
+  end
+
+  # Spec 034: the owner's recurring orders, for the director to keep and change.
+  def recurring_text
+    orders = @user.recurring_orders.includes(:space).order(:id).to_a
+    return "Recurring orders: (none)" if orders.empty?
+
+    lines = orders.map do |o|
+      "- id #{o.id}, \"#{o.title}\", space #{o.space_id} (#{o.space.name}), #{o.schedule_text}, #{o.state}" \
+        "#{", next #{o.next_at.in_time_zone.strftime("%Y-%m-%d %H:%M")}" if o.next_at}, report #{o.report}#{" — #{o.note}" if o.note}"
+    end
+    "Recurring orders (each time one is due, Agentaro creates a new epic from it in its space):\n#{lines.join("\n")}"
+  end
+
+  # Spec 033: answers, approvals and levels come only from the user's own latest message, on their own epics and
+  # spaces; the director's wording never picks an answer the user did not give (R4, R5).
+  APPROVAL_REQUEST = /zatwierd|akceptuj|approve|accept|zgoda|start|ruszaj|dawaj|jed[źz]|\btak\b|\bok\b|okej|\byes\b|go ahead/i
+  AUTONOMY_REQUEST = /autonom|samodziel|decyduj|pytaj|pyta[ćc]|ask me|decide|level|poziom/i
+
+  def autonomy_action(action)
+    raise Invalid, "#{action["type"]}: there is no message from #{@user.username} to act on" unless user_request
+
+    case action["type"]
+    when "answer_decision"
+      decision = StepDecision.joins(:work_item).where(work_items: { user_id: @user.id }).find_by(id: action["id"].to_s.to_i)
+      raise Invalid, "answer_decision: no question #{action["id"].inspect} is waiting" unless decision&.pending?
+
+      answer = action["answer"].to_s.strip
+      raise Invalid, "answer_decision: \"answer\" is missing or longer than #{StepDecision::MAX_ANSWER} characters" if answer.empty? || answer.length > StepDecision::MAX_ANSWER
+
+      -> { decision.answer_by_owner!(answer) ? "Answered \"#{decision.question.truncate(80)}\": #{answer.truncate(120)}" : "Already answered: #{decision.question.truncate(80)}" }
+    when "approve_plan"
+      item = own_item(action)
+      raise Invalid, "approve_plan: the plan of \"#{item.title}\" is not waiting for approval" unless item.state == "planned" && item.awaiting_approval
+      raise Invalid, "approve_plan: #{@user.username} has not approved the plan in their message" unless user_request.content.to_s.match?(APPROVAL_REQUEST)
+
+      -> { item.approve_plan! ? "Plan approved: #{item.title}" : "Not approved: \"#{item.title}\" changed meanwhile" }
+    when "set_autonomy"
+      level = action["level"].to_s.to_i
+      raise Invalid, "set_autonomy: level must be 1, 2 or 3" unless Autonomy.valid?(level)
+      raise Invalid, "set_autonomy: #{@user.username} has not asked in their message to change how often agents ask" unless user_request.content.to_s.match?(AUTONOMY_REQUEST)
+
+      if action["space"].present?
+        space = @user.spaces.find_by(id: action["space"].to_s.to_i) or raise Invalid, "set_autonomy: no space with id #{action["space"].inspect}"
+        -> { space.update!(autonomy_level: level); "Autonomy of #{space.name}: #{Autonomy.name(level)}" }
+      else
+        -> { @user.update!(autonomy_level: level); "Your autonomy: #{Autonomy.name(level)}" }
+      end
     end
   end
 
@@ -817,14 +959,18 @@ class ManagementRunner
   end
 
   def apply_plan!(data)
-    return block_with_question!(data["blocked"]) if data["blocked"].present?
+    if data["blocked"].present?
+      @item.update!(clarifications: @item.clarifications + 1) if Autonomy.level_for(@item.space, @user) == 1 # spec 033, R2
+      return block_with_question!(data["blocked"])
+    end
 
     steps = data["steps"]
     raise Invalid, "\"steps\" must be a list of 1 to #{MAX_STEPS} steps" unless steps.is_a?(Array) && steps.size.between?(1, MAX_STEPS)
 
     members = team_members.to_h { |m| [ m.agent_id, m.agent ] }
     checked = steps.each_with_index.map { |step, i| check_step(step, i + 1, members) } # all checked before any is saved
-    schedule!(checked, data["summary"].to_s.strip.truncate(2000).presence)
+    assumptions = Array(data["assumptions"]).map { |a| a.to_s.strip.truncate(300) }.reject(&:empty?).uniq.first(10) # spec 033, G5
+    schedule!(checked, data["summary"].to_s.strip.truncate(2000).presence, assumptions)
   end
 
   def check_step(step, number, members)
@@ -840,7 +986,8 @@ class ManagementRunner
   end
 
   # Spec 016, G2: a checked plan becomes the epic's ordered steps; the epic is planned and starts at its time.
-  def schedule!(steps, summary)
+  def schedule!(steps, summary, assumptions = [])
+    approval = Autonomy.level_for(@item.space, @user) == 1 # spec 033, G1: Pytaj — the plan waits for Approve
     EpicStep.transaction do
       @item.reload
       raise Invalid, "the epic is no longer waiting for a plan" unless @item.state == "new"
@@ -851,12 +998,15 @@ class ManagementRunner
         @item.epic_steps.create!(position: base + i + 1, title: step["title"], description: step["description"].presence, agent_id: step["agent"])
       end
       @item.update!(state: "planned", plan_summary: summary, blocked_reason: nil, active_step_from: base + 1,
-                    started_at: nil, finished_at: nil)
+                    started_at: nil, finished_at: nil, awaiting_approval: approval)
+      assumptions.each { |text| @item.step_decisions.create!(task_run: @run, status: "answered", answered_by: "assumption", answer: text) }
     end
     start = @item.starts_at && @item.starts_at > Time.current ? "starts #{@item.starts_at.in_time_zone.strftime("%A %-d %B, %H:%M")}" : "starting now"
     # Owner fix after spec 017: Agentaro's own note goes under the message (actions), so the director's words stay
     # in the user's language and only they are spoken.
-    say("director", summary || @item.title, actions_summary: "Planned \"#{@item.title}\": #{steps.size} step#{"s" unless steps.size == 1}, #{start}; they run one after another.")
+    start = "waiting for your approval (Approve on the epic's page, or tell me)" if approval
+    assumed = assumptions.any? ? " Assumed: #{assumptions.join("; ")}." : ""
+    say("director", summary || @item.title, actions_summary: "Planned \"#{@item.title}\": #{steps.size} step#{"s" unless steps.size == 1}, #{start}; they run one after another.#{assumed}")
     StepChain.start_due(user: @user)
   end
 

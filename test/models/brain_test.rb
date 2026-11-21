@@ -142,7 +142,7 @@ class BrainTest < ActiveSupport::TestCase
     [ "Michał lubi konkret.", "Dom: backupy co tydzień.", "Pisz w punktach.", "Raporty zawsze po polsku i krótko." ].each { |text| assert_includes memory, text }
     [ "Czeka na zgodę.", "Stare.", "O innej przestrzeni.", "Cudzy fakt." ].each { |text| assert_not_includes memory, text }
     assert @user.memory_facts.find_by(statement: "Raporty zawsze po polsku i krótko.").last_used_at
-    assert_equal [ "task", "epic", "memory", "instructions" ], prompt.sections.map(&:first)
+    assert_equal [ "task", "epic", "memory", "autonomy", "instructions" ], prompt.sections.map(&:first) # spec 033: the autonomy rules
   end
 
   test "G5, R4: with many facts the budget holds and the facts about the task rank first (keywords and meaning fused)" do

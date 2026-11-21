@@ -45,7 +45,7 @@ class RunTraceTest < ActiveSupport::TestCase
       assert_equal prompt.text, call.prompt_text
       assert_equal "master_prompt", call.parts.first.kind
     end
-    assert_equal %w[master_prompt task epic instructions], ModelCall.first.parts.map(&:kind).uniq
+    assert_equal %w[master_prompt task epic autonomy instructions], ModelCall.first.parts.map(&:kind).uniq # spec 033: the autonomy rules
   end
 
   test "G1, S3: repeated text is stored once and shared" do

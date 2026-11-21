@@ -37,6 +37,7 @@ module Agentaro
         ManagementRunner.dispatch_due(now: now) # spec 011: new work items go to the director (spec 016: at once)
         StepChain.start_due(now: now)          # spec 016: epics whose start has come run their first step
         StepRetry.hand_over_due(now: now)      # spec 032: retries whose time has come
+        RecurringOrder.run_due(now: now)       # spec 034: recurring orders whose time has come
         due(now).filter_map do |occurrence|
           run = TaskRun.create!(task: occurrence.task, occurrence_start: occurrence.original_start, trigger: "scheduled")
           enqueue(run.id)

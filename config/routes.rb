@@ -36,6 +36,19 @@ Rails.application.routes.draw do
       post :retry
       post :done # spec 013, Q10
       post :cancel
+      post :approve # spec 033: a plan waiting for approval
+    end
+  end
+  resources :recurring_orders, only: %i[new create edit update destroy], path: "recurring" do # spec 034: a part of its space (owner fix)
+    member do
+      patch :pause
+      patch :resume
+    end
+  end
+  resources :step_decisions, only: [], path: "decisions" do # spec 033
+    member do
+      post :answer
+      post :correct
     end
   end
   # Spec 026: notices of blocked epics, shown on every page until closed
@@ -86,6 +99,7 @@ Rails.application.routes.draw do
     resource :theme, only: :update # owner fix: auto, light or dark
     resource :chat_background, only: :update # spec 029: the chat background pattern
     resource :auto_retry, only: :update # spec 032: automatic retries on or off
+    resource :autonomy, only: :update # spec 033: the owner's default autonomy level
   end
 
   namespace :admin do

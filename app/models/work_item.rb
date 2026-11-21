@@ -6,9 +6,11 @@ class WorkItem < ApplicationRecord
 
   belongs_to :user
   belongs_to :space # spec 013
+  belongs_to :recurring_order, optional: true # spec 034: the order this occurrence came from
   has_many :tasks, dependent: :nullify # steps; cancelling removes the ones not started (see #cancel!)
   has_many :runs, class_name: "TaskRun", dependent: :nullify
   has_many :epic_steps, -> { order(:position) }, dependent: :destroy # spec 016
+  has_many :step_decisions, dependent: :destroy # spec 033
 
   normalizes :title, with: ->(value) { value.to_s.strip.presence }
 
@@ -49,7 +51,8 @@ class WorkItem < ApplicationRecord
         run.update!(state: "skipped", error: "The epic was cancelled before this step started.", finished_at: Time.current)
       end
       tasks.where("starts_at > ?", Time.current).find_each(&:destroy!)
-      epic_steps.where(state: %w[pending queued]).find_each { |step| step.update!(state: "cancelled") }
+      epic_steps.where(state: %w[pending queued waiting]).find_each { |step| step.update!(state: "cancelled") } # spec 033: waiting
+      step_decisions.pending.each { |d| d.update!(status: "answered", answer: "(the epic was cancelled)") }
       update!(state: "cancelled", finished_at: (Time.current if started_at))
     end
   end
@@ -73,6 +76,18 @@ class WorkItem < ApplicationRecord
     starts && (starts...ends)
   end
 
+  # Spec 033, G1: at level Pytaj a new plan waits for the owner's Approve. True when this call approved it.
+  def approve_plan!
+    approved = transaction do
+      reload
+      next false unless state == "planned" && awaiting_approval
+
+      update!(awaiting_approval: false)
+    end
+    StepChain.start_due(user: user) if approved
+    approved
+  end
+
   def block!(reason)
     block_dismissed_at_will_change! # written even when this copy never saw the notice closed (another request did)
     update!(state: "blocked", blocked_reason: reason.to_s.truncate(2000), finished_at: (Time.current if started_at),
@@ -85,6 +100,8 @@ class WorkItem < ApplicationRecord
   private
 
   def retire_plan_on_move
+    self.awaiting_approval = false # spec 033: a new plan is approved anew
+    step_decisions.pending.each { |d| d.update!(status: "answered", answer: "(the plan was replaced)") }
     self.active_step_from = (epic_steps.maximum(:position) || 0) + 1
     self.plan_summary = self.blocked_reason = self.started_at = self.finished_at = nil
   end
