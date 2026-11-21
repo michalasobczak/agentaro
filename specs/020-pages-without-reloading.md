@@ -52,6 +52,7 @@ Moving between pages (Calendar, Spaces, Team…) no longer reloads the whole pag
 - R1. A page script never binds twice. Document-level listeners are added once and look up the current page's elements when they run.
 - R2. A dialog, a drag or a dirty form still blocks the auto refresh (spec 010 owner fix).
 - R3. Sign-in, sign-out and session expiry make full page loads, so the chat and its microphone end when the account changes.
+- R4. Owner fix (2026-11-21, "klikam na mózg… czat zasłania stronę"): going to another page from outside the floating chat (the menu, a link on the page) brings a maximized chat back to the side panel, so the new page is not covered. The chat stays open, and a conversation in it, voice included, goes on.
 
 **Resilience:** if Turbo fails to load, links and forms work as full page loads.
 

@@ -897,6 +897,11 @@
   }
   maxButton?.addEventListener("click", (event) => { event.preventDefault(); setMax(!dock.classList.contains("is-max")); });
   setMax(store.get("localStorage", MAX_KEY) === "1");
+  // Owner fix ("klikam na mózg… czat zasłania stronę"): going to another page from outside the chat (the menu, a link
+  // on the page) shows that page — a maximized chat goes back to the side panel instead of covering it.
+  document.addEventListener("turbo:click", (event) => {
+    if (dock.classList.contains("is-max") && !event.target.closest("[data-chat-dock]")) setMax(false);
+  });
 
   launcher.addEventListener("click", () => setOpen(true, true));
   dock.querySelector("[data-dock-close]").addEventListener("click", () => setOpen(false, true));
