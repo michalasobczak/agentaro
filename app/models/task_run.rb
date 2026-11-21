@@ -4,6 +4,8 @@ class TaskRun < ApplicationRecord
   FINISHED = %w[succeeded failed timed_out skipped].freeze
   TRIGGERS = %w[scheduled manual retry].freeze # spec 032: retry — an automatic retry of a failed step
   PURPOSES = %w[step epic_step chat verify director manager review memory].freeze # spec 031: memory — the brain's local model # spec 016: epic_step — a step of an epic, run in sequence # spec 011: management runs have no calendar task; spec 012: manager and review only in old runs
+  # Spec 036, R1: the runs that take one of their agent's parallel slots — steps of epics and of calendar tasks.
+  LIMITED_PURPOSES = %w[step epic_step].freeze
   MAX_OUTPUT = 200 * 1024 # bytes kept of an answer (G4)
   MAX_ERROR = 20 * 1024
 
@@ -25,11 +27,17 @@ class TaskRun < ApplicationRecord
   validates :user, presence: true, unless: -> { purpose == "step" }
   validates :epic_step, presence: true, if: -> { purpose == "epic_step" }, on: :create
 
+  # Spec 036: a calendar run takes its task's agent, so it counts towards that agent's limit (R2).
+  before_validation(on: :create) { self.agent_id ||= task&.agent_id if step? }
+
+  # Spec 036, R2/R3: the runs that hold a slot of the agent now (state running is the slot).
+  scope :occupying, ->(agent_id) { where(state: "running", purpose: LIMITED_PURPOSES, agent_id: agent_id) }
   scope :recent, -> { order(created_at: :desc, id: :desc) }
   # Runs of tasks the user may see, and the user's own management runs (spec 011).
   scope :visible_to, ->(user) { where(task_id: Task.visible_to(user).select(:id)).or(where(task_id: nil, user_id: user.id)) }
 
   def step? = purpose == "step"
+  def limited? = LIMITED_PURPOSES.include?(purpose) # spec 036
 
   def finished? = FINISHED.include?(state)
   def ok? = state == "succeeded"

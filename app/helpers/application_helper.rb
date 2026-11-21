@@ -200,14 +200,17 @@ module ApplicationHelper
     agent_icon(data[:icon_letter], kind: data[:icon_kind], agent_id: data[:icon_agent], status: statuses[data[:icon_agent]])
   end
 
-  # G3: the status badge and the activities on the Team page (text, never colour alone — R11).
+  # G3: the status badge and the activities on the Team page (text, never colour alone — R11). Spec 036, S3: the badge
+  # says the load, e.g. "2/6 in progress", and "busy · 6/6 in progress" only at the limit.
   def agent_status_badge(status)
-    status ||= { status: "free", label: "free", show_dot: true, activities: [] }
-    # The director and verifier show it only while they hold a member's step (R11); hidden, so the poll can show it.
+    status ||= { status: "free", headline: "free", label: "free", show_dot: true, activities: [] }
+    # The director and verifier show it only while they run something (R11); hidden, so the poll can show it.
     tag.span(class: "agent-status", data: { agent_status: status[:id] }, hidden: status[:show_dot] == false) do
-      safe_join([ badge(status[:status], status[:status] == "busy" ? "warn" : nil), agent_activity_list(status[:activities]) ])
+      safe_join([ badge(status[:headline] || status[:status], AGENT_STATUS_TONES[status[:status]]), agent_activity_list(status[:activities]) ])
     end
   end
+
+  AGENT_STATUS_TONES = { "busy" => "warn", "working" => "accent" }.freeze # the same in app.js
 
   def agent_activity_list(activities)
     tag.span(class: "agent-activities") do
@@ -215,12 +218,20 @@ module ApplicationHelper
     end
   end
 
-  # G4, R5: the chat strip — "free", or "busy · <first activity>" and "+N more".
+  # G4, R5: the chat strip — the load ("free · 0/6 in progress", "2/6 in progress", "busy · 6/6 in progress", spec 036),
+  # then the first own activity and "+N more".
   def agent_strip_label(status)
     activities = Array(status[:activities])
-    return "free" if activities.empty?
+    head = status[:headline] || status[:status]
+    return head if activities.empty?
 
-    "busy · #{agent_activity_text(activities.first)}#{" · +#{activities.size - 1} more" if activities.size > 1}"
+    "#{head} · #{agent_activity_text(activities.first)}#{" · +#{activities.size - 1} more" if activities.size > 1}"
+  end
+
+  # Spec 036: the folded chat strip — "3 tasks in progress · 1 of 2 busy" (busy: at the limit).
+  def team_strip_count(members)
+    running = members.sum { |m| m.dig(:capacity, :running).to_i }
+    "#{running} #{running == 1 ? "task" : "tasks"} in progress · #{members.count { |m| m[:status] == "busy" }} of #{members.size} busy"
   end
 
   # "World review · step 2/4: Collect evidence · for 3 min" (G2, R4, R7) — the same text team_status.js builds.

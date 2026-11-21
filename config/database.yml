@@ -4,7 +4,9 @@
 # Database files live in storage/ and are never committed.
 default: &default
   adapter: sqlite3
-  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Spec 036, R7: web threads, plus run workers for the highest agent limit (10) and the director (2), the scheduler, the
+  # memory worker and a spare. Each worker holds a connection while its run lasts.
+  max_connections: <%= [ ENV.fetch("RAILS_MAX_THREADS", 5).to_i, 5 ].max + 10 + 2 + 3 %>
   timeout: 5000
 
 development:

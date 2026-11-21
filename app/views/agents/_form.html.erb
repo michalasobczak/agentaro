@@ -26,6 +26,11 @@
   </div>
   <%= render "models/picker", f: f, field: :model, lists: model_lists_json(executors), source: "#agent_executor_id", key: agent.executor_id || executors.first&.id,
              record: (agent if agent.persisted?), check: (agent.persisted? ? { agent_id: agent.id } : {}) %>
+  <div class="field">
+    <%= f.label :max_parallel_tasks, "Tasks at the same time" %>
+    <%= f.number_field :max_parallel_tasks, min: Agent::PARALLEL_RANGE.min, max: Agent::PARALLEL_RANGE.max, step: 1, required: true %>
+    <span class="hint">How many steps this agent may run at once, in all spaces (<%= Agent::PARALLEL_RANGE.min %>–<%= Agent::PARALLEL_RANGE.max %>, default <%= Agent::PARALLEL_DEFAULT %>). More wait in the queue.</span>
+  </div>
   <label class="check"><%= f.check_box :enabled %><span>Enabled<br><span class="hint">Disabled agents keep their tasks but cannot be assigned to new ones.</span></span></label>
   <div class="actions"><%= f.submit agent.persisted? ? "Save changes" : "Create agent" %><%= link_to "Cancel", agents_path, class: "button secondary" %></div>
 <% end %>

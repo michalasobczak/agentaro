@@ -72,8 +72,9 @@ module Agentaro
     # Audit retention is enforced automatically (spec 005, F3); tests call it explicitly instead.
     config.x.audit_auto_prune = true
 
-    # Running tasks on agents (spec 010): a scheduler thread in the server process, 2 runs at a time,
-    # each in its own folder under var/runs (outside storage/, which agents may not read).
+    # Running tasks on agents (spec 010): a scheduler thread in the server process, each run in its own folder under
+    # var/runs (outside storage/, which agents may not read). Spec 036, R7: the workers are the highest agent limit
+    # (Agent::PARALLEL_RANGE, default 6) plus run_workers for the director's chat, planning and verification.
     config.x.task_scheduler = true
     config.x.run_workers = 2
     config.x.run_timeout = 30 * 60 # seconds; owner fix (2026-11-20): was 15 minutes, too short for research steps

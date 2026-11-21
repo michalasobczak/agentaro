@@ -1,8 +1,8 @@
 <%= page_header "Team", "Who works for you: the director you talk to, who plans the work, and the members who do the steps." %>
 <% content_for :scripts do %><%= javascript_include_tag "team_status", defer: true %><% end %>
 <% role_badge_for = ->(agent) { agent.usable? ? nil : badge("not available", "warn") } %>
-<%# Spec 023: busy or free per agent (G3); team_status.js updates the badges in place (G5). %>
-<% status_for = ->(agent) { agent_status_badge(@statuses[agent.id] || { id: agent.id, status: "free", label: "free", show_dot: true, activities: [] }) } %>
+<%# Spec 023: busy or free per agent (G3; spec 036: tasks in progress against the limit); team_status.js updates the badges in place (G5). %>
+<% status_for = ->(agent) { agent_status_badge(@statuses[agent.id] || { id: agent.id, status: "free", headline: "free", label: "free", show_dot: true, activities: [] }) } %>
 
 <div class="card org-card" data-status-url="<%= status_team_path %>" data-status-stamp="<%= @team_status[:stamp] %>">
   <div class="card-header"><h2>Org chart</h2></div>

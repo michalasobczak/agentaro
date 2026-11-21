@@ -314,15 +314,26 @@ class ManagementRunner
     "- Member id #{agent.id}: #{agent.name}, role: #{member.role_text || "-"}#{" — #{agent.description}" if agent.description.present?}#{" (not available)" unless agent.usable?}; #{status_text(agent)}"
   end
 
-  # Spec 023, G6: busy or free, from the user's own runs only (R8) — the same rule as the Team page and the chat.
+  # Spec 023, G6: what the members work on, from the user's own runs only (R8) — the same rule as the Team page and the chat.
   def agent_statuses = @agent_statuses ||= AgentStatus.for(@user)
+
+  # Spec 036, R3/S3: the load over all users and spaces against the limit; busy (full) only at the limit, and then a new
+  # step for the member waits in the queue. So the director can give work to members with free slots.
+  def load_text(agent)
+    running = agent.running_tasks
+    limit = agent.max_parallel_tasks
+    return "busy: #{running}/#{limit} tasks in progress, at its limit (a new step for it waits in the queue until one ends)" if running >= limit
+
+    free = limit - running
+    "#{running.zero? ? "free" : "working"}: #{running}/#{limit} tasks in progress, #{free} free #{free == 1 ? "slot" : "slots"}"
+  end
 
   def status_text(agent)
     activities = agent_statuses[agent.id]
-    return "free" if activities.blank?
+    return load_text(agent) if activities.blank?
 
     now = Time.current
-    "busy: " + activities.map { |a|
+    "#{load_text(agent)}; yours: " + activities.map { |a|
       "#{a.cancelled ? "finishing a step of a #{a.epic_state == "cancelled" ? "cancelled" : "closed"} epic " : ""}\"#{a.epic}\" (id #{a.epic_id}) step #{a.step}/#{a.of} \"#{a.title}\"#{" for #{AgentStatus.elapsed(a.started_at, now)}" if a.started_at}"
     }.join("; ")
   end
@@ -602,7 +613,7 @@ class ManagementRunner
       Your team members (use only these ids):
       #{members.presence&.join("\n") || "(none)"}
 
-      Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member. Write the summary, titles and descriptions in the language of the work item.
+      Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member. A member can run several tasks at once, up to its limit; when the right skills allow a choice, prefer a member with free slots, since a step for a busy member (at its limit) waits until one of its tasks ends. Write the summary, titles and descriptions in the language of the work item.
       #{autonomy_plan_rule}
       Reply with ONLY one JSON object, no other text:
       {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>}], "assumptions": ["what you assumed yourself, one short sentence each (may be empty)"]}

@@ -2,7 +2,7 @@
     (dock: true). The floating chat loads its messages when first opened; chat.js drives both. %>
 <% dock = local_assigns.fetch(:dock, false) %>
 <% voice_ready = Voice.listening? && Voice.speaking? %>
-<%# Spec 023: busy/free of the team (G4) and the status dots on icons (R11); chat.js updates them from its poll (R12). %>
+<%# Spec 023: busy/free of the team (G4; spec 036: the load, e.g. "2/6 in progress") and the status dots on icons (R11); chat.js updates them from its poll (R12). %>
 <% team_status = AgentStatus.json(current_user) %>
 <% statuses = team_status[:agents].index_by { |a| a[:id] } %>
 <% strip = team_status[:agents].select { |a| a[:member] } %>
@@ -61,7 +61,7 @@
   </header>
   <% if strip.any? %>
     <div class="team-strip" data-team-strip aria-label="Team status">
-      <button type="button" class="team-summary" data-team-toggle aria-expanded="false"><span data-team-count><%= strip.count { |a| a[:status] == "busy" } %> of <%= strip.size %> busy</span></button>
+      <button type="button" class="team-summary" data-team-toggle aria-expanded="false"><span data-team-count><%= team_strip_count(strip) %></span></button>
       <ul class="team-list">
         <% strip.each do |member| %>
           <%# Spec 024 (owner: "tylko inicjały… zamiast free kolorami"): initials with a coloured ring; the name and the

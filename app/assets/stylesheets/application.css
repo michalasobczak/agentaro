@@ -834,6 +834,7 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .chat-avatar .status-dot { width: 0.7rem; height: 0.7rem; }
 .status-dot.is-busy { background: var(--warn); animation: status-pulse 1.6s ease-in-out infinite; }
 .status-dot.is-free { background: color-mix(in srgb, var(--muted) 55%, var(--surface)); }
+.status-dot.is-working { background: var(--accent); } /* spec 036: tasks in progress, slots still free */
 @keyframes status-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 45%, transparent); } 50% { box-shadow: 0 0 0 0.25rem transparent; } }
 @media (prefers-reduced-motion: reduce) { .status-dot.is-busy { animation: none; } }
 
@@ -841,12 +842,13 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .team-summary { display: none; }
 .team-list { display: flex; gap: 0.4rem 1rem; min-width: 0; max-width: 100%; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: thin; }
 .team-chip { display: inline-flex; align-items: center; flex: none; gap: 0.35rem; max-width: min(100%, 22rem); white-space: nowrap; }
-/* Spec 024: in the chat strip each member is its initials; the colour shows what it is doing (green free, amber pulsing
-   busy); the name and the state are in the tooltip and for screen readers. */
+/* Spec 024: in the chat strip each member is its initials; the colour shows what it is doing (green free, indigo working
+   below the limit — spec 036, amber pulsing busy at the limit); the name and the state are in the tooltip and for screen readers. */
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .team-chip .agent-icon.is-strip { width: 1.7rem; height: 1.7rem; font-size: 0.72rem; }
 .team-chip .status-dot { display: none; }
 .team-chip.is-free .agent-icon { background: var(--ok); color: #fff; }
+.team-chip.is-working .agent-icon { background: var(--accent); color: var(--accent-fg); } /* spec 036: below the limit */
 .team-chip.is-busy .agent-icon { background: var(--warn); color: #fff; animation: ring-pulse 1.6s ease-in-out infinite; }
 @keyframes ring-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 60%, transparent); } 50% { box-shadow: 0 0 0 0.3rem transparent; } }
 @media (prefers-reduced-motion: reduce) { .team-chip.is-busy .agent-icon { animation: none; } }

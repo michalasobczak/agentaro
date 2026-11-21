@@ -1,6 +1,7 @@
 require "test_helper"
 
 # Spec 023: busy/free on the Team page and in the chat (G3–G5, S1, S2, S4), and agent icons in the chat (G7, S6).
+# Spec 036, S3: the status is the load against the limit ("1/6 in progress"); busy only at the limit.
 class TeamStatusTest < ActionDispatch::IntegrationTest
   setup do
     @user = create_user
@@ -30,15 +31,15 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
     get team_path
     assert_select "[data-status-url='#{status_team_path}'][data-status-stamp]"
     assert_select "script[src*='team_status']"
-    assert_select ".org-node [data-agent-status='#{@evidence.id}'] .badge.warn", text: "busy"
+    assert_select ".org-node [data-agent-status='#{@evidence.id}'] .badge.accent", text: "1/6 in progress"
     assert_select ".org-node [data-agent-status='#{@evidence.id}'] .agent-activity", text: "World review · step 2/4: Collect evidence · for 3 min"
-    assert_select ".org-node [data-agent-status='#{@analyst.id}'] .badge", text: "free"
-    assert_select ".member-row [data-agent-status='#{@evidence.id}'] .badge", text: "busy"
+    assert_select ".org-node [data-agent-status='#{@analyst.id}'] .badge:not(.warn):not(.accent)", text: "free · 0/6 in progress"
+    assert_select ".member-row [data-agent-status='#{@evidence.id}'] .badge", text: "1/6 in progress"
     assert_select ".org-node.is-director [data-agent-status='#{@director.id}'][hidden]", 1, "R11: the director shows a status only when it runs a step"
     assert_select ".org-node .agent-icon.tone-#{@evidence.id % 8}[aria-hidden='true']", text: "EA"
     assert_select ".org-node.is-director .agent-icon.is-director", text: "D"
     assert_select ".org-node.is-verifier .agent-icon.is-verifier", text: "W"
-    assert_select "[data-agent-icon='#{@evidence.id}'] .status-dot.is-busy[title='busy · World review · step 2/4: Collect evidence']"
+    assert_select "[data-agent-icon='#{@evidence.id}'] .status-dot.is-working[title='1/6 in progress · World review · step 2/4: Collect evidence']"
     assert_select "[style]", 0
     assert_select "script:not([src])", 0
   end
@@ -46,8 +47,9 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
   test "S2, G5, contract: /team/status flips when the step ends and the next one starts" do
     data = json_get(status_team_path)
     evidence = data["agents"].find { |a| a["id"] == @evidence.id }
-    assert_equal %w[id name role member status label show_dot activities].sort, evidence.keys.sort
-    assert_equal [ "busy", "busy · World review · step 2/4: Collect evidence" ], evidence.values_at("status", "label")
+    assert_equal %w[id name role member status headline label show_dot activities capacity].sort, evidence.keys.sort # spec 036: headline, capacity
+    assert_equal({ "running" => 1, "limit" => 6, "full" => false, "label" => "1/6 in progress" }, evidence["capacity"]) # spec 036, S3
+    assert_equal [ "working", "1/6 in progress", "1/6 in progress · World review · step 2/4: Collect evidence" ], evidence.values_at("status", "headline", "label")
     assert_equal({ "epic_id" => @epic.id, "epic" => "World review", "step" => 2, "of" => 4, "title" => "Collect evidence", "cancelled" => false, "epic_state" => "planned" },
                  evidence["activities"].first.except("started_at"))
     first = data["stamp"]
@@ -59,7 +61,7 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
                     occurrence_start: Time.current, state: "running", started_at: Time.current)
     data = json_get(status_team_path)
     assert_not_equal first, data["stamp"]
-    assert_equal({ @evidence.id => "free", @analyst.id => "busy" }, data["agents"].select { |a| a["member"] }.to_h { |a| [ a["id"], a["status"] ] })
+    assert_equal({ @evidence.id => "free", @analyst.id => "working" }, data["agents"].select { |a| a["member"] }.to_h { |a| [ a["id"], a["status"] ] })
     assert_no_match(/[<>]/, response.body, "no HTML in JSON fields")
   end
 
@@ -70,8 +72,10 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
     TaskRun.create!(user: other, work_item: theirs, epic_step: secret, agent: @analyst, purpose: "epic_step", trigger: "scheduled",
                     occurrence_start: Time.current, state: "running", started_at: 1.minute.ago)
     data = json_get(status_team_path)
-    assert_equal "free", data["agents"].find { |a| a["id"] == @analyst.id }["status"]
+    analyst = data["agents"].find { |a| a["id"] == @analyst.id } # spec 036, S6: the count, never the details
+    assert_equal [ "working", "1/6 in progress", [] ], analyst.values_at("status", "label", "activities")
     assert_no_match "Secret plan", response.body
+    assert_no_match "Hidden step", response.body
     get team_path
     assert_no_match "Secret plan", response.body
     json_get(chat_messages_path, after: 0)
@@ -86,15 +90,15 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
   test "G4: the chat strip lists the members with icons, status and activity; it folds into a count" do
     get director_path
     assert_select ".content .director-layout > .chat-app[data-team-stamp] .team-strip[data-team-strip]" do
-      assert_select "[data-team-count]", text: "1 of 2 busy"
+      assert_select "[data-team-count]", text: "1 task in progress · 0 of 2 busy"
       assert_select ".team-chip", 2
       assert_select ".team-chip[data-team-agent='#{@evidence.id}'] .agent-icon.is-strip.tone-#{@evidence.id % 8}", text: "EA"
-      assert_select ".team-chip[data-team-agent='#{@evidence.id}'] .status-dot.is-busy:not([hidden])"
-      assert_select ".team-chip[data-team-agent='#{@evidence.id}'] [data-team-label]", text: "busy · World review · step 2/4: Collect evidence · for 3 min"
+      assert_select ".team-chip[data-team-agent='#{@evidence.id}'] .status-dot.is-working:not([hidden])"
+      assert_select ".team-chip[data-team-agent='#{@evidence.id}'] [data-team-label]", text: "1/6 in progress · World review · step 2/4: Collect evidence · for 3 min"
       assert_select ".team-chip[data-team-agent='#{@analyst.id}'] .status-dot.is-free"
-      assert_select ".team-chip[data-team-agent='#{@analyst.id}'] [data-team-label]", text: "free"
+      assert_select ".team-chip[data-team-agent='#{@analyst.id}'] [data-team-label]", text: "free · 0/6 in progress"
       # Spec 024: initials only, the state as the ring's colour; name and state for screen readers and the tooltip.
-      assert_select ".team-chip.is-busy[data-team-agent='#{@evidence.id}'][title^='Evidence Agent: busy']"
+      assert_select ".team-chip.is-working[data-team-agent='#{@evidence.id}'][title^='Evidence Agent: 1/6 in progress']"
       assert_select ".team-chip.is-free[data-team-agent='#{@analyst.id}']"
       assert_select ".team-chip .team-name.visually-hidden", text: "Evidence Agent"
       assert_select ".team-chip .team-label.visually-hidden", 2
@@ -176,5 +180,35 @@ class TeamStatusTest < ActionDispatch::IntegrationTest
     assert_not_includes data["team"].map { |a| a["id"] }, @evidence.id
     get director_path
     assert_select ".content [data-team-agent='#{@evidence.id}']", 0
+  end
+
+  test "spec 036, S3: at the limit the Team page and the chat strip say busy with the count" do
+    @evidence.update!(max_parallel_tasks: 1)
+    get team_path
+    assert_select ".org-node [data-agent-status='#{@evidence.id}'] .badge.warn", text: "busy · 1/1 in progress"
+    assert_select "[data-agent-icon='#{@evidence.id}'] .status-dot.is-busy"
+    get director_path
+    assert_select ".content [data-team-count]", text: "1 task in progress · 1 of 2 busy"
+    assert_select ".content .team-chip.is-busy[data-team-agent='#{@evidence.id}'] [data-team-label]", text: "busy · 1/1 in progress · World review · step 2/4: Collect evidence · for 3 min"
+  end
+
+  test "spec 036, S3: tasks in two spaces add up; a changed limit shows at once on the page, in the chat and in JSON" do
+    space = @user.spaces.create!(name: "Second", goal: "G")
+    other = @user.work_items.create!(title: "Side job", state: "planned", space: space, started_at: 5.minutes.ago)
+    step = other.epic_steps.create!(position: 1, title: "Draft", agent: @evidence, state: "running")
+    TaskRun.create!(user: @user, work_item: other, epic_step: step, agent: @evidence, purpose: "epic_step", trigger: "scheduled",
+                    occurrence_start: Time.current, state: "running", started_at: 1.minute.ago)
+    get team_path
+    assert_select ".org-node [data-agent-status='#{@evidence.id}'] .badge.accent", text: "2/6 in progress"
+    assert_select ".org-node [data-agent-status='#{@evidence.id}'] .agent-activity", 2
+
+    @evidence.update!(max_parallel_tasks: 3)
+    get team_path
+    assert_select ".org-node [data-agent-status='#{@evidence.id}'] .badge.accent", text: "2/3 in progress"
+    get director_path
+    assert_select ".content [data-team-count]", text: "2 tasks in progress · 0 of 2 busy"
+    assert_select ".content .team-chip.is-working[data-team-agent='#{@evidence.id}'] [data-team-label]", text: /\A2\/3 in progress · .* · \+1 more\z/
+    evidence = json_get(status_team_path)["agents"].find { |a| a["id"] == @evidence.id }
+    assert_equal({ "running" => 2, "limit" => 3, "full" => false, "label" => "2/3 in progress" }, evidence["capacity"])
   end
 end

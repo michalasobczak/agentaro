@@ -105,7 +105,7 @@ class AgentCall
     args = stream.arguments(args) if stream
     result = begin
       HostProcess.run(program, args, stdin: stdin, chdir: @chdir, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
-                      on_stdout: stream&.method(:feed), on_spawn: ->(pid) { RunControl.started(@run.id, pid) }) # spec 025: can be stopped
+                      on_stdout: stream&.method(:feed), on_spawn: ->(pid) { spawned(pid) }) # spec 025: can be stopped
     ensure
       RunControl.finished(@run.id)
     end
@@ -118,6 +118,14 @@ class AgentCall
       log = ExecutorCheck.clean_text(result.stderr).presence
       Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, [ log, "#{preset.program} ended: #{result.ending}." ].compact.join("\n\n"), result.exit_status)
     end
+  end
+
+  # Spec 025: the run can be stopped; spec 036, R5: its process is saved, so a restart waits for it to end.
+  def spawned(pid)
+    RunControl.started(@run.id, pid)
+    @run.update!(pid: pid)
+  rescue StandardError => e
+    Rails.logger.error("[runs] could not save the process of run #{@run.id}: #{e.class}: #{e.message}")
   end
 
   # Spec 017: a streamed API answer — Ollama sends JSON lines, OpenAI-compatible servers send "data:" lines.

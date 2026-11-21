@@ -4,6 +4,9 @@
 # Running tasks, memory and self-improvement come in specs 010–012.
 class Agent < ApplicationRecord
   KINDS = %w[private shared].freeze
+  # Spec 036, R1: how many steps (of epics or calendar tasks) the agent may run at the same time, in all spaces.
+  PARALLEL_DEFAULT = 6
+  PARALLEL_RANGE = 1..10
 
   belongs_to :user # author; owner of a private agent
   belongs_to :executor
@@ -20,12 +23,15 @@ class Agent < ApplicationRecord
   validates :master_prompt, presence: true, length: { maximum: 20_000 }
   validates :model, length: { maximum: 200 }
   validates :model, format: { with: Executor::MODEL_NAME, message: Executor::MODEL_NAME_RULE }, allow_nil: true # spec 022, R1
+  validates :max_parallel_tasks, numericality: { only_integer: true, in: PARALLEL_RANGE } # spec 036, S1
   validate :effort_allowed # spec 022, G5
   validate :name_unique_in_its_list
   validate :kind_fixed, on: :update
   validate :shared_only_by_admins, on: :create
 
   before_destroy :unassign_tasks
+  # Spec 036, R4/R7: a changed limit (or an agent switched on or off) counts for the next start at once.
+  after_commit(on: %i[create update]) { Agentaro::TaskScheduler.wake(rescale: true) }
   after_destroy_commit { Brain.forget_scope(MemoryFact.where(subject_type: "agent", subject_id: id).select(:user_id), "agent", id) } # spec 031
 
   scope :ordered, -> { order(:name) }
@@ -44,6 +50,13 @@ class Agent < ApplicationRecord
 
   # Disabled agents, or agents on a disabled executor, keep their tasks but get no new ones (S3).
   def usable? = enabled? && executor.enabled?
+
+  # Spec 036, R2/R3: the steps it runs now, of every user and space — the same count the scheduler starts by.
+  def running_tasks = TaskRun.occupying(id).count
+  def full? = running_tasks >= max_parallel_tasks
+
+  # Spec 036, R7: the most steps one agent may run at once — the shared worker pool is sized by it.
+  def self.highest_parallel_limit = where(enabled: true).maximum(:max_parallel_tasks) || PARALLEL_DEFAULT
 
   def runtime_label = [ executor.name, effective_model, effective_effort && "effort #{effective_effort}" ].compact.join(" · ")
 

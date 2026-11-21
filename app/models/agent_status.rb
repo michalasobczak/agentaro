@@ -1,4 +1,5 @@
 # Spec 023: whether each agent is busy or free for one user, and on what. Derived from runs; nothing is stored (G1).
+# Spec 036, S3: the status is the agent's load against its limit ("2/6 in progress"); busy only at the limit.
 # An agent is busy while one of the user's own `epic_step` runs is `running` with it, and the run's step is `running`
 # in its epic's active plan (R1). Queued runs (R2), finished or interrupted runs (R3), other users' runs (R8) and
 # runs of deleted agents (R6) never count. A step that keeps running after its epic was cancelled or closed by hand
@@ -40,16 +41,34 @@ module AgentStatus
   end
 
   # A fingerprint of the busy rows: it changes when a step starts or ends, or its epic is stopped (spec §5, events).
-  def stamp(user, statuses = self.for(user))
+  # Spec 036: the load of the team's agents (counts and limits) changes it too.
+  def stamp(user, statuses = self.for(user), counts = nil)
     rows = statuses.values.flatten.map { |a| [ a.run_id, a.step_id, a.epic_state, a.agent_id, a.step, a.of ] }.sort
-    ChangeStamp.digest(rows.size, rows.inspect)
+    ids = team(user).map { |agent, _, _| agent.id }
+    counts ||= running_counts(ids)
+    load = Agent.where(id: ids).order(:id).pluck(:id, :max_parallel_tasks).map { |id, limit| [ id, counts[id].to_i, limit ] }
+    ChangeStamp.digest(rows.size, rows.inspect, load.inspect)
   end
 
-  # "busy · World review · step 2/4: Collect evidence" or "free" (G2).
-  def label(activities)
-    return "free" if activities.blank?
+  # Spec 036, S3 (supersedes spec 023's busy/free): "free" with nothing in progress, "working" below the limit, "busy"
+  # only at the limit or over it. The count is the agent's load over all users and spaces (R3).
+  def state(activities, capacity)
+    return "busy" if capacity[:full]
 
-    "busy · #{activities.first.label}#{" · +#{activities.size - 1} more" if activities.size > 1}"
+    capacity[:running].positive? || activities.present? ? "working" : "free"
+  end
+
+  # "free · 0/6 in progress", "2/6 in progress", "busy · 6/6 in progress".
+  def headline(state, capacity)
+    { "free" => "free · ", "busy" => "busy · " }[state].to_s + capacity[:label]
+  end
+
+  # "2/6 in progress · World review · step 2/4: Collect evidence · +1 more" (G2, R5); the activities are the user's own.
+  def label(activities, capacity)
+    text = headline(state(activities, capacity), capacity)
+    return text if activities.blank?
+
+    "#{text} · #{activities.first.label}#{" · +#{activities.size - 1} more" if activities.size > 1}"
   end
 
   # "3 min", "1 h 5 min" — how long the activity has run (stuck runs become visible, spec §5 Resilience).
@@ -75,14 +94,31 @@ module AgentStatus
     list
   end
 
-  # Spec 023 contract: { stamp, agents: [{ id, name, role, member, status, label, show_dot, activities: […] }] }.
-  # `show_dot`: members always; the director and verifier only when busy (R11).
+  # Spec 036, R3/S6: { agent_id => running steps } over all users and spaces — the count the scheduler starts by.
+  # Only totals: which runs they are stays with the rules above. One query.
+  def running_counts(agent_ids)
+    TaskRun.occupying(agent_ids).group(:agent_id).count
+  end
+
+  # Spec 036, S3: { running: 3, limit: 6, full: false, label: "3/6 in progress" }; full (busy) at the limit or over it.
+  def capacity(running, limit)
+    { running: running, limit: limit, full: running >= limit, label: "#{running}/#{limit} in progress" }
+  end
+
+  # Spec 023 contract: { stamp, agents: [{ id, name, role, member, status, headline, label, show_dot, activities: […], capacity }] }.
+  # `status`: free, working or busy (spec 036, S3); `headline` is its text with the count. `show_dot`: members always;
+  # the director and verifier only while they run something (R11). Spec 036: `capacity` is the agent's load.
   def json(user, statuses = self.for(user))
-    agents = team(user).map do |agent, role, member|
+    list = team(user)
+    counts = running_counts(list.map { |agent, _, _| agent.id })
+    agents = list.map do |agent, role, member|
       activities = statuses[agent.id] || []
-      { id: agent.id, name: agent.name, role: role, member: member, status: activities.any? ? "busy" : "free", label: label(activities),
-        show_dot: member || activities.any?, activities: activities.map(&:as_json) }
+      # The user's own running steps are among the counted ones; max() only covers a step ending between the queries.
+      load = capacity([ counts[agent.id].to_i, activities.size ].max, agent.max_parallel_tasks)
+      status = state(activities, load)
+      { id: agent.id, name: agent.name, role: role, member: member, status: status, headline: headline(status, load),
+        label: label(activities, load), show_dot: member || status != "free", activities: activities.map(&:as_json), capacity: load }
     end
-    { stamp: stamp(user, statuses), agents: agents }
+    { stamp: stamp(user, statuses, counts), agents: agents }
   end
 end

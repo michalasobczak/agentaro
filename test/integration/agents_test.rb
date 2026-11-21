@@ -58,6 +58,24 @@ class AgentsTest < ActionDispatch::IntegrationTest
     assert_equal "Team writer", shared.reload.name
   end
 
+  test "spec 036, S1: the editor sets the parallel limit; a refused value keeps the old one; others cannot" do
+    agent = make_agent
+    sign_in(@user)
+    get edit_agent_path(agent)
+    assert_select "input[name='agent[max_parallel_tasks]'][value='6'][min='1'][max='10']"
+    patch agent_path(agent), params: { agent: { max_parallel_tasks: "4" } }
+    assert_equal 4, agent.reload.max_parallel_tasks
+    [ "0", "11", "2.5" ].each do |value|
+      patch agent_path(agent), params: { agent: { max_parallel_tasks: value } }
+      assert_response :unprocessable_content
+      assert_equal 4, agent.reload.max_parallel_tasks, value
+    end
+    sign_in(@admin)
+    patch agent_path(agent), params: { agent: { max_parallel_tasks: "9" } }
+    assert_response :not_found
+    assert_equal 4, agent.reload.max_parallel_tasks
+  end
+
   test "S2: other users' private agents do not exist (also for admins)" do
     theirs = make_agent
     sign_in(@admin)

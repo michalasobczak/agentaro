@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_170000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -26,6 +26,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_160000) do
     t.datetime "model_checked_at"
     t.boolean "model_check_ok"
     t.text "model_check_output"
+    t.integer "max_parallel_tasks", default: 6, null: false
     t.index ["executor_id"], name: "index_agents_on_executor_id"
     t.index ["kind", "user_id", "name"], name: "index_agents_on_kind_and_user_id_and_name"
     t.index ["user_id"], name: "index_agents_on_user_id"
@@ -328,6 +329,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_160000) do
     t.string "failure_kind"
     t.datetime "retry_at"
     t.integer "attempt", default: 1, null: false
+    t.integer "pid"
     t.index ["agent_id"], name: "index_task_runs_on_agent_id"
     t.index ["epic_step_id"], name: "index_task_runs_on_epic_step_id"
     t.index ["state", "created_at"], name: "index_task_runs_on_state_and_created_at"

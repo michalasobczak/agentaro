@@ -78,7 +78,7 @@ window.agentaroOnPage = (start) => {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) check(true); });
 })();
 
-// Spec 023: busy or free. Shared by the chat (team strip, status dots on icons) and the Team page (badges). The data
+// Spec 023: busy or free (spec 036: free, working N/M or busy at the limit). Shared by the chat (team strip, status dots on icons) and the Team page (badges). The data
 // comes from AgentStatus.json; text is set with textContent only. Elapsed time is counted here, so it stays fresh
 // between changes of the status.
 window.agentaroTeamStatus = (() => {
@@ -96,11 +96,15 @@ window.agentaroTeamStatus = (() => {
     const time = elapsed(a.started_at);
     return [where, `step ${a.step}/${a.of}: ${cut(a.title || "")}`, time && `for ${time}`].filter(Boolean).join(" · ");
   };
+  // Spec 036, S3: the load first ("free · 0/6 in progress", "2/6 in progress", "busy · 6/6 in progress"), as
+  // ApplicationHelper#agent_strip_label.
   const stripText = (agent) => {
     const list = agent.activities || [];
-    if (list.length === 0) return "free";
-    return `busy · ${activityText(list[0])}${list.length > 1 ? ` · +${list.length - 1} more` : ""}`;
+    const head = agent.headline || agent.status;
+    if (list.length === 0) return head;
+    return `${head} · ${activityText(list[0])}${list.length > 1 ? ` · +${list.length - 1} more` : ""}`;
   };
+  const tones = { busy: "warn", working: "accent" }; // ApplicationHelper::AGENT_STATUS_TONES
 
   function apply(agents, root = document) {
     if (!Array.isArray(agents)) return;
@@ -113,14 +117,15 @@ window.agentaroTeamStatus = (() => {
       root.querySelectorAll(`[data-team-agent="${agent.id}"]`).forEach((chip) => {
         chip.title = `${agent.name}: ${agent.label}`;
         chip.classList.toggle("is-busy", agent.status === "busy"); // spec 024: the ring's colour
-        chip.classList.toggle("is-free", agent.status !== "busy");
+        chip.classList.toggle("is-working", agent.status === "working"); // spec 036
+        chip.classList.toggle("is-free", agent.status === "free");
         const label = chip.querySelector("[data-team-label]");
         if (label) label.textContent = stripText(agent);
       });
       root.querySelectorAll(`[data-agent-status="${agent.id}"]`).forEach((holder) => {
         holder.hidden = !agent.show_dot;
         const badge = holder.querySelector(".badge");
-        if (badge) { badge.textContent = agent.status; badge.className = `badge${agent.status === "busy" ? " warn" : ""}`; }
+        if (badge) { badge.textContent = agent.headline || agent.status; badge.className = `badge${tones[agent.status] ? ` ${tones[agent.status]}` : ""}`; }
         const list = holder.querySelector(".agent-activities");
         if (list) {
           list.replaceChildren(...(agent.activities || []).flatMap((a, i) => {
@@ -136,7 +141,9 @@ window.agentaroTeamStatus = (() => {
     root.querySelectorAll("[data-team-strip]").forEach((strip) => {
       const count = strip.querySelector("[data-team-count]");
       const members = agents.filter((a) => a.member);
-      if (count) count.textContent = `${members.filter((a) => a.status === "busy").length} of ${members.length} busy`;
+      // Spec 036: as ApplicationHelper#team_strip_count.
+      const running = members.reduce((sum, a) => sum + ((a.capacity && a.capacity.running) || 0), 0);
+      if (count) count.textContent = `${running} ${running === 1 ? "task" : "tasks"} in progress · ${members.filter((a) => a.status === "busy").length} of ${members.length} busy`;
     });
   }
 
