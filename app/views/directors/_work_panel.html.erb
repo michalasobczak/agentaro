@@ -13,11 +13,11 @@
           <ul class="work-epics">
             <% space[:epics].each do |epic| %>
               <li class="work-epic is-<%= epic[:state] %>">
-                <div class="work-epic-head"><%= link_to epic[:title], epic[:url] %><span class="work-state small"><%= epic[:state] %></span></div>
+                <div class="work-epic-head"><%= link_to epic[:title], epic[:url], data: { live_epic: epic[:id] }, title: "Show what it is doing" %><span class="work-state small"><%= epic[:state] %></span></div>
                 <% if epic[:steps].any? %>
                   <ol class="work-steps">
                     <% epic[:steps].each do |step| %>
-                      <li class="work-step is-<%= step[:state].tr("_", "-") %>" title="<%= step[:agent] %>"><span class="work-step-n"><%= step[:position] %></span><span class="work-step-title"><%= step[:title] %></span><span class="work-state small"><%= step[:state].tr("_", " ") %></span></li>
+                      <li class="work-step is-<%= step[:state].tr("_", "-") %>" title="<%= step[:agent] %>" data-live-step="<%= step[:id] %>" tabindex="0" role="button"><span class="work-step-n"><%= step[:position] %></span><span class="work-step-title"><%= step[:title] %></span><span class="work-state small"><%= step[:state].tr("_", " ") %></span></li>
                     <% end %>
                   </ol>
                 <% end %>

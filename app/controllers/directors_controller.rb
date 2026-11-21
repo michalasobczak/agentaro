@@ -15,6 +15,19 @@ class DirectorsController < ApplicationController
     render json: WorkPanel.for(current_user)
   end
 
+  # Spec 038: one step of the owner's own epic (?step=id), or the step to follow of an epic (?epic=id). Only steps of
+  # the current plan (R1); anything else is not found.
+  def live
+    if params[:epic].present?
+      item = current_user.work_items.find(params[:epic])
+      step = StepView.step_for(item) or raise ActiveRecord::RecordNotFound
+    else
+      step = EpicStep.joins(:work_item).where(work_items: { user_id: current_user.id }).find(params[:step])
+      raise ActiveRecord::RecordNotFound unless step.position >= step.work_item.active_step_from.to_i
+    end
+    render json: StepView.new(step).to_h.merge(following: params[:epic].present?)
+  end
+
   # Spec 019, owner fix ("jak zapraszam weryfikatora, to ma on być do odwołania aktywny"): the button invites the
   # verifier — it checks the conversation now and every answer of the director after — or sends it away again.
   def verify

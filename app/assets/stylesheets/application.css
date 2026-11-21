@@ -642,6 +642,44 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .work-step.is-running .work-state, .work-epic.is-running > .work-epic-head .work-state { animation: work-blink 1.2s ease-in-out infinite; }
 @keyframes work-blink { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .work-step.is-running .work-state, .work-epic.is-running > .work-epic-head .work-state { animation: none; } }
+/* Spec 038: what a step is doing — a third column from 1500 px (the work panel narrower meanwhile, so the chat keeps
+   its room), over the work panel below that (R7). */
+.step-view { min-height: 0; overflow-y: auto; padding: 0.9rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.step-view[hidden] { display: none; }
+.step-view-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.step-view-head .work-panel-title { margin-bottom: 0.5rem; }
+.step-view-epic { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; font-weight: 600; overflow-wrap: anywhere; }
+.step-view-step { margin: 0.5rem 0 0.75rem; padding-left: 0.65rem; border-left: 3px solid var(--line); overflow-wrap: anywhere; }
+.step-view-step.is-running { border-color: var(--warn); }
+.step-view-step.is-succeeded { border-color: var(--ok); }
+.step-view-step.is-failed, .step-view-step.is-timed-out, .step-view-step.is-waiting { border-color: var(--bad); }
+.step-view-meta { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; margin-top: 0.2rem; }
+.step-view-step.is-running .step-view-state { color: var(--warn); animation: work-blink 1.2s ease-in-out infinite; }
+.step-view-section { margin: 0.75rem 0; font-size: 0.9rem; }
+.step-view-section.is-error .pre, .step-view-section.is-question .pre { color: var(--bad-text); }
+.step-view-label { margin: 0 0 0.25rem; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.step-log { list-style: none; margin: 0.5rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.82rem; }
+.step-log-entry { display: flex; flex-wrap: wrap; gap: 0.15rem 0.4rem; padding: 0.2rem 0.4rem; border-radius: 6px; }
+.step-log-entry.is-text { background: var(--accent-soft, var(--ok-soft)); }
+.step-log-entry.is-action { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.step-log-entry.is-result { color: var(--muted); padding-left: 1.2rem; }
+.step-log-entry.is-error { color: var(--bad-text); }
+.step-log-label { font-weight: 600; }
+.step-log-source { font-size: 0.7rem; padding: 0 0.3rem; border: 1px solid var(--line); border-radius: 4px; }
+.step-log-text { white-space: pre-wrap; overflow-wrap: anywhere; flex: 1 1 100%; }
+.step-log-entry.is-action .step-log-text { flex: 1 1 auto; }
+.work-step[data-live-step] { cursor: pointer; border-radius: 4px; }
+.work-step[data-live-step]:hover, .work-step[data-live-step]:focus-visible { background: var(--surface-2, var(--line)); }
+@media (prefers-reduced-motion: reduce) { .step-view-step.is-running .step-view-state { animation: none; } }
+@media (min-width: 1500px) {
+  .director-layout.has-step-view { grid-template-columns: minmax(0, 1fr) 20rem 26rem; }
+  .director-layout > .step-view { grid-column: 3; }
+  /* the floating chat in voice mode leaves room for both columns (spec 027 R6): 20rem + 26rem + two gaps */
+  body:has(.director-layout.has-step-view) .chat-dock.is-voice .chat-dock-panel { right: calc(var(--director-side) + 48rem); }
+}
+@media (max-width: 1499px) {
+  .director-layout > .step-view { position: fixed; top: 1rem; bottom: 1rem; right: 1rem; width: min(30rem, calc(100vw - 2rem)); z-index: 40; box-shadow: var(--shadow); }
+}
 @media (max-width: 899px) {
   .main:has(> .content > .director-layout) > .content { height: auto; }
   .director-layout { grid-template-columns: 1fr; }

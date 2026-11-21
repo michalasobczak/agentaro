@@ -42,12 +42,14 @@ class AgentCall
   # OpenAI-compatible APIs; other executors answer once at the end. The returned outcome is the same either way.
   def call(on_text: nil)
     @on_text = on_text
+    @live = LiveLog.new(folder) if @run.is_a?(TaskRun) && @run.purpose == "epic_step" # spec 038: steps of epics
     started_at, clock = Time.current, Process.clock_gettime(Process::CLOCK_MONOTONIC)
     outcome = perform
     if @called # spec 030: every call that reached its executor leaves a trace; recording never breaks the run (R7)
-      RunTrace.record(run: @run, agent: @agent, prompt: @prompt, outcome: outcome, pass: @pass, started_at: started_at,
-                      duration: Process.clock_gettime(Process::CLOCK_MONOTONIC) - clock, model: @model, effort: @effort,
-                      usage: @stream ? @stream.usage : @usage.to_h, events: @stream&.events, events_cut: @stream&.events_cut)
+      recorded = RunTrace.record(run: @run, agent: @agent, prompt: @prompt, outcome: outcome, pass: @pass, started_at: started_at,
+                                 duration: Process.clock_gettime(Process::CLOCK_MONOTONIC) - clock, model: @model, effort: @effort,
+                                 usage: @stream ? @stream.usage : @usage.to_h, events: @stream&.events, events_cut: @stream&.events_cut)
+      @live&.clear! if recorded # spec 038: the trace is the record from now on; without one the live log stays
     end
     outcome
   end
@@ -101,11 +103,17 @@ class AgentCall
     return Outcome.new("failed", nil, "Choose a model for #{executor.name} (agent or executor default).", nil) if args.nil?
 
     # Spec 030, G2: Claude Code always streams JSON, so its tool calls, usage and cost reach the trace.
-    stream = @stream = preset.key == "claude_code" ? ClaudeStream.new(@on_text) : nil
+    # Spec 038, G6: so does Codex (--json); its events reach the live log and the trace.
+    on_event = @live && @live.method(:add)
+    stream = @stream = case preset.key
+                       when "claude_code" then ClaudeStream.new(@on_text, on_event: on_event)
+                       when "codex" then CodexStream.new(on_event: on_event)
+                       end
     args = stream.arguments(args) if stream
+    on_stdout = stream ? stream.method(:feed) : (live_stdout if @live) # spec 038, G7: Ollama and LM Studio print their text
     result = begin
       HostProcess.run(program, args, stdin: stdin, chdir: @chdir, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
-                      on_stdout: stream&.method(:feed), on_spawn: ->(pid) { spawned(pid) }) # spec 025: can be stopped
+                      on_stdout: on_stdout, on_spawn: ->(pid) { spawned(pid) }) # spec 025: can be stopped
     ensure
       RunControl.finished(@run.id)
     end
@@ -118,6 +126,22 @@ class AgentCall
       log = ExecutorCheck.clean_text(result.stderr).presence
       Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, [ log, "#{preset.program} ended: #{result.ending}." ].compact.join("\n\n"), result.exit_status)
     end
+  end
+
+  # Spec 038, G7: the text a command-line tool prints, as it prints it (terminal codes removed).
+  def live_stdout
+    text = +""
+    lambda do |chunk|
+      text << chunk.dup.force_encoding(Encoding::UTF_8)
+      text = text.byteslice(-LiveLog::MAX_TEXT * 2, LiveLog::MAX_TEXT * 2).scrub("") if text.bytesize > LiveLog::MAX_TEXT * 2
+      @live.text(text.gsub(/\e\[[0-9;?]*[A-Za-z]/, ""))
+    end
+  end
+
+  # Spec 017: the answer so far, to whoever reads it — the chat (on_text) and the live log of a step (spec 038, G7).
+  def emit_text(text)
+    @on_text&.call(text)
+    @live&.text(text)
   end
 
   # Spec 025: the run can be stopped; spec 036, R5: its process is saved, so a restart waits for it to end.
@@ -144,7 +168,7 @@ class AgentCall
             piece = stream_piece(preset, line.strip) or next
             text << piece
             raise IOError, "answer too long" if text.bytesize > TaskRun::MAX_OUTPUT
-            @on_text.call(text)
+            emit_text(text)
           end
         end
       end
@@ -233,7 +257,7 @@ class AgentCall
     return Outcome.new("failed", nil, "Choose a model for #{executor.name} (agent or executor default).", nil) unless model
 
     messages = [ { role: "system", content: prompt.system }, { role: "user", content: prompt.user } ]
-    stream = @on_text.present?
+    stream = @on_text.present? || @live.present? # spec 038, G7: a step's text streams for its live view
     path, body = preset.protocol == "ollama" ? [ "/api/chat", { model: model, messages: messages, stream: stream } ] : [ "/chat/completions", { model: model, messages: messages, stream: stream } ]
     uri = URI.parse(executor.base_url + path)
     return stream_api(preset, uri, body) if stream

@@ -51,7 +51,7 @@ class WorkPanelTest < ActionDispatch::IntegrationTest
   test "G1: chat on the left, work panel on the right, also while voice mode hides the page chat" do
     get director_path
     children = css_select(".director-layout > *").map { |node| node["class"].split.first }
-    assert_equal %w[chat-app work-panel], children, "the chat comes first in the layout"
+    assert_equal %w[chat-app work-panel step-view], children, "the chat comes first in the layout (spec 038: the step view, hidden, last)"
 
     css = Rails.root.join("app/assets/stylesheets/application.css").read
     assert_match(/\.director-layout \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(16rem, 24rem\)/, css, "wide chat column first, panel column second")

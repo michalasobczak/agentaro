@@ -15,8 +15,10 @@ class ClaudeStream
 
   attr_reader :events, :usage, :events_cut
 
-  def initialize(on_text = nil)
+  # on_event (spec 038): called with each event as it is kept, for the live log.
+  def initialize(on_text = nil, on_event: nil)
     @on_text = on_text
+    @on_event = on_event
     @buffer = +""
     @text = +""
     @assistant_text = +""
@@ -102,7 +104,9 @@ class ClaudeStream
   def add(kind, **data)
     return @events_cut = true if @events.size >= MAX_EVENTS
 
-    @events << { "kind" => kind, **data.compact.transform_keys(&:to_s) }
+    event = { "kind" => kind, **data.compact.transform_keys(&:to_s) }
+    @events << event
+    @on_event&.call(event)
   end
 
   def limit(value)

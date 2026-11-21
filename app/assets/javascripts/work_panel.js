@@ -22,13 +22,19 @@
       space.epics.forEach((epic) => {
         const item = el("li", `work-epic is-${epic.state}`);
         const head = el("div", "work-epic-head");
-        head.append(link(epic.title, epic.url), el("span", "work-state small", epic.state));
+        const title = link(epic.title, epic.url);
+        title.dataset.liveEpic = String(epic.id); // spec 038: a click shows what the epic is doing
+        title.title = "Show what it is doing";
+        head.append(title, el("span", "work-state small", epic.state));
         item.append(head);
         if (epic.steps.length) {
           const steps = el("ol", "work-steps");
           epic.steps.forEach((step) => {
             const row = el("li", `work-step is-${step.state.replace(/_/g, "-")}`);
             row.title = step.agent || "";
+            row.dataset.liveStep = String(step.id); // spec 038
+            row.tabIndex = 0;
+            row.setAttribute("role", "button");
             row.append(el("span", "work-step-n", String(step.position)), el("span", "work-step-title", step.title), el("span", "work-state small", step.note || label(step.state)));
             steps.append(row);
           });

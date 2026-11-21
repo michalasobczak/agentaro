@@ -6,10 +6,18 @@
   <%= page_header "Director" %>
   <div class="card"><p>You have no director yet. <%= link_to "Choose one on the Team page", team_path %>.</p></div>
 <% else %>
-  <% content_for :scripts do %><%= javascript_include_tag "work_panel", defer: true %><% end %>
+  <% content_for :scripts do %><%= javascript_include_tag "work_panel", defer: true %><%= javascript_include_tag "step_view", defer: true %><% end %>
   <%# Spec 027: the chat on the left, the spaces with their epics and steps on the right. %>
   <div class="director-layout">
     <%= render "directors/chat", director: @director, messages: @messages, writing: @writing %>
     <%= render "directors/work_panel", work: @work %>
+    <%# Spec 038: what a step is doing, opened from the work panel. %>
+    <aside class="step-view" data-step-view data-url="<%= live_director_path %>" hidden aria-label="What the step is doing">
+      <div class="step-view-head">
+        <h2 class="work-panel-title">Step</h2>
+        <button type="button" class="link small" data-step-view-close>Close</button>
+      </div>
+      <div class="step-view-body" data-step-view-body aria-live="polite"></div>
+    </aside>
   </div>
 <% end %>

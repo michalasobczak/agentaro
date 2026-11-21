@@ -20,6 +20,7 @@ Rails.application.routes.draw do
   resource :director, only: :show do
     get :stamp
     get :work # spec 027: spaces, their epics and steps, beside the chat
+    get :live # spec 038: one step's live view, beside the work panel
     post :new_conversation # spec 015
     post :verify # spec 019: invite the verifier, or send it away
     patch :speech_speed

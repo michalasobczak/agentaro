@@ -76,7 +76,8 @@ class TaskRunTest < ActiveSupport::TestCase
       with_fake_program("codex", script) do
         run = TaskRunner.new(run_for(task)).perform!
         assert_equal [ "succeeded", "Final answer", nil ], [ run.state, run.output, run.error ]
-        assert_match(/^--search exec --skip-git-repo-check --sandbox workspace-write --ephemeral --color never -C \S+\/work -o \S+answer.txt -$/, File.read("#{log}/args").strip)
+        # spec 038, G6: Codex streams its events (--json); the answer is still its last message
+        assert_match(/^--search exec --json --skip-git-repo-check --sandbox workspace-write --ephemeral --color never -C \S+\/work -o \S+answer.txt -$/, File.read("#{log}/args").strip)
       end
     end
   end
