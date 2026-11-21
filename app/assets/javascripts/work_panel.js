@@ -29,7 +29,7 @@
           epic.steps.forEach((step) => {
             const row = el("li", `work-step is-${step.state.replace(/_/g, "-")}`);
             row.title = step.agent || "";
-            row.append(el("span", "work-step-n", String(step.position)), el("span", "work-step-title", step.title), el("span", "work-state small", label(step.state)));
+            row.append(el("span", "work-step-n", String(step.position)), el("span", "work-step-title", step.title), el("span", "work-state small", step.note || label(step.state)));
             steps.append(row);
           });
           item.append(steps);

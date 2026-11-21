@@ -1,8 +1,9 @@
-# 033 — Reflection and playbooks: agents learn from rated results
+# 101 — Reflection and playbooks: agents learn from rated results
 
 Status: **draft**
 Date: 2026-11-21
-Depends on: [031](031-brain-memory.md), [032](032-ratings-and-sentiment.md)
+Renumbered: was 033 until 2026-11-21 (set aside to return to later; numbers 032–099 stay for the work in between).
+Depends on: [031](031-brain-memory.md), [100](100-ratings-and-sentiment.md)
 
 ## 1. TL;DR
 
@@ -23,7 +24,7 @@ After each rated epic, a reflection pass writes what worked and what did not. A 
 ## 3. Objective
 
 **Goals**
-- G1. **Reflection.** It runs when an epic or step gets a reward with confidence ≥ 0.5 (spec 032), and once a day for the rest. It uses the director's model, which decides how well the lesson is written.
+- G1. **Reflection.** It runs when an epic or step gets a reward with confidence ≥ 0.5 (spec 100), and once a day for the rest. It uses the director's model, which decides how well the lesson is written.
   - **Input:**
     - the plan, the step outputs (truncated);
     - the reward and its breakdown;
@@ -39,7 +40,7 @@ After each rated epic, a reflection pass writes what worked and what did not. A 
   - the playbook stays within its size limit; the weakest rules leave first.
 - G3. **Replay gate.**
   - The replay set holds the owner's past cases with explicit ratings: the task, the result and the rating.
-  - Before an edit applies, a judge (spec 034; until then, a rubric from the owner's comments) scores a sample of up to 10 cases twice: with the old playbook and with the new one.
+  - Before an edit applies, a judge (spec 102; until then, a rubric from the owner's comments) scores a sample of up to 10 cases twice: with the old playbook and with the new one.
   - The edit applies only if it does not lower the mean and fixes the case it came from.
   - While the set has fewer than 5 cases, edits apply directly and are marked "unverified".
 - G4. **Versions.** Every playbook and brief change is a new version, with its diff, its lessons and the gate result. The Brain page shows the history; Roll back restores any version.
@@ -47,7 +48,7 @@ After each rated epic, a reflection pass writes what worked and what did not. A 
 
 **Out of scope**
 - Changing master prompts. Playbooks sit beside them.
-- Changing models or which agent does what: spec 035.
+- Changing models or which agent does what: spec 103.
 
 **Success criteria**
 - S1. After the owner rates an epic 2/5 with "brak źródeł", the researcher's playbook gains a rule about sources. The next research epic follows it.
@@ -81,7 +82,7 @@ After each rated epic, a reflection pass writes what worked and what did not. A 
 
 ## 6. Critical Path
 
-1. Spec 031 and 032 in place.
+1. Specs 031 and 100 in place.
 2. Reflector.
 3. Curator with versions.
 4. Replay set and gate.
@@ -111,7 +112,7 @@ After each rated epic, a reflection pass writes what worked and what did not. A 
 - **Rejected alternatives:**
   - Rewriting the whole prompt each time (loses knowledge).
   - Fine-tuning (not available for hosted models; local fine-tuning is a later option).
-- **Technical debt:** the replay judge is approximate until spec 034 calibrates it.
+- **Technical debt:** the replay judge is approximate until spec 102 calibrates it.
 - **Sources and questions:**
   - Reflexion (arXiv 2303.11366); ACE, Agentic Context Engineering (arXiv 2510.04618); GEPA (arXiv 2507.19457).
   - Q1. [TO BE DETERMINED] Should reflection use the director's model (proposed: better lessons) or the local model (free, weaker)?

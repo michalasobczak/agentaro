@@ -351,3 +351,22 @@
 
     Full suite: 395 runs, 0 failures.
 
+- Spec 032 closed (2026-11-21). The owner accepted the proposals based on market practice:
+  - Q2: thumbs only, with ready reasons after 👎 and an optional comment; no stars;
+  - Q1: every signal stored separately; the reward is a Beta distribution (also usable for Thompson sampling in spec 035); "accepted without changes" weighs 0.2;
+  - Q3: the thumbs sit inside the director's report of a finished epic, with limits and a switch.
+- Specs 032–036 renumbered to 100–104 (2026-11-21), on the owner's word: the learning series is set aside to return to later, and 032–099 stay for the work in between. Ratings and sentiment 032 → 100, reflection 033 → 101, owner model 034 → 102, strategy 035 → 103, distillation 036 → 104. Entries above keep the old numbers; cross-references in specs, README and code comments use the new ones.
+- Specs 032–034 drafted (2026-11-21), the owner's next priorities:
+  - **032 Automatic retry of failed steps:** passing failures (time limit, usage limit, network) are retried up to 2 times with pauses before the epic blocks; lasting ones block at once.
+  - **033 Autonomy slider:** levels Pytaj, Ważne pytaj (default) and Decyduj, for the owner and per space; steps can ask in a fixed format; assumptions are shown and can be corrected; a fixed always-ask list. Spec 102 now points to it.
+  - **034 Recurring work:** orders that create a new epic on a schedule, from the chat or a form, with plan reuse and no pile-ups.
+- Specs 032–034 closed (2026-11-21): the owner accepted the proposals for all open questions. Notably: 3 attempts in all, an unknown error retried once, retries on by default and also in spaces with a working folder (032); three levels with Ważne pytaj as default, a default per owner plus an optional level per space, plan approval only at Pytaj (033); no end date by default, reuse of the last successful plan, every occurrence reported unless the order says otherwise, calendar tasks unchanged (034).
+- Fix (2026-11-21): on the Director page voice mode showed the chat on the right and the work panel on the left (spec 027 G1). Voice mode (spec 020 G5) hides the page chat; the panel then slid into the first grid column and the floating chat opened at the right edge. Now the panel keeps the second column (`grid-column: 2`, one column again under 900 px), and from 900 px the floating chat in voice mode (not maximized) covers exactly the first column, where the page chat was; `.main` no longer reserves room on the right for it there. Text mode, other pages and the maximized chat are unchanged. Completes the partial change left by the cancelled epic 31. Test: `work_panel_test.rb` G1 (chat first in the layout, column rules for both modes).
+
+    Full suite: 396 runs, 0 failures; 4 errors only where the sandbox forbids opening a local port (executor and task-run HTTP stubs).
+- Spec 032 implemented (2026-11-21): automatic retry of failed steps.
+  - A failed attempt is classified: time limit, usage limit, passing error, unknown, lasting, stopped. Passing kinds get a new queued run of the same step that waits until its time (2 and 10 minutes; once after a time limit; at the stated reset of a usage limit, at most 6 hours); lasting ones block at once.
+  - At most 3 attempts per step and 20 automatic retries per user per day. The retried step's prompt has a `retry` section with the previous error as data, secrets removed, and a "check the current state" note in folder spaces.
+  - The epic stays Running; the step shows "retrying at HH:MM (attempt n of 3)" on the epic page, the work panel and the director's work list. Only the last failure blocks, with "Tried 3 times.".
+  - Team page: **Failed steps → Try again by itself** (on by default). Migration `20261121140000`.
+  - Tests: 14 new; the step-chain tests now run with retries off. Brakeman 0 warnings. Security analysis in the spec.

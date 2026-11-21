@@ -36,6 +36,7 @@ module Agentaro
       def tick(now: Time.current)
         ManagementRunner.dispatch_due(now: now) # spec 011: new work items go to the director (spec 016: at once)
         StepChain.start_due(now: now)          # spec 016: epics whose start has come run their first step
+        StepRetry.hand_over_due(now: now)      # spec 032: retries whose time has come
         due(now).filter_map do |occurrence|
           run = TaskRun.create!(task: occurrence.task, occurrence_start: occurrence.original_start, trigger: "scheduled")
           enqueue(run.id)
@@ -90,6 +91,7 @@ module Agentaro
             ActiveRecord::Base.uncached do
               run = TaskRun.find_by(id: id, state: "queued")
               next unless run
+              next if StepRetry.waiting?(run) # spec 032: recovered at a restart; the tick hands it over when due
 
               if run.purpose == "epic_step" then StepChain.new(run).perform! # spec 016
               elsif run.step? then TaskRunner.new(run).perform!

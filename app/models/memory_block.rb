@@ -1,5 +1,5 @@
 # Spec 031, G1: a core memory block — always in the prompt of its scope: the user's profile, a space's brief or an
-# agent's playbook. Edited by the user on the Brain page (and, from spec 033, by the curator).
+# agent's playbook. Edited by the user on the Brain page (and, from spec 101, by the curator).
 class MemoryBlock < ApplicationRecord
   SCOPES = %w[user space agent].freeze
   MAX = 2000

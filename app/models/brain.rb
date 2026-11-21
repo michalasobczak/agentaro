@@ -38,7 +38,7 @@ module Brain
       Rails.logger.error("[brain] could not record message #{message.id}: #{e.class}: #{e.message}")
     end
 
-    # G3: an epic's outcome is evidence for later lessons (spec 033); it is not extracted on its own (R1).
+    # G3: an epic's outcome is evidence for later lessons (spec 101); it is not extracted on its own (R1).
     def record_epic(item, kind)
       return unless enabled?
 

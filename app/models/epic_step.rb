@@ -18,4 +18,10 @@ class EpicStep < ApplicationRecord
   def last_run = runs.max_by(&:id)
   def state_label = state.tr("_", " ")
   def stopped? = STOPPED.include?(state)
+
+  # Spec 032, G4: "retrying at 14:05 (attempt 2 of 3) — usage limit" while an automatic retry waits, else nil.
+  def retry_note(now: Time.current)
+    run = runs.where(purpose: "epic_step", work_item_id: work_item_id).order(id: :desc).first(2)
+    StepRetry.note(run.first, run.second) if StepRetry.waiting?(run.first, now: now)
+  end
 end

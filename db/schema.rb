@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_131000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_140000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -275,9 +275,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_131000) do
     t.integer "work_item_id"
     t.integer "agent_id"
     t.integer "epic_step_id"
+    t.string "failure_kind"
+    t.datetime "retry_at"
+    t.integer "attempt", default: 1, null: false
     t.index ["agent_id"], name: "index_task_runs_on_agent_id"
     t.index ["epic_step_id"], name: "index_task_runs_on_epic_step_id"
     t.index ["state", "created_at"], name: "index_task_runs_on_state_and_created_at"
+    t.index ["state", "retry_at"], name: "index_task_runs_on_state_and_retry_at"
     t.index ["task_id", "occurrence_start"], name: "index_task_runs_one_scheduled_per_occurrence", unique: true, where: "\"trigger\" = 'scheduled'"
     t.index ["task_id"], name: "index_task_runs_on_task_id"
     t.index ["user_id"], name: "index_task_runs_on_user_id"
@@ -347,6 +351,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_131000) do
     t.decimal "speech_speed", precision: 3, scale: 2, default: "1.5", null: false
     t.string "theme", default: "auto", null: false
     t.string "chat_background", default: "solid", null: false
+    t.boolean "auto_retry", default: true, null: false
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 

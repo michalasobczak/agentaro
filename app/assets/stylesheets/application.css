@@ -614,6 +614,9 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .main:has(> .content > .director-layout) > .content { display: flex; flex-direction: column; height: calc(100dvh - 2rem); }
 .director-layout { flex: 1 1 auto; min-height: 20rem; display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem); gap: 1rem; }
 .director-layout > .chat-app { height: auto; min-height: 0; max-width: none; margin: 0; width: 100%; }
+/* Fix 2026-11-21: the panel keeps the right column even while the page chat is hidden for voice mode (spec 020 G5);
+   without this it slid into the first column and the floating chat opened on the right, swapping the sides. */
+.director-layout > .work-panel { grid-column: 2; }
 .work-panel { min-height: 0; overflow-y: auto; padding: 0.9rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .work-panel-title { margin: 0 0 0.75rem; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .work-space + .work-space { margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
@@ -642,6 +645,7 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 @media (max-width: 899px) {
   .main:has(> .content > .director-layout) > .content { height: auto; }
   .director-layout { grid-template-columns: 1fr; }
+  .director-layout > .work-panel { grid-column: auto; }
   .director-layout > .chat-app { height: calc(100dvh - 4rem); }
   .work-panel { overflow: visible; }
 }
@@ -761,6 +765,21 @@ body:has(.content > .chat-app, .director-layout > .chat-app) .chat-dock:not(.is-
   body:has(.content > .chat-app, .director-layout > .chat-app):has(.chat-dock.is-open:not(.is-voice)) .main { margin-right: 0; }
 }
 body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice) .director-layout > .chat-app { display: none; }
+/* Fix 2026-11-21: on the Director page (900 px and wider) the floating chat in voice mode takes the page chat's place
+   on the left, over the first column of .director-layout, and the work panel stays on the right (spec 027 G1).
+   The offsets repeat .main's side padding, the centring of .content (max 1600 px) and the panel column (24rem) + gap. */
+@media (min-width: 900px) {
+  body:has(.director-layout) { --director-pad: 1.5rem; }
+  body:has(.director-layout) .chat-dock.is-voice:not(.is-max) .chat-dock-panel {
+    --director-side: calc(var(--director-pad) + (100vw - var(--sidebar-width, 260px) - 2 * var(--director-pad)
+      - min(var(--content-max), 100vw - var(--sidebar-width, 260px) - 2 * var(--director-pad))) / 2);
+    top: 1rem; bottom: 1rem; left: calc(var(--sidebar-width, 260px) + var(--director-side)); right: calc(var(--director-side) + 25rem);
+    width: auto; max-width: none; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+}
+@media (min-width: 1100px) {
+  body:has(.director-layout) { --director-pad: clamp(1.25rem, 3vw, 3rem); }
+  body:has(.director-layout):has(.chat-dock.is-open.is-voice:not(.is-max)) .main { margin-right: 0; }
+}
 /* The floating chat maximized (owner fix): over the page, next to the menu */
 .chat-dock.is-max .chat-dock-panel { left: var(--sidebar-width, 260px); width: auto; max-width: none; box-shadow: none; }
 .chat-dock.is-max .chat-app.is-dock .chat-stream { max-width: 52rem; margin: 0 auto; width: 100%; }

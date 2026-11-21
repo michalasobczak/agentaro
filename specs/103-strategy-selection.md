@@ -1,8 +1,9 @@
-# 035 — Learning which agent and strategy work best
+# 103 — Learning which agent and strategy work best
 
 Status: **draft**
 Date: 2026-11-21
-Depends on: [011](011-list-and-management.md), [022](022-model-lists-and-check.md), [032](032-ratings-and-sentiment.md), [033](033-reflection-and-playbooks.md)
+Renumbered: was 035 until 2026-11-21 (set aside to return to later; numbers 032–099 stay for the work in between).
+Depends on: [011](011-list-and-management.md), [022](022-model-lists-and-check.md), [100](100-ratings-and-sentiment.md), [101](101-reflection-and-playbooks.md)
 
 ## 1. TL;DR
 
@@ -27,13 +28,13 @@ For each task type in each space, Agentaro learns which agent, model, effort and
   - The list can grow, by the owner or by approved proposals.
 - G2. **Arms.** An arm is a combination of agent, model, effort and playbook version. Only enabled agents in the team count.
 - G3. **Learning.**
-  - Per space and task type, each arm keeps a Beta distribution of reward (spec 032).
+  - Per space and task type, each arm keeps a Beta distribution of reward (spec 100).
   - Each finished step updates its arm, weighted by reward confidence.
   - Old evidence decays slowly (Q2), so changes in models and playbooks count.
 - G4. **Choosing.**
   - When planning a step, Agentaro samples the arms and gives the director a ranking with expected reward, cost and time.
   - The director keeps the final say and must state a reason when it skips the top arm.
-  - Exploration is at most 10% of steps, never for irreversible work (spec 034).
+  - Exploration is at most 10% of steps, never for irreversible work (spec 102).
 - G5. **Cost-aware.** The score is reward minus a small cost and time penalty, which the owner sets (Q3).
 - G6. **Report.** On the Brain page: per space and type, the arms with their mean reward, number of tries, cost and time, and the current favourite.
 
@@ -71,7 +72,7 @@ For each task type in each space, Agentaro learns which agent, model, effort and
 
 ## 6. Critical Path
 
-1. Spec 032 in place.
+1. Spec 100 in place.
 2. Task types.
 3. Arms and updates.
 4. Ranking in planning.

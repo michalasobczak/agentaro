@@ -1,6 +1,6 @@
 # Spec 016: runs an epic's steps one after another. At the epic's start the first pending step is queued; when a
 # step's run succeeds, the next one is queued at once (G3); a failed, timed-out or skipped step blocks the epic
-# (G5); when the last step succeeds the epic is done (G6, Q5). Each step's prompt carries the answers of the
+# (G5) — unless spec 032 tries it again later; when the last step succeeds the epic is done (G6, Q5). Each step's prompt carries the answers of the
 # earlier steps (G4, R2). Agentaro decides everything here; agents only answer.
 class StepChain
   HISTORY_BUDGET = 30 * 1024 # bytes of earlier answers in a step's prompt (R2)
@@ -60,9 +60,12 @@ class StepChain
       next unless item.state == "planned"
       next true if run.ok?
 
-      reason = "Step #{step.position} \"#{step.title}\" #{run.state_label}: #{run.error.to_s.truncate(300).presence || "no answer"}"
+      retry_run, note = StepRetry.schedule(item, step, run) # spec 032: a passing failure is tried again later
+      next false if retry_run
+
+      reason = "Step #{step.position} \"#{step.title}\" #{run.state_label}: #{run.error.to_s.truncate(300).presence || "no answer"}#{note}"
       item.block!(reason)
-      say(item, "system", "\"#{item.title}\" stopped at step #{step.position} of #{item.active_steps.maximum(:position)}: #{run.error.to_s.truncate(300).presence || run.state_label}. Press Try again on the epic to resume from this step.")
+      say(item, "system", "\"#{item.title}\" stopped at step #{step.position} of #{item.active_steps.maximum(:position)}: #{run.error.to_s.truncate(300).presence || run.state_label}.#{note} Press Try again on the epic to resume from this step.")
       false
     end
     queue_next(item) if continued
@@ -215,6 +218,8 @@ class StepChain
     lines << [ "earlier_answers", "#{HISTORY_HEADING}#{earlier}" ] if earlier.present?
     memory, = Brain::Retriever.new(item.user, space: item.space, agent: agent, query: [ step.title, step.description, item.title ].compact.join("\n")).section
     lines << [ "memory", "\n#{memory}" ] if memory # spec 031, G5
+    retry_note = StepRetry.prompt_section(step, attempt_of(step, columns: %i[id attempt]))
+    lines << [ "retry", retry_note ] if retry_note # spec 032, G3
     lines << [ "instructions", "\nDo the task now and answer with the result." ]
     AgentCall::Prompt.new(system: agent.master_prompt, sections: lines, joiner: "\n")
   end

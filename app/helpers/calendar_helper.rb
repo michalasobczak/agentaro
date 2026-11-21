@@ -140,6 +140,9 @@ module CalendarHelper
   end
 
   def step_state_badge(step)
+    note = step.state == "queued" && step.retry_note
+    return badge(note, "warn") if note # spec 032, G4
+
     kind = { "succeeded" => "ok", "failed" => "bad", "timed_out" => "bad", "skipped" => "warn", "running" => "accent", "queued" => "accent" }[step.state]
     badge(step.state_label, kind)
   end

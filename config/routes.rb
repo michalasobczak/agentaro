@@ -85,6 +85,7 @@ Rails.application.routes.draw do
     resource :password, only: %i[edit update]
     resource :theme, only: :update # owner fix: auto, light or dark
     resource :chat_background, only: :update # spec 029: the chat background pattern
+    resource :auto_retry, only: :update # spec 032: automatic retries on or off
   end
 
   namespace :admin do

@@ -24,7 +24,7 @@ A local model through Ollama extracts facts after each conversation turn. Retrie
   - Agents do not know what was decided earlier in a space.
   - The owner: "w końcu potrzebujemy mózg… żeby cokolwiek o mnie przechowywać, przechowywać o agentach, projektach/spaces".
 - **Rationale:**
-  - Memory is the base for learning from ratings (specs 032–035) and for asking fewer questions.
+  - Memory is the base for learning from ratings (specs 100–103) and for asking fewer questions.
   - The design takes proven patterns and adds no new services:
     - Letta's core blocks;
     - Graphiti's temporal facts;
@@ -41,11 +41,11 @@ A local model through Ollama extracts facts after each conversation turn. Retrie
 - G1. **Core blocks.** One block per scope, each at most about 2,000 characters, and each in the prompt of every run in its scope:
   - `user`: the profile;
   - `space`: one per space, with goal, decisions and conventions;
-  - `agent`: one per agent, the playbook, which spec 033 fills.
+  - `agent`: one per agent, the playbook, which spec 101 fills.
 - G2. **Facts.**
   - Each fact is a short statement about a subject: the user, a space or an agent. It has a kind (preference, decision, fact about the world, constraint), `valid_from`, `invalid_at`, a confidence, and links to its source episodes.
   - A newer contradicting fact invalidates the older one, which stays in history.
-- G3. **Episodes.** These record user messages, director answers, epic outcomes and blocks, and later ratings (spec 032). They are pointers to existing rows plus a short text, not copies of whole runs.
+- G3. **Episodes.** These record user messages, director answers, epic outcomes and blocks, and later ratings (spec 100). They are pointers to existing rows plus a short text, not copies of whole runs.
 - G4. **Extraction.**
   - After each director conversation turn and each finished epic, a background job asks the local model for operations on memory: ADD, UPDATE, INVALIDATE or NOOP, each with its source.
   - Agentaro validates the operations against a schema and applies them. Each one is recorded in the data changelog (spec 004).
@@ -60,8 +60,8 @@ A local model through Ollama extracts facts after each conversation turn. Retrie
 - G8. **"Remember" and "forget" in the chat.** "Zapamiętaj, że…" and "zapomnij o…" become operations at once and are confirmed in the reply.
 
 **Out of scope**
-- Ratings, sentiment and lessons: specs 032 and 033.
-- When to ask the user: spec 034.
+- Ratings, sentiment and lessons: specs 100 and 101.
+- When to ask the user: spec 102.
 - Sharing memory between users. Memory is always per user.
 - Memory from web pages or files that agents read.
 
@@ -190,7 +190,7 @@ A local model through Ollama extracts facts after each conversation turn. Retrie
   - The scheduler starts it in its own thread, up to 5 waiting messages at a time, with `qwen3:8b` in JSON mode, thinking off, temperature 0.
   - Each call is a run with the purpose `memory`, with its trace.
   - If the server is down, it retries after 2, 4, 8… minutes and gives up after 6 attempts.
-  - Episodes of director answers and epic outcomes are kept as evidence but not extracted (R1, the stricter reading); spec 033 uses them.
+  - Episodes of director answers and epic outcomes are kept as evidence but not extracted (R1, the stricter reading); spec 101 uses them.
 - **R2.**
   - A profile fact added or changed by extraction waits as *proposed*; an update keeps the old fact in force until the new one is kept.
   - An INVALIDATE of the user's own fact applies at once, since it comes from the user's own words.

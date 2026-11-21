@@ -13,7 +13,7 @@ Every model call is kept as a structured trace. The trace holds:
 - tokens, cost and time;
 - links to the epic, step, chat message and memory versions it used.
 
-Nothing is ever pruned automatically, except what the user deletes. This comes first, because data not recorded today cannot be used by the brain and learning later (specs 031–036). Tests and a week of real use confirm complete traces.
+Nothing is ever pruned automatically, except what the user deletes. This comes first, because data not recorded today cannot be used by the brain and learning later (specs 031 and 100–104). Tests and a week of real use confirm complete traces.
 
 ## 2. Abstract
 
@@ -55,8 +55,8 @@ Nothing is ever pruned automatically, except what the user deletes. This comes f
   - exit state.
 - G4. **Links.**
   - Each trace points to its run, user, space, epic, step, chat message and agent.
-  - Once specs 031–033 exist, it also points to the versions of the memory blocks and playbooks it used, so a later reward reaches the right call.
-- G5. **Local model calls.** Calls the brain makes to the local model (extraction, sentiment, judge) are traces too, with their job name and validated result. The user's corrections of their results can then become training data (spec 036).
+  - Once specs 031, 100 and 101 exist, it also points to the versions of the memory blocks and playbooks it used, so a later reward reaches the right call.
+- G5. **Local model calls.** Calls the brain makes to the local model (extraction, sentiment, judge) are traces too, with their job name and validated result. The user's corrections of their results can then become training data (spec 104).
 - G6. **Keep, compress, forget.**
   - Traces are kept without a time limit.
   - Event lists older than 90 days are compressed.
@@ -67,7 +67,7 @@ Nothing is ever pruned automatically, except what the user deletes. This comes f
   - The view is admin-styled and `desktop-only`.
 
 **Out of scope**
-- Using traces for memory, rewards or training: specs 031–036.
+- Using traces for memory, rewards or training: specs 031 and 100–104.
 - Exporting traces outside the Mac.
 - Changing what the models are told. Only recording changes.
 
@@ -103,7 +103,7 @@ Nothing is ever pruned automatically, except what the user deletes. This comes f
   - R2. **No secrets.**
     - Before storing, parts and events pass the secret filter: things that look like keys, tokens, passwords or private keys are replaced with a marker.
     - Environment values and credentials are never recorded.
-  - R3. **Outside content is marked.** Tool results that come from the web or from files carry their kind, so later specs never use them as targets or as facts about the user (specs 031 R1, 036 R1).
+  - R3. **Outside content is marked.** Tool results that come from the web or from files carry their kind, so later specs never use them as targets or as facts about the user (specs 031 R1, 104 R1).
   - R4. **The user's data only.** Traces are per user. The trace view gives 404 for other users' runs.
   - R5. **Deletion is real.** Deleting removes the content, not just the link. Shared parts are deleted when no trace uses them.
   - R6. **Never committed.** Traces live in the SQLite database in `storage/`, which is not tracked.
@@ -202,7 +202,7 @@ Nothing is ever pruned automatically, except what the user deletes. This comes f
   - Everything is printed through ERB escaping (a test shows `<script>` in an event is escaped).
   - There is no new script and no inline style.
   - Event JSON is parsed on the server only.
-- **Outside content (R3).** Tool results carry their source, so specs 031–036 can exclude web and file content from facts and training targets.
+- **Outside content (R3).** Tool results carry their source, so specs 031 and 100–104 can exclude web and file content from facts and training targets.
 - **Availability (R7).**
   - Recording errors are logged and never fail a run (test).
   - Claude Code's stdout is now read to the end; the buffer stays bounded by the existing limit, and the line buffer is dropped above 4 MB.

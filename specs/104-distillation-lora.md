@@ -1,17 +1,18 @@
-# 036 — Distillation into a local model (LoRA)
+# 104 — Distillation into a local model (LoRA)
 
 Status: **draft**
 Date: 2026-11-21
-Depends on: [030](030-run-traces.md), [031](031-brain-memory.md), [032](032-ratings-and-sentiment.md), [033](033-reflection-and-playbooks.md), [034](034-owner-model-and-questions.md), [035](035-strategy-selection.md)
+Renumbered: was 036 until 2026-11-21 (set aside to return to later; numbers 032–099 stay for the work in between).
+Depends on: [030](030-run-traces.md), [031](031-brain-memory.md), [100](100-ratings-and-sentiment.md), [101](101-reflection-and-playbooks.md), [102](102-owner-model-and-questions.md), [103](103-strategy-selection.md)
 
 ## 1. TL;DR
 
-The data gathered by specs 031–035 is turned into training sets for a small local model. That data is the owner's messages, ratings, corrections, accepted results, the judge's calibrated cases and the playbooks. The model is trained on this Mac with LoRA adapters (MLX). First it learns the brain's own jobs: extraction, sentiment and the judge of the owner's taste. Later it may learn routine work tasks. An adapter goes live only when it beats the current model on a held-out set of the owner's rated cases. Full training is not proposed.
+The data gathered by specs 031 and 100–103 is turned into training sets for a small local model. That data is the owner's messages, ratings, corrections, accepted results, the judge's calibrated cases and the playbooks. The model is trained on this Mac with LoRA adapters (MLX). First it learns the brain's own jobs: extraction, sentiment and the judge of the owner's taste. Later it may learn routine work tasks. An adapter goes live only when it beats the current model on a held-out set of the owner's rated cases. Full training is not proposed.
 
 ## 2. Abstract
 
 - **Current state:**
-  - Specs 031–035 make the agents better through context (memory, playbooks) and choice (bandit).
+  - Specs 031 and 100–103 make the agents better through context (memory, playbooks) and choice (bandit).
   - The local model used for extraction is generic.
 - **Gap or problem:** the owner wants the learning to land in model weights as well: "zrobić dystylację… adapter LoRA lub full trening".
 - **Rationale:**
@@ -97,7 +98,7 @@ The data gathered by specs 031–035 is turned into training sets for a small lo
 
 ## 6. Critical Path
 
-1. Specs 031–034 running for a few weeks, so enough rated cases exist. Proposed minimum: 200 for the judge, 500 for the extractor.
+1. Specs 031 and 100–102 running for a few weeks, so enough rated cases exist. Proposed minimum: 200 for the judge, 500 for the extractor.
 2. Owner answers Q1–Q4.
 3. Dataset builder with splits.
 4. Trainer preset and night schedule.
@@ -131,10 +132,10 @@ The data gathered by specs 031–035 is turned into training sets for a small lo
   - Full training of a useful model needs far more data, memory and GPU time than this Mac has. It would also overwrite general skills with a small personal dataset.
   - Revisit only if the data grows to tens of thousands of examples and LoRA stops improving. Then it would mean rented GPUs, which conflicts with keeping data on the Mac.
 - **Proposed order:**
-  1. The judge (G1 taste): the most valuable, since it drives spec 034's autonomy.
+  1. The judge (G1 taste): the most valuable, since it drives spec 102's autonomy.
   2. The extractor and sentiment.
   3. KTO/DPO preference tuning of the judge.
-  4. Only then a worker adapter for one routine task type that spec 035 shows the local model nearly handles already.
+  4. Only then a worker adapter for one routine task type that spec 103 shows the local model nearly handles already.
 - **Rejected alternatives:**
   - Full fine-tuning (above).
   - Cloud fine-tuning services (data leaves the Mac).

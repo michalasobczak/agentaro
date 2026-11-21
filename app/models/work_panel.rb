@@ -25,7 +25,8 @@ class WorkPanel
   def epic_h(item)
     steps = item.epic_steps.select { |s| s.position >= item.active_step_from.to_i }
     { id: item.id, title: item.title, state: item.board_state, url: helpers.work_item_path(item),
-      steps: steps.map { |s| { position: s.position, title: s.title, state: s.state, agent: s.agent&.name } } }
+      steps: steps.map { |s| { position: s.position, title: s.title, state: s.state, agent: s.agent&.name,
+                         note: (s.retry_note if s.state == "queued") } } } # spec 032, G4
   end
 
   def helpers = Rails.application.routes.url_helpers

@@ -85,7 +85,7 @@ module RunTrace
     end
 
     # G6: events older than COMPRESS_AFTER are deflated. (Calls linked to a rating will be kept as they are once
-    # spec 032 adds ratings.) Returns how many were compressed.
+    # spec 100 adds ratings.) Returns how many were compressed.
     def compress_old!(now: Time.current)
       count = 0
       ModelCall.where(events_format: "json").where(created_at: ...(now - COMPRESS_AFTER)).find_each do |call|

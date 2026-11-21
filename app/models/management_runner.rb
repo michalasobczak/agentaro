@@ -379,6 +379,7 @@ class ManagementRunner
              end
       note = " — #{TaskRun.prompt_text(run.error).tr("\n", " ").truncate(200)}" if run && EpicStep::STOPPED.include?(step.state) && run.error.present?
       note = "#{note} (attempt #{run.id})" if run && step.state == "failed" && run.state == "failed" # what retry_step names
+      note = " — #{step.retry_note}; Agentaro retries it by itself" if step.state == "queued" && step.retry_note # spec 032, G4
       excerpt = nil
       if step.state == "succeeded"
         answer = run&.ok? ? TaskRun.prompt_text(run.output).strip : ""

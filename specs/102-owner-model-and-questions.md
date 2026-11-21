@@ -1,8 +1,9 @@
-# 034 — Model of the owner and when agents ask
+# 102 — Model of the owner and when agents ask
 
 Status: **draft**
 Date: 2026-11-21
-Depends on: [031](031-brain-memory.md), [032](032-ratings-and-sentiment.md), [033](033-reflection-and-playbooks.md)
+Renumbered: was 034 until 2026-11-21 (set aside to return to later; numbers 032–099 stay for the work in between).
+Depends on: [031](031-brain-memory.md), [100](100-ratings-and-sentiment.md), [101](101-reflection-and-playbooks.md)
 
 ## 1. TL;DR
 
@@ -24,7 +25,7 @@ A judge learns the owner's taste from the owner's ratings and predicts how the o
 **Goals**
 - G1. **The judge.** A prompt-based judge built from:
   - the user's profile and the space brief (spec 031);
-  - the 10 most similar rated cases from the replay set (spec 033) as examples;
+  - the 10 most similar rated cases from the replay set (spec 101) as examples;
   - the owner's own rubric phrases, taken from rating comments.
 
   **Output:**
@@ -58,8 +59,8 @@ A judge learns the owner's taste from the owner's ratings and predicts how the o
   | 2 | Assumes most things | only irreversible/costly, or judge confidence < 0.5 | agreement ≥ 80% over the last 20 rated cases |
   | 3 | Autonomous | only irreversible/costly | agreement ≥ 90% over the last 30, and no corrected assumption in 14 days |
 
-  - Every level change goes into the digest (spec 033) with its reason.
-  - The owner can set or cap a level per space at any time.
+  - Every level change goes into the digest (spec 101) with its reason.
+  - The owner can set or cap a level per space at any time. Since 2026-11-21 the manual slider is spec 033 (levels Pytaj, Ważne pytaj, Decyduj); this spec would move the level within the owner's cap, and the table above must be mapped onto those levels when this spec is reopened.
   - Irreversible or costly decisions are always asked, at every level.
 - G6. **Experiment report.** Weekly, per space:
   - the level;
@@ -72,7 +73,7 @@ A judge learns the owner's taste from the owner's ratings and predicts how the o
 
 **Out of scope**
 - Removing human approval for irreversible actions.
-- Choosing agents or models: spec 035.
+- Choosing agents or models: spec 103.
 
 **Success criteria**
 - S1. In a space at level 1, a step that would ask "PDF czy Markdown?" decides from the profile fact and reports the assumption instead of blocking.
@@ -114,7 +115,7 @@ A judge learns the owner's taste from the owner's ratings and predicts how the o
 
 ## 6. Critical Path
 
-1. Specs 031–033 in place.
+1. Specs 031, 100 and 101 in place.
 2. Judge and calibration.
 3. Assumptions and Correct.
 4. Classifier with the fixed irreversible list.

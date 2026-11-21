@@ -4,6 +4,7 @@ require "test_helper"
 class StepChainTest < ActiveSupport::TestCase
   setup do
     @user = create_user
+    @user.update!(auto_retry: false) # these tests cover blocking and manual retries; spec 032's automatic ones: step_retry_test.rb
     @executor = Executor.create!(name: "Claude", preset: "claude_code")
     @writer = Agent.create!(user: @user, name: "Pisarz", master_prompt: "You write.", executor: @executor)
     @item = @user.work_items.create!(title: "Backups", state: "planned")

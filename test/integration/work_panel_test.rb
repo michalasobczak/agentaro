@@ -45,4 +45,24 @@ class WorkPanelTest < ActionDispatch::IntegrationTest
     assert_equal JSON.parse(WorkPanel.for(@user).to_json), response.parsed_body
     assert_no_match "Theirs", response.body
   end
+
+  # Fix 2026-11-21: the admin saw the chat on the right and the tasks on the left. Voice mode (spec 020 G5) hid the
+  # page chat, the panel slid into the first column and the floating chat opened at the right edge.
+  test "G1: chat on the left, work panel on the right, also while voice mode hides the page chat" do
+    get director_path
+    children = css_select(".director-layout > *").map { |node| node["class"].split.first }
+    assert_equal %w[chat-app work-panel], children, "the chat comes first in the layout"
+
+    css = Rails.root.join("app/assets/stylesheets/application.css").read
+    assert_match(/\.director-layout \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(16rem, 24rem\)/, css, "wide chat column first, panel column second")
+    assert_match(/^\.director-layout > \.work-panel \{ grid-column: 2; \}/, css, "the panel keeps the right column without the page chat")
+    assert_match(/@media \(max-width: 899px\) \{[^@]*\.director-layout > \.work-panel \{ grid-column: auto; \}/, css, "one column on narrow screens")
+    dock = css[/body:has\(\.director-layout\) \.chat-dock\.is-voice:not\(\.is-max\) \.chat-dock-panel \{[^}]*\}/]
+    assert dock, "the floating chat in voice mode has its own place on the Director page"
+    assert_match(/left: calc\(var\(--sidebar-width, 260px\) \+ var\(--director-side\)\)/, dock, "it starts where the page chat starts")
+    assert_match(/right: calc\(var\(--director-side\) \+ 25rem\)/, dock, "it ends before the panel column (24rem + 1rem gap)")
+    assert_match(/body:has\(\.director-layout\):has\(\.chat-dock\.is-open\.is-voice:not\(\.is-max\)\) \.main \{ margin-right: 0; \}/, css)
+    assert_no_match(/\.work-panel \{[^}]*(\border:|grid-column: 1)/, css, "nothing moves the panel before the chat")
+    assert_no_match(/\.director-layout \{[^}]*(direction: rtl|grid-auto-flow: dense|row-reverse)/, css)
+  end
 end

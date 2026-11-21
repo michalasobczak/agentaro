@@ -2,7 +2,7 @@
 class TaskRun < ApplicationRecord
   STATES = %w[queued running succeeded failed timed_out skipped].freeze
   FINISHED = %w[succeeded failed timed_out skipped].freeze
-  TRIGGERS = %w[scheduled manual].freeze
+  TRIGGERS = %w[scheduled manual retry].freeze # spec 032: retry — an automatic retry of a failed step
   PURPOSES = %w[step epic_step chat verify director manager review memory].freeze # spec 031: memory — the brain's local model # spec 016: epic_step — a step of an epic, run in sequence # spec 011: management runs have no calendar task; spec 012: manager and review only in old runs
   MAX_OUTPUT = 200 * 1024 # bytes kept of an answer (G4)
   MAX_ERROR = 20 * 1024

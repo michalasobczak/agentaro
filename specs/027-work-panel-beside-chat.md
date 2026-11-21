@@ -62,6 +62,7 @@ On the Director page, a panel to the right of the chat stacks every active space
   - R3. **Safe drawing.** The server draws the panel first; `work_panel.js` redraws it from JSON, with `textContent` only and no inline style.
   - R4. **Motion.** With reduced motion, nothing blinks; the states stay as text and colour.
   - R5. **Room for the panel.** The floating chat stays hidden on this page. Notices of spec 026 sit at the bottom left here, over the chat, so they do not cover the panel.
+  - R6. **Sides in voice mode** (fix 2026-11-21). When voice mode (spec 020 G5) hides the page chat, the panel stays in the right column, and from 900 px the floating chat takes the page chat's place on the left. Before the fix the panel slid to the left and the floating chat opened on the right.
 - **Resilience:** offline, the next poll catches up.
 - **Data:** no change.
 
