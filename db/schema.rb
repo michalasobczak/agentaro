@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_180000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -405,6 +405,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_170000) do
     t.string "chat_background", default: "solid", null: false
     t.boolean "auto_retry", default: true, null: false
     t.integer "autonomy_level", default: 2, null: false
+    t.integer "reply_length", default: 1, null: false
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 

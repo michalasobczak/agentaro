@@ -25,6 +25,13 @@ class BrainTest < ActiveSupport::TestCase
     @user.memory_facts.create!(subject_type: subject, subject_id: id, statement: statement, kind: "preference", status: "active", **attrs)
   end
 
+  test "fix: looking up a memory block does not leave an unsaved block on the user that a later save would write" do
+    2.times { MemoryBlock.for(@user, "user") } # the reply and the proposal pass each look it up
+    MemoryBlock.for(@user, "space", @space.id)
+    @user.update!(reply_length: 2) # what set_reply_length (spec 039) or set_autonomy (spec 033) does next
+    assert_equal 0, MemoryBlock.where(user: @user).count
+  end
+
   test "G3: the user's messages become episodes waiting to be read; the director's answers and epic outcomes are evidence only" do
     say("Cześć")
     @user.chat_messages.create!(author: "director", content: "Dzień dobry")

@@ -30,6 +30,13 @@
                       "aria-pressed": current_user.autonomy_level == level, title: Autonomy::HINTS[level] %>
       <% end %>
     </div>
+    <%# Spec 039, G2: how much the director writes, as three buttons like the autonomy switch (no script). %>
+    <div class="lang-switch chat-length" role="group" aria-label="Reply length: how much the director writes">
+      <% ReplyLength::LEVELS.each do |level, name| %>
+        <%= button_to name, account_reply_length_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.reply_length == level)].compact.join(" "),
+                      "aria-pressed": current_user.reply_length == level, title: ReplyLength::HINTS[level] %>
+      <% end %>
+    </div>
     <%# Spec 029: the chat background pattern, saved on the account. chat.js saves on change (and hides Apply);
         without it the form posts normally. %>
     <% background_id = dock ? "chat-dock-background" : "chat-background" %>

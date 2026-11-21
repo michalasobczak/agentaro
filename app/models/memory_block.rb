@@ -14,8 +14,10 @@ class MemoryBlock < ApplicationRecord
 
   before_update { self.version += 1 if content_changed? }
 
+  # Fix (2026-11-21, found with spec 039): built outside the user's association, so a later user.update! in the same
+  # run does not autosave an empty block (two of them broke the unique index and the director's answer).
   def self.for(user, scope_type, scope_id = nil)
-    user.memory_blocks.find_or_initialize_by(scope_type: scope_type, scope_id: scope_type == "user" ? nil : scope_id)
+    find_or_initialize_by(user_id: user.id, scope_type: scope_type, scope_id: scope_type == "user" ? nil : scope_id)
   end
 
   def scope_record

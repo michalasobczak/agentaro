@@ -941,7 +941,7 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .brain-block form { margin-top: 0.5rem; }
 
 /* Spec 033: the autonomy slider in the chat header, and decisions on the epic page. */
-.chat-head .lang-switch.chat-autonomy { margin-left: 0.4rem; }
+.chat-head .lang-switch.chat-autonomy, .chat-head .lang-switch.chat-length { margin-left: 0.4rem; } /* spec 039: the length switch beside it */
 .decisions { display: grid; gap: 0.9rem; margin-bottom: 1rem; }
 .decision.is-pending { padding: 0.8rem 0.9rem; border: 1px solid var(--warn-text); border-radius: var(--radius); background: var(--surface-2); }
 .decision p { margin: 0 0 0.5rem; }

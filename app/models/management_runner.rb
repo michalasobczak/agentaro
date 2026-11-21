@@ -514,6 +514,7 @@ class ManagementRunner
       #{conversation}
 
       #{chat_autonomy_rule}
+      #{reply_length_rule unless proposing_changes}
       #{request_rule} #{reply_language} These instructions are in English only for you. Messages may come from speech recognition, so forgive small transcription errors.
       Reply with ONLY one JSON object, no other text:
       {"reply": "your message to #{@user.username}", "actions": [ ... ]}
@@ -533,6 +534,7 @@ class ManagementRunner
       {"type": "answer_decision", "id": <decision id>, "answer": "#{@user.username}'s answer in their words or the option they chose"} (only when #{@user.username} answers a question waiting for them)
       {"type": "approve_plan", "id": <epic id>} (only when #{@user.username} approves a plan waiting for approval)
       {"type": "set_autonomy", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks; 1 #{Autonomy.name(1)}: ask more, 2 #{Autonomy.name(2)}, 3 #{Autonomy.name(3)}: agents decide)
+      {"type": "set_reply_length", "level": 1, 2 or 3} (only when #{@user.username} asks for shorter, longer or more detailed replies from now on; 1 #{ReplyLength.name(1)}, 2 #{ReplyLength.name(2)}, 3 #{ReplyLength.name(3)}; not for one detailed answer)
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
       Every item belongs to a space. When it is not clear which space a new item belongs to, do not guess: ask in your reply and add nothing.
@@ -557,6 +559,11 @@ class ManagementRunner
   end
 
   # Spec 033, G6: how the director talks at the owner's default level; changes still need the owner's request.
+  # Spec 039: the owner's reply length, for the text reply only — voice keeps its spoken rule (R3).
+  def reply_length_rule
+    ReplyLength.rule(@user.reply_length, @user.username) unless spoken?
+  end
+
   def chat_autonomy_rule
     case @user.autonomy_level
     when 3 then "#{@user.username}'s autonomy level is #{Autonomy.name(3)}: when your recommendation is clear, do not end with questions such as \"Czy mam…?\" — say what you recommend and what will happen. Changes still need their request."
@@ -732,6 +739,7 @@ class ManagementRunner
       end
     when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
     when "answer_decision", "approve_plan", "set_autonomy" then autonomy_action(action) # spec 033
+    when "set_reply_length" then reply_length_action(action) # spec 039
     when "add_recurring", "update_recurring", "pause_recurring", "resume_recurring", "cancel_recurring" then recurring_action(action) # spec 034
     else
       raise Invalid, "unknown action #{action["type"].inspect}"
@@ -833,6 +841,17 @@ class ManagementRunner
         -> { @user.update!(autonomy_level: level); "Your autonomy: #{Autonomy.name(level)}" }
       end
     end
+  end
+
+  # Spec 039, G3, R4: the reply length changes only on the owner's own words about how long replies are.
+  LENGTH_REQUEST = /kr[óo]c|kr[óo]tk|zwi[ęe][źz]l|d[łl]u[żz]|d[łl]ug|szczeg[óo][łl]|rozwi|rozpisu|[śs]redni|mniej (pisz|tekstu|s[łl][óo]w)|wi[ęe]cej (pisz|tekstu|s[łl][óo]w)|shorter|short|concise|brief|longer|detail|verbose|length/i
+
+  def reply_length_action(action)
+    level = action["level"].to_s.to_i
+    raise Invalid, "set_reply_length: level must be 1, 2 or 3" unless ReplyLength.valid?(level)
+    raise Invalid, "set_reply_length: #{@user.username} has not asked in their message to change how long replies are" unless user_request&.content.to_s.match?(LENGTH_REQUEST)
+
+    -> { @user.update!(reply_length: level); "Reply length: #{ReplyLength.name(level)}" }
   end
 
   # Spec 031, G8: memory changes only on the user's own clear request (R1), and only on their own facts.
