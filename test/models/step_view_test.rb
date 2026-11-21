@@ -99,7 +99,8 @@ class StepViewTest < ActiveSupport::TestCase
       assert_match RunTrace::REDACTED, lines.last["content"]
 
       view = StepView.new(@step.reload).to_h # finished: the same log from the trace (R4) and the answer
-      assert_equal [ [ "text", nil, "Sprawdzam testy." ], [ "action", "Bash", "npm test" ] ], view[:entries].first(2).map { |e| e.values_at(:kind, :label, :text) }
+      assert_equal [ [ "text", nil, "Sprawdzam testy." ], [ "action", "Bash", "npm test" ] ], view[:entries].map { |e| e.values_at(:kind, :label, :text) },
+                   "R2 (owner change): no tool result in the view"
       assert_equal [ "Gotowe.", "log", false ], view.values_at(:answer, :stream, :running)
     end
   end
@@ -118,22 +119,27 @@ class StepViewTest < ActiveSupport::TestCase
 
   # --- G3, R2, R3: the view of each state ----------------------------------------------------------------------------
 
-  test "R2, R3: a running step's view comes from its live log — cut to 300 characters, the latest 200, earlier ones counted" do
+  test "R2, R3: a running step's view comes from its live log — texts cut to 300 characters, actions one line of 80 without results, the latest 200, earlier ones counted" do
     run = new_run
     run.update!(state: "running", started_at: 90.seconds.ago)
     log = LiveLog.new(LiveLog.dir_for(run.id).tap { |d| FileUtils.mkdir_p(d) })
-    log.add("kind" => "tool_use", "name" => "Read", "input" => { file_path: "src/world.js" }.to_json)
-    log.add("kind" => "tool_result", "name" => "Read", "source" => "file", "content" => "x" * 1000)
+    log.add("kind" => "tool_use", "id" => "t1", "name" => "Read", "input" => { file_path: "src/world.js" }.to_json)
+    log.add("kind" => "tool_result", "id" => "t1", "name" => "Read", "source" => "file", "content" => "secret file contents")
     205.times { |i| log.add("kind" => "text", "text" => "krok #{i}") }
     view = StepView.new(@step).to_h
-    assert_equal [ true, 200, 7 ], view.values_at(:running, :entries, :earlier).then { |r, e, n| [ r, e.size, n ] }
+    assert_equal [ true, 200, 6 ], view.values_at(:running, :entries, :earlier).then { |r, e, n| [ r, e.size, n ] }
     assert_equal "krok 204", view[:entries].last[:text]
     assert_in_delta 90, view[:run][:elapsed], 2
 
     log.clear!
-    log.add("kind" => "tool_result", "name" => "Read", "content" => "x" * 1000)
-    assert_equal 301, StepView.new(@step).to_h[:entries].sole[:text].length, "300 characters and the mark"
-    assert_equal({ kind: "action", label: "Read", text: "src/world.js" }, StepView.new(@step).send(:entry, "kind" => "tool_use", "name" => "Read", "input" => { file_path: "src/world.js" }.to_json).sole)
+    log.add("kind" => "text", "text" => "x" * 1000)
+    log.add("kind" => "tool_use", "id" => "t2", "name" => "Bash", "input" => { command: "npm test\n#{"y" * 200}" }.to_json)
+    log.add("kind" => "tool_result", "id" => "t2", "name" => "Bash", "error" => true, "content" => "boom: stack trace")
+    text, action = StepView.new(@step).to_h[:entries]
+    assert_equal 301, text[:text].length, "300 characters and the mark"
+    assert_equal [ "action", "Bash", 81, true ], [ action[:kind], action[:label], action[:text].length, action[:error] ]
+    assert_no_match "\n", action[:text]
+    assert_no_match "boom", StepView.new(@step).to_h.to_json, "results are never shown, also not a failed one"
   end
 
   test "G3: a failed step shows its error; an interrupted one keeps its log; a waiting one its question; a pending one what it waits for" do

@@ -19,14 +19,16 @@
   };
   const time = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+  // R2 (owner change): the agent's text, and each action as one grey line — "Bash · npm test" — without its result.
   function entryNode(entry) {
     const item = el("li", `step-log-entry is-${entry.kind}${entry.error ? " is-error" : ""}`);
-    if (entry.kind !== "text") {
-      const label = entry.kind === "action" ? entry.label : `${entry.label || "result"}${entry.error ? " failed" : ""}`;
-      item.append(el("span", "step-log-label", label));
-      if (entry.source === "web") item.append(el("span", "step-log-source", "web"));
+    if (entry.kind === "action") {
+      item.append(el("span", "step-log-label", entry.label));
+      if (entry.text) item.append(el("span", "step-log-text", `· ${entry.text}`));
+      if (entry.error) item.append(el("span", "step-log-failed", "failed"));
+      return item;
     }
-    item.append(el("span", "step-log-text", entry.text || (entry.kind === "result" ? "(no output)" : "")));
+    item.append(el("span", "step-log-text", entry.text));
     return item;
   }
 

@@ -661,13 +661,11 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .step-log { list-style: none; margin: 0.5rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.82rem; }
 .step-log-entry { display: flex; flex-wrap: wrap; gap: 0.15rem 0.4rem; padding: 0.2rem 0.4rem; border-radius: 6px; }
 .step-log-entry.is-text { background: var(--accent-soft, var(--ok-soft)); }
-.step-log-entry.is-action { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.step-log-entry.is-result { color: var(--muted); padding-left: 1.2rem; }
-.step-log-entry.is-error { color: var(--bad-text); }
+.step-log-entry.is-action { flex-wrap: nowrap; padding-top: 0; padding-bottom: 0; color: var(--muted); font-size: 0.78rem; }
+.step-log-entry.is-action .step-log-text { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .step-log-label { font-weight: 600; }
-.step-log-source { font-size: 0.7rem; padding: 0 0.3rem; border: 1px solid var(--line); border-radius: 4px; }
+.step-log-failed { color: var(--bad-text); font-weight: 600; }
 .step-log-text { white-space: pre-wrap; overflow-wrap: anywhere; flex: 1 1 100%; }
-.step-log-entry.is-action .step-log-text { flex: 1 1 auto; }
 .work-step[data-live-step] { cursor: pointer; border-radius: 4px; }
 .work-step[data-live-step]:hover, .work-step[data-live-step]:focus-visible { background: var(--surface-2, var(--line)); }
 @media (prefers-reduced-motion: reduce) { .step-view-step.is-running .step-view-state { animation: none; } }

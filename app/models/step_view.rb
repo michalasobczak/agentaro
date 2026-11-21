@@ -3,6 +3,7 @@
 # waits for. Entries are cut to 300 characters, the latest 200 are shown (R3), secrets replaced (R5).
 class StepView
   ENTRY_CHARS = 300
+  ACTION_CHARS = 80 # owner change: one line per action, no results ("nie chcę oglądać środka")
   MAX_ENTRIES = 200
   TEXT_CHARS = 4000
   ANSWER_CHARS = 4000
@@ -26,7 +27,7 @@ class StepView
     preset = run&.preset.presence || @step.agent&.executor&.preset
     live = run && LiveLog.read(LiveLog.dir_for(run.id, runs_dir: @runs_dir))
     events = live ? live[:events] : trace_events(run)
-    entries = events.flat_map { |event| entry(event) }
+    entries = log(events)
     {
       epic: { id: @item.id, title: @item.title, state: @item.board_state, url: helpers.work_item_path(@item) },
       step: { id: @step.id, position: @step.position, of: @item.active_steps.maximum(:position), title: @step.title,
@@ -53,18 +54,20 @@ class StepView
     ModelCall.where(task_run_id: run.id).order(:position).flat_map(&:event_list)
   end
 
-  # R2: the agent's text, an action (tool and its main argument) or the action's result.
-  def entry(event)
-    case event["kind"]
-    when "text"
-      text = event["text"].to_s.strip
-      text.empty? ? [] : [ { kind: "text", text: cut(text) } ]
-    when "tool_use"
-      [ { kind: "action", label: event["name"].to_s, text: cut(argument(event["input"])) } ]
-    when "tool_result"
-      [ { kind: "result", label: event["name"].to_s, source: event["source"], error: event["error"] == true, text: cut(event["content"]) } ]
-    else
-      []
+  # R2: the agent's texts and its actions (tool and main argument, one line). Results are never shown (owner
+  # change); a failed result only marks its action as failed.
+  def log(events)
+    actions = {}
+    events.each_with_object([]) do |event, list|
+      case event["kind"]
+      when "text"
+        text = event["text"].to_s.strip
+        list << { kind: "text", text: cut(text) } unless text.empty?
+      when "tool_use"
+        list << (actions[event["id"].to_s] = { kind: "action", label: event["name"].to_s, text: cut(argument(event["input"]).squish, ACTION_CHARS) })
+      when "tool_result"
+        actions[event["id"].to_s]&.store(:error, true) if event["error"] == true
+      end
     end
   end
 

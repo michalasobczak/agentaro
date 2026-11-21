@@ -6,7 +6,7 @@ Depends on: [016](016-sequential-steps.md), [020](020-pages-without-reloading.md
 
 ## 1. TL;DR
 
-On the Director page, clicking a step or an epic in the work panel opens a third panel to its right. It shows what the agent is doing right now, live: what it writes and each action it takes (reads a file, runs a command, edits a file, searches the web), with a short result of each. For a finished step it shows the same log and the final answer. Tests and a browser check with a running step confirm it.
+On the Director page, clicking a step or an epic in the work panel opens a third panel to its right. It shows what the agent is doing right now, live: what it writes and each action it takes (reads a file, runs a command, edits a file, searches the web), without their results (R2). For a finished step it shows the same log and the final answer. Tests and a browser check with a running step confirm it.
 
 ## 2. Abstract
 
@@ -28,7 +28,7 @@ On the Director page, clicking a step or an epic in the work panel opens a third
 
 **Goals**
 - G1. A click on a step in the work panel opens the step view beside it. A click on an epic opens its running step, or else its latest step that has started.
-- G2. While the step runs, the view shows its live log and how long it has run. The log covers the agent's texts and its actions, each with a short result, and shows the newest entries at the bottom.
+- G2. While the step runs, the view shows its live log and how long it has run. The log covers the agent's texts and its actions (name and a short description, no results: R2), and shows the newest entries at the bottom.
 - G3. For a step that ended, the view shows the same log from the trace and the final answer, error or question (spec 033). For a step that has not started, it shows its description, its agent, and what it waits for (an earlier step, an answer, a retry time, another epic of the space under spec 037).
 - G4. Opened from an epic, the view follows the epic: when a step ends and the next starts, it moves to the next one.
 - G5. The view closes with a Close button or Esc, and leaves the chat and the work panel as they were.
@@ -68,9 +68,10 @@ On the Director page, clicking a step or an epic in the work panel opens a third
   - R1. **Own work only.** Only the signed-in user's own epics and their current-plan steps can be viewed (spec 027, R1 and R2). The runs of a shared agent for other accounts are never shown, nor counted in the view.
   - R2. **What a log entry is.** A log entry is one of:
     - the agent's text;
-    - a tool call: its name and its main argument (the file path, the command, the search query or the address);
-    - a tool result.
-  - R3. **Entry limits.** Each entry is cut to 300 characters in the view, with a mark that it was cut. The view shows the latest 200 entries; earlier ones are counted ("120 earlier entries").
+    - a tool call: its name and its main argument (the file path, the command, the search query or the address), on one grey line cut to 80 characters, marked "failed" when the tool failed.
+
+    Owner change (2026-11-21): "nie chcę oglądać środka". Tool results are not shown: no command output and no file contents. They stay in the trace on the run's page.
+  - R3. **Entry limits.** Each text entry is cut to 300 characters in the view, with a mark that it was cut. The view shows the latest 200 entries; earlier ones are counted ("120 earlier entries").
   - R4. **Same source as the trace.** The live log and the finished log come from the same events (spec 030). The view never shows more than the trace keeps.
   - R5. **Secrets and markup.** Secrets are replaced before anything is shown, as in the trace. Everything is drawn with `textContent`; tool results from the web keep their source mark ("web").
   - R6. **Refresh.** While the view is open it refreshes every 2 seconds, and only for a step that runs or an epic that is followed. A closed view or a hidden tab asks for nothing.
