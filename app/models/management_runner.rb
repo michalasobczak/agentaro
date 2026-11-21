@@ -104,7 +104,7 @@ class ManagementRunner
     proposing_changes = false
     rejection = nil
     outcome = loop do
-      request = rejection ? prompt.with(user: "#{prompt.user}\n\nYour previous answer was not accepted: #{rejection}\nAnswer again with only the JSON object.") : prompt
+      request = rejection ? prompt.with(sections: [ *prompt.sections, [ "rejection", "Your previous answer was not accepted: #{rejection}\nAnswer again with only the JSON object." ] ]) : prompt
       outcome = call_director(agent, request, proposing_changes:)
       break outcome unless outcome.state == "succeeded"
 
@@ -161,7 +161,7 @@ class ManagementRunner
     # The independent proposal also gets an empty executor workspace, including a fresh CLI answer file.
     Dir.mktmpdir("agentaro-chat-actions-") do |directory|
       # Not streamed: the chat keeps showing (and voice keeps reading) the first answer, which is the one posted.
-      AgentCall.new(@run, agent, prompt, **@call_options.merge(runs_dir: directory)).call
+      AgentCall.new(@run, agent, prompt, **@call_options.merge(runs_dir: directory, pass: "proposal")).call # spec 030: the second call of the run
     end
   end
 
@@ -205,7 +205,7 @@ class ManagementRunner
   def verify!(agent)
     see_latest_message
     @checked_answer_id = latest_director_answer_id
-    outcome = AgentCall.new(@run, agent, AgentCall::Prompt.new(system: agent.master_prompt, user: [ context_header, verify_prompt ].join("\n\n")), **@call_options).call
+    outcome = AgentCall.new(@run, agent, AgentCall::Prompt.new(system: agent.master_prompt, sections: [ [ "context", context_header ], [ "instructions", verify_prompt ] ]), **@call_options).call
     TaskRunner.finish!(@run, outcome)
     check_newer_answer
     return fail!("the verifier could not answer: #{outcome.error.to_s.truncate(300).chomp(".")}") unless outcome.state == "succeeded"
@@ -263,7 +263,7 @@ class ManagementRunner
             when "chat" then chat_prompt(proposing_changes:)
             when "director" then plan_prompt
             end
-    AgentCall::Prompt.new(system: agent.master_prompt, user: [ context_header, rules ].join("\n\n"))
+    AgentCall::Prompt.new(system: agent.master_prompt, sections: [ [ "context", context_header ], [ "instructions", rules ] ]) # spec 030: named parts
   end
 
   def context_header

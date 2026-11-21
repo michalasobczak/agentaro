@@ -81,6 +81,12 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - **Notices (spec 026)** — the closed chat's button blinks while an answer is unread, and the tab title blinks while the tab is in the background. A blocked epic pops up on every page with its reason, **Try again**, **Open epic** and **Close**. Close is remembered on every device until the epic is blocked again. After you allow it once, a block also comes as a macOS notification while the tab is in the background.
 - **Page background (spec 028)** — application pages have a subtle background of two soft glows drifting slowly behind the content, in light and dark colours. It is CSS only, never takes clicks, and stays still when the system asks for reduced motion. The chat keeps its own background.
 - **Chat background (spec 029)** — the chat header (Director page and side panel) has a **Chat background** selector: Solid (default), Dots, Grid, Gradient or Animated. The choice is saved on your account, so it stays after a reload and on other devices. The pattern is drawn only behind the messages, in light and dark colours; Animated stands still as a gradient when the system asks for reduced motion. Messages waiting to be sent are opaque with a dashed outline. Every label in the chat reads at least 4.5:1 in both palettes, and the header wraps instead of clipping.
+- **Run traces (spec 030)** — every model call is kept as a trace, on this Mac only:
+  - the prompt in named parts, each distinct text stored once;
+  - the answer and what the agent did (tool calls and results, each up to 8 KB, marked web, file or command);
+  - tokens, cost and time.
+
+  A chat run has two calls (the answer and the check of changes). Secrets that look like keys, tokens or passwords are replaced before storing. Open a run and expand **Trace** (computer or tablet) to see each call. Traces are kept without a time limit (events older than 90 days are compressed) and go with a deleted space. Runs from before traces get one with their whole prompt: `bin/rails agentaro:traces:backfill`.
 - **Voice recordings (spec 017)** — send as many recordings as needed. Each clip is transcribed on the host, with a hint of Agentaro's words and your team's names, and saved to the chat as a spoken message. The typed-chat and speech synthesis rates are managed separately.
 - **Chat actions (spec 021)** — ask the director in ordinary chat, for example `Add an epic to research backups in General` or `Cancel World review`. The director proposes changes in a separate call using your latest request and work-list metadata. Agentaro checks each action before applying the batch. Send `Retry step 2 of World review` to retry a failed step. Agentaro checks the latest failed attempt, queues it once and carries forward earlier successful answers. The chain continues from there on success.
 - **Running tasks (spec 010):** at a task's start time its agent runs it on its executor — Claude Code and Codex with tools confined to the run's own folder, Ollama and LM Studio as text; 2 at a time, never late, 15-minute limit. Runs and answers are shown on the task and marked in the calendar; "Run now" starts one by hand.
@@ -166,6 +172,13 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 027 | [Work panel beside the director chat](specs/027-work-panel-beside-chat.md) | implemented (owner's decisions Q1–Q3) |
 | 028 | [Animated page background](specs/028-animated-page-background.md) | implemented with proposed defaults (Q1, Q2 awaiting owner) |
 | 029 | [Chat background patterns](specs/029-chat-background-patterns.md) | implemented with proposed defaults (Q1, Q2 awaiting owner; release-gate failures fixed) |
+| 030 | [Run traces](specs/030-run-traces.md) | implemented |
+| 031 | [Brain: long-term memory](specs/031-brain-memory.md) | draft (Q1–Q5 open) |
+| 032 | [Ratings and sentiment](specs/032-ratings-and-sentiment.md) | draft (Q1–Q3 open) |
+| 033 | [Reflection and playbooks](specs/033-reflection-and-playbooks.md) | draft (Q1–Q3 open) |
+| 034 | [Model of the owner and when agents ask](specs/034-owner-model-and-questions.md) | draft (Q1–Q4 open) |
+| 035 | [Learning which agent and strategy work best](specs/035-strategy-selection.md) | draft (Q1–Q3 open) |
+| 036 | [Distillation into a local model (LoRA)](specs/036-distillation-lora.md) | draft (Q1–Q4 open) |
 | — | Feedback loop: results back to the director, budgets, stop | not written |
 | — | Isolation of agents (F12, F15) | not written |
 | — | Memory per space and per agent | not written |

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_129000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_130000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -82,6 +82,54 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_129000) do
     t.boolean "model_check_ok"
     t.text "model_check_output"
     t.index ["name"], name: "index_executors_on_name", unique: true
+  end
+
+  create_table "model_call_parts", force: :cascade do |t|
+    t.integer "model_call_id", null: false
+    t.integer "trace_part_id", null: false
+    t.integer "position", null: false
+    t.integer "section", null: false
+    t.string "kind", null: false
+    t.index ["model_call_id", "position"], name: "index_model_call_parts_on_model_call_id_and_position", unique: true
+    t.index ["model_call_id"], name: "index_model_call_parts_on_model_call_id"
+    t.index ["trace_part_id"], name: "index_model_call_parts_on_trace_part_id"
+  end
+
+  create_table "model_calls", force: :cascade do |t|
+    t.integer "task_run_id", null: false
+    t.integer "user_id"
+    t.integer "position", null: false
+    t.string "pass", null: false
+    t.string "layout", default: "agent", null: false
+    t.integer "agent_id"
+    t.string "agent_name"
+    t.string "preset"
+    t.string "model"
+    t.string "effort"
+    t.string "state"
+    t.datetime "started_at"
+    t.integer "duration_ms"
+    t.integer "input_tokens"
+    t.integer "output_tokens"
+    t.integer "cache_read_tokens"
+    t.integer "cache_write_tokens"
+    t.float "cost_usd"
+    t.integer "turns"
+    t.string "joiner", default: "\n\n", null: false
+    t.integer "output_part_id"
+    t.text "error"
+    t.boolean "redacted", default: false, null: false
+    t.binary "events"
+    t.string "events_format"
+    t.integer "events_count", default: 0, null: false
+    t.boolean "events_cut", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["output_part_id"], name: "index_model_calls_on_output_part_id"
+    t.index ["task_run_id", "position"], name: "index_model_calls_on_task_run_id_and_position", unique: true
+    t.index ["task_run_id"], name: "index_model_calls_on_task_run_id"
+    t.index ["user_id", "created_at"], name: "index_model_calls_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_model_calls_on_user_id"
   end
 
   create_table "password_links", force: :cascade do |t|
@@ -210,6 +258,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_129000) do
     t.index ["user_id"], name: "index_team_roles_on_user_id"
   end
 
+  create_table "trace_parts", force: :cascade do |t|
+    t.string "digest", null: false
+    t.text "content", null: false
+    t.integer "bytes", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["digest"], name: "index_trace_parts_on_digest", unique: true
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "username", null: false
     t.string "password_digest"
@@ -258,6 +315,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_129000) do
   add_foreign_key "chat_messages", "users"
   add_foreign_key "epic_steps", "agents"
   add_foreign_key "epic_steps", "work_items"
+  add_foreign_key "model_call_parts", "model_calls"
+  add_foreign_key "model_call_parts", "trace_parts"
+  add_foreign_key "model_calls", "task_runs"
+  add_foreign_key "model_calls", "trace_parts", column: "output_part_id"
+  add_foreign_key "model_calls", "users"
   add_foreign_key "password_links", "users"
   add_foreign_key "password_links", "users", column: "created_by_id"
   add_foreign_key "sessions", "users"

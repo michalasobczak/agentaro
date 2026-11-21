@@ -117,6 +117,14 @@ module ApplicationHelper
   end
 
   # Spec 011/012: what a management run did. Before spec 012 a "director" run of an item chose a manager.
+  # Spec 030, G7: one line of a model call's numbers.
+  def trace_call_summary(call)
+    tokens = [ call.input_tokens && "#{number_with_delimiter(call.input_tokens)} in", call.output_tokens && "#{number_with_delimiter(call.output_tokens)} out" ].compact
+    [ call.state&.tr("_", " "), [ call.model, call.effort && "effort #{call.effort}" ].compact.join(", ").presence,
+      ("#{tokens.join(" / ")} tokens" if tokens.any?), ("$#{format("%.4f", call.cost_usd)}" if call.cost_usd),
+      ("#{call.duration.round(1)} s" if call.duration), (pluralize(call.turns, "turn") if call.turns) ].compact.join(" · ")
+  end
+
   def run_purpose_label(run)
     case run.purpose
     when "chat" then "chat"

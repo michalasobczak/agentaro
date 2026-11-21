@@ -9,6 +9,8 @@ module Changelogged
   included do
     # Columns whose values are too long for the changelog: recorded as "[N characters]" (spec 010).
     class_attribute :changelog_summarized, default: []
+    # Spec 030: run traces are derived from runs (which are recorded) and would only repeat their text here.
+    class_attribute :changelog_skipped, default: false
 
     after_create_commit { record_data_change("create", saved_changes) }
     after_update_commit { record_data_change("update", saved_changes.except("updated_at")) }
@@ -18,7 +20,7 @@ module Changelogged
   private
 
   def record_data_change(action, changes)
-    return if changes.blank?
+    return if changes.blank? || changelog_skipped
 
     DataChange.append!(
       request_id: Current.request_id,

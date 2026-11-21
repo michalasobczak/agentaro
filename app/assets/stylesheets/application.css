@@ -837,3 +837,14 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .theme-option.is-on { background: var(--accent); color: #fff; }
 .menu .theme-switch { margin: 0.6rem 0; background: var(--surface-2); }
 .menu .theme-option { color: var(--fg); }
+/* Spec 030, G7: the run's trace */
+.run-trace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; min-width: 0; }
+.run-trace .run-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+.trace-call { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; background: var(--surface); }
+.trace-call > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+.trace-heading { font-size: 0.9rem; margin: 0.9rem 0 0.4rem; color: var(--muted); }
+.trace-parts, .trace-events { margin: 0; padding-left: 1.5rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+.trace-parts li, .trace-events li { min-width: 0; }
+.trace-parts summary, .trace-events summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; min-width: 0; }
+.trace-preview { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 12rem; }
+

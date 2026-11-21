@@ -60,9 +60,9 @@ class HostProcess
         chunk = io.read_nonblock(16_384, exception: false)
         if chunk.nil?
           open.delete(io)
-        elsif chunk.is_a?(String) && buffers[io].bytesize < @max_output
-          buffers[io] << chunk
-          @on_stdout&.call(chunk) if io == out_r
+        elsif chunk.is_a?(String)
+          buffers[io] << chunk if buffers[io].bytesize < @max_output
+          @on_stdout&.call(chunk) if io == out_r # spec 030: every chunk, so a stream's result line is never lost
         end
       end
     end

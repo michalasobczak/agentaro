@@ -284,4 +284,41 @@
   - **System and verifier names** were 4.3:1 and 4.1:1 in light. New text tokens `--ok-text`, `--warn-text`, `--bad-text` bring every measured label to at least 5.9:1 in both palettes.
   - **Clipped header.** A floating chat left open on another page kept its room on the Director page, though hidden there; the chat beside the work panel shrank to about 110 px. That room is now dropped while the full chat shows (voice mode excepted). The background selector also takes its own row below 760 px of chat width. No header overflow at 375–1920 px.
   - **Tests.** Two new tests in `chat_background_test.rb` (contrast from tokens in both palettes; header and dock rules). Full suite: 353 runs, 0 failures. Brakeman: 0 warnings.
+- Specs 031–035 drafted (2026-11-21): memory and learning from the owner's feedback.
+  - **Owner's decisions:** local extraction (Ollama); learned changes apply after a replay gate, except the user's profile, which the owner approves; the pace of autonomy is an experiment.
+  - **031 Brain:** core blocks, temporal facts and episodes in SQLite, hybrid FTS5 + sqlite-vec retrieval, and a Brain page.
+  - **032 Ratings and sentiment:** combined into one reward per result.
+  - **033 Reflection and playbooks:** versioned playbooks, edits gated on the owner's rated cases.
+  - **034 Owner model:** a judge of the owner's taste; autonomy levels per space; a fixed list of irreversible decisions that always ask.
+  - **035 Strategy selection:** Thompson sampling over agent, model, effort and playbook.
+  - Not implemented; open questions are marked [TO BE DETERMINED].
+- Spec 036 drafted (2026-11-21): distillation of the brain's data (specs 031–035) into LoRA adapters for a local model, trained on this Mac with MLX.
+  - **Order:** the judge first, then the extractor, then preference tuning, workers later.
+  - **Gate:** each adapter must beat the current model on a held-out set of the owner's rated cases.
+  - **Proposal:** LoRA, not full training (16 GB of memory, small personal dataset, forgetting).
+  - **Teacher outputs:** hosted-model outputs are used as targets only after the owner checks the providers' terms.
+- Spec 030 drafted (2026-11-21): run traces. Every model call is kept as a structured trace:
+  - prompt parts stored once by hash;
+  - the answer, plus tool events (Claude Code steps move to stream-json);
+  - tokens, cost and time;
+  - links to the epic, step, message and memory versions.
+
+  No automatic pruning; content goes when the user deletes it. It comes first so data for learning is collected from now on. The earlier drafts were renumbered: brain 031, ratings 032, reflection 033, owner model 034, strategy 035, distillation 036.
+- Spec 030 implemented (2026-11-21): run traces.
+  - **What.** Every model call is a `model_calls` row (migration `20261121130000`), so a chat run has two: the answer and the check of changes. Each row holds:
+    - the prompt as named parts (master prompt, context, instructions, task, epic, workspace, earlier answers, rejection), stored in blank-line chunks in `trace_parts` by digest, so repeated text is kept once and the prompt is rebuilt exactly;
+    - the answer;
+    - tool events (each up to 8 KB, with source web/file/command/agent);
+    - tokens, cost, turns and time.
+  - **Claude Code** now always runs with `stream-json`. The answer is still the result line, and `HostProcess` passes every chunk to the reader, so large tool results cannot hide it. Local APIs report their tokens.
+  - **Secrets** that look like keys, tokens or passwords are replaced before storing.
+  - **Data changelog.** Trace rows are left out of it as derived data.
+  - **Deletion and maintenance.** Traces go with a deleted space, and text no other call uses is removed. Daily, events older than 90 days are compressed.
+  - **Run page:** a desktop-only Trace section.
+  - **Older runs:** `bin/rails agentaro:traces:backfill` gives them one legacy part.
+  - **Fix found on the way:** a retry after a rejected answer would have lost its note with named sections; it is now a `rejection` section, and changing the user text alone raises an error.
+  - **Tests.** `run_trace_test.rb` (14), `run_traces_test.rb` (3); full suite 370 runs, 0 failures; Brakeman 0 warnings.
+  - **Real check.** A Claude Code step on demo data gave the right answer, 7 events, tokens and cost, and the rebuilt prompt matched. The run page has no horizontal scroll.
+  - **Seen in that trace.** In print mode Claude Code answered WebFetch with "No such tool available" and used a web-fetch sub-agent instead.
+  - **Security (B20)** is in the spec. Open item: the run's joined `prompt` column is still stored unfiltered.
 

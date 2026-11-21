@@ -54,7 +54,7 @@ class TaskRunTest < ActiveSupport::TestCase
         run = TaskRunner.new(run_for(task)).perform!
         assert_equal [ "succeeded", "Here is the draft." ], [ run.state, run.output ]
         args = File.read("#{log}/args")
-        assert_match "-p --output-format text --no-session-persistence --permission-mode acceptEdits --allowedTools WebSearch WebFetch --settings", args
+        assert_match "-p --output-format stream-json --verbose --no-session-persistence --permission-mode acceptEdits --allowedTools WebSearch WebFetch --settings", args
         assert_match '"denyRead":["' + Rails.root.join("storage").realpath.to_s, args
         assert_no_match "Draft the newsletter", args, "the prompt is not in the arguments"
         assert_equal run.prompt, File.read("#{log}/stdin")

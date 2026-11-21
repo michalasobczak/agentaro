@@ -71,6 +71,7 @@ class Space < ApplicationRecord
         reload.destroy!
       end
       remove_run_folders(run_ids)
+      TracePart.prune_orphans! # spec 030, R5: text only these runs used goes with them
     end
   end
 

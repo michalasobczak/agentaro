@@ -72,6 +72,7 @@ module Agentaro
         loop do
           begin
             Rails.application.executor.wrap { tick }
+            Rails.application.executor.wrap { RunTrace.run_if_due } # spec 030, G6: once a day
           rescue StandardError => e
             Rails.logger.error("[runs] scheduler tick failed: #{e.class}: #{e.message}")
           end

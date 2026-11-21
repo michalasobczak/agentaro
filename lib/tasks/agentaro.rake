@@ -19,6 +19,13 @@ namespace :agentaro do
     end
   end
 
+  namespace :traces do
+    desc "Spec 030: give runs from before run traces a trace with their joined prompt as one part"
+    task backfill: :environment do
+      puts "Traces added: #{RunTrace.backfill_legacy!}"
+    end
+  end
+
   namespace :audit do
     desc "Verify the hash chains of the audit log and the data changelog"
     task verify: :environment do

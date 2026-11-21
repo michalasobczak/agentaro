@@ -28,16 +28,16 @@ class TaskRunner
   def self.prompt_for(task, agent, occurrence_start)
     occurrence = task.occurrence_at(occurrence_start) || Task::Occurrence.new(task: task, starts_at: task.starts_at, ends_at: task.ends_at, original_start: task.starts_at)
     starts, ends = occurrence.starts_at.in_time_zone, occurrence.ends_at.in_time_zone
-    lines = [ "Your task: #{task.title}",
-              "When: #{starts.strftime("%A %-d %B %Y, %H:%M")} – #{ends.strftime(starts.to_date == ends.to_date ? "%H:%M" : "%A %-d %B %Y, %H:%M")} (#{Time.zone.name})" ]
-    lines << "Location: #{task.location}" if task.location.present?
-    lines << "\nDetails:\n#{task.description}" if task.description.present?
+    lines = [ [ "task", "Your task: #{task.title}" ], # spec 030, G1: named parts
+              [ "task", "When: #{starts.strftime("%A %-d %B %Y, %H:%M")} – #{ends.strftime(starts.to_date == ends.to_date ? "%H:%M" : "%A %-d %B %Y, %H:%M")} (#{Time.zone.name})" ] ]
+    lines << [ "task", "Location: #{task.location}" ] if task.location.present?
+    lines << [ "task", "\nDetails:\n#{task.description}" ] if task.description.present?
     if task.work_item # specs 011–014: a step of an epic, in its space only
       space = task.work_item.space
-      lines << "\nThis is one step of the epic \"#{task.work_item.title}\" planned by your director, in the space \"#{space.name}\" (#{space.purpose_line})."
+      lines << [ "epic", "\nThis is one step of the epic \"#{task.work_item.title}\" planned by your director, in the space \"#{space.name}\" (#{space.purpose_line})." ]
     end
-    lines << "\nDo the task now and answer with the result."
-    Prompt.new(system: agent.master_prompt, user: lines.join("\n"))
+    lines << [ "instructions", "\nDo the task now and answer with the result." ]
+    Prompt.new(system: agent.master_prompt, sections: lines, joiner: "\n")
   end
 
   # Stores the outcome on the run (output and errors limited, spec 010 G4/G5).

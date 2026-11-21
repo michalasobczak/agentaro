@@ -203,17 +203,18 @@ class StepChain
   def self.prompt_for(step, agent)
     item = step.work_item
     last_position = item.active_steps.maximum(:position)
-    lines = [ "Your task: #{step.title}" ]
-    lines << "\nDetails:\n#{step.description}" if step.description.present?
-    lines << "\nThis is step #{step.position} of #{last_position} of the epic \"#{item.title}\", planned by your director, in the space \"#{item.space.name}\" (#{item.space.purpose_line})."
-    lines << "Epic details: #{item.description}" if item.description.present?
+    # Spec 030, G1: each line is a named part of the prompt.
+    lines = [ [ "task", "Your task: #{step.title}" ] ]
+    lines << [ "task", "\nDetails:\n#{step.description}" ] if step.description.present?
+    lines << [ "epic", "\nThis is step #{step.position} of #{last_position} of the epic \"#{item.title}\", planned by your director, in the space \"#{item.space.name}\" (#{item.space.purpose_line})." ]
+    lines << [ "epic", "Epic details: #{item.description}" ] if item.description.present?
     if (dir = item.space.working_dir) # spec 018, G6
-      lines << "\nYou work in the space's folder #{dir} (your current directory). You may read and change files there, run commands and tools (git, docker, package managers, a browser) and use the network. Folders of other projects are not accessible."
+      lines << [ "workspace", "\nYou work in the space's folder #{dir} (your current directory). You may read and change files there, run commands and tools (git, docker, package managers, a browser) and use the network. Folders of other projects are not accessible." ]
     end
     earlier = earlier_answers(step)
-    lines << "#{HISTORY_HEADING}#{earlier}" if earlier.present?
-    lines << "\nDo the task now and answer with the result."
-    AgentCall::Prompt.new(system: agent.master_prompt, user: lines.join("\n"))
+    lines << [ "earlier_answers", "#{HISTORY_HEADING}#{earlier}" ] if earlier.present?
+    lines << [ "instructions", "\nDo the task now and answer with the result." ]
+    AgentCall::Prompt.new(system: agent.master_prompt, sections: lines, joiner: "\n")
   end
 
   # R2: newest answers whole first, within the budget; older ones are shortened, the oldest dropped with a note.

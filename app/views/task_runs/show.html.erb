@@ -32,3 +32,52 @@
 <% if @run.prompt %>
   <details class="card"><summary><strong>Prompt sent to the agent</strong></summary><pre class="run-text"><%= @run.prompt %></pre></details>
 <% end %>
+<%# Spec 030, G7: the run's trace — each model call with its numbers, prompt parts and tool events (desktop only). %>
+<% calls = @run.model_calls.includes(:output_part, parts: :trace_part).to_a %>
+<% if calls.any? %>
+  <section class="card desktop-only run-trace">
+    <div class="card-header"><h2>Trace</h2></div>
+    <% calls.each do |call| %>
+      <details class="trace-call">
+        <summary>
+          <strong>Call <%= call.position %> · <%= call.pass %></strong>
+          <span class="muted small"><%= trace_call_summary(call) %></span>
+        </summary>
+        <% if call.redacted %><p class="hint">Secrets were removed from this trace before it was stored.</p><% end %>
+        <h3 class="trace-heading">Prompt<%= " (from before traces, as one text)" if call.layout == "legacy" %></h3>
+        <ol class="trace-parts">
+          <% call.parts.each do |part| %>
+            <li>
+              <details>
+                <summary><span class="badge"><%= part.kind.tr("_", " ") %></span> <span class="muted small"><%= number_to_human_size(part.trace_part.bytes) %></span>
+                  <span class="trace-preview"><%= part.trace_part.content.squish.truncate(90) %></span></summary>
+                <pre class="run-text"><%= part.trace_part.content %></pre>
+              </details>
+            </li>
+          <% end %>
+        </ol>
+        <% events = call.event_list %>
+        <% if events.any? %>
+          <h3 class="trace-heading">What it did (<%= pluralize(events.size, "event") %><%= ", more were left out" if call.events_cut %>)</h3>
+          <ol class="trace-events">
+            <% events.each do |event| %>
+              <li>
+                <details>
+                  <summary><span class="badge"><%= event["kind"].to_s.tr("_", " ") %></span> <%= event["name"] %>
+                    <% if event["source"] %><span class="muted small">from <%= event["source"] %></span><% end %>
+                    <% if event["error"] %><span class="badge bad">error</span><% end %></summary>
+                  <pre class="run-text"><%= event["input"] || event["content"] || event["text"] %></pre>
+                </details>
+              </li>
+            <% end %>
+          </ol>
+        <% end %>
+        <% if call.answer %>
+          <h3 class="trace-heading">Answer of this call</h3>
+          <pre class="run-text"><%= call.answer %></pre>
+        <% end %>
+      </details>
+    <% end %>
+  </section>
+  <%= desktop_only_note %>
+<% end %>

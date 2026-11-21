@@ -14,6 +14,7 @@ class TaskRun < ApplicationRecord
   belongs_to :work_item, optional: true
   belongs_to :agent, optional: true     # agent of a management run or an epic step
   belongs_to :epic_step, optional: true # spec 016
+  has_many :model_calls, -> { order(:position) }, dependent: :destroy, inverse_of: :task_run # spec 030: its traces
 
   validates :state, inclusion: { in: STATES }
   validates :trigger, inclusion: { in: TRIGGERS }

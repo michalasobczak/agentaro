@@ -8,12 +8,31 @@ class AgentCall
 
   Outcome = Data.define(:state, :output, :error, :exit_status)
 
-  Prompt = Data.define(:system, :user) do
-    def text = "#{system}\n\n---\n\n#{user}"
+  # Spec 030, G1: a prompt keeps its named sections ([kind, text]) so the trace can store what the model saw part by
+  # part; the user text is always the sections joined by the joiner, so text is exactly what is sent.
+  PROMPT_SEPARATOR = "\n\n---\n\n"
+  Prompt = Data.define(:system, :user, :sections, :joiner) do
+    def initialize(system:, user: nil, sections: nil, joiner: "\n\n")
+      sections = sections ? sections.map { |kind, value| [ kind.to_s, value.to_s ] } : [ [ "user", user.to_s ] ]
+      joined = sections.map(&:last).join(joiner)
+      # A changed user text must come as a changed section (prompt.with(sections: …)); otherwise it would be lost.
+      raise ArgumentError, "user differs from its sections; change the sections" if user && user != joined
+      super(system: system.to_s, user: joined, sections: sections.freeze, joiner: joiner)
+    end
+
+    # The user text follows the sections; changing it alone would be lost, so only sections may change.
+    def with(**changes)
+      raise ArgumentError, "change the sections, not the user text" if changes.key?(:user)
+
+      super(**changes, user: nil)
+    end
+
+    def text = "#{system}#{PROMPT_SEPARATOR}#{user}"
   end
 
-  def initialize(run, agent, prompt, timeout: Rails.application.config.x.run_timeout, runs_dir: Rails.application.config.x.runs_dir)
-    @run, @agent, @prompt = run, agent, prompt
+  # pass (spec 030): which call of the run this is, when a run makes more than one ("proposal").
+  def initialize(run, agent, prompt, timeout: Rails.application.config.x.run_timeout, runs_dir: Rails.application.config.x.runs_dir, pass: nil)
+    @run, @agent, @prompt, @pass = run, agent, prompt, pass
     @timeout = timeout
     @runs_dir = Pathname(runs_dir)
   end
@@ -23,13 +42,27 @@ class AgentCall
   # OpenAI-compatible APIs; other executors answer once at the end. The returned outcome is the same either way.
   def call(on_text: nil)
     @on_text = on_text
+    started_at, clock = Time.current, Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    outcome = perform
+    if @called # spec 030: every call that reached its executor leaves a trace; recording never breaks the run (R7)
+      RunTrace.record(run: @run, agent: @agent, prompt: @prompt, outcome: outcome, pass: @pass, started_at: started_at,
+                      duration: Process.clock_gettime(Process::CLOCK_MONOTONIC) - clock, model: @model, effort: @effort,
+                      usage: @stream ? @stream.usage : @usage.to_h, events: @stream&.events, events_cut: @stream&.events_cut)
+    end
+    outcome
+  end
+
+  private
+
+  def perform
     return Outcome.new("skipped", nil, "#{@agent.name} is not available (disabled agent or executor).", nil) unless @agent.usable?
 
     executor = @agent.executor
-    model = @agent.effective_model
+    model = @model = @agent.effective_model
     @effort = @agent.effective_effort # spec 022, G5
     @run.update!(state: "running", started_at: @run.started_at || Time.current, agent_name: @agent.name, executor_name: executor.name,
                  preset: executor.preset, model: model, prompt: @prompt.text)
+    @called = true
     preset = executor.preset_definition
     return Outcome.new("skipped", nil, format(NOT_RUNNABLE, preset.label), nil) unless preset.runnable?
     unless Executor.valid_model_name?(model) # spec 022, R1: a name saved before the rule never reaches the tool
@@ -41,8 +74,6 @@ class AgentCall
     Rails.logger.error("[runs] run #{@run.id} failed: #{e.class}: #{e.message}")
     Outcome.new("failed", nil, "#{e.class}: #{e.message}", nil)
   end
-
-  private
 
   def folder
     @folder ||= @runs_dir.join(@run.id.to_s).tap { |dir| FileUtils.mkdir_p(dir.join("work")) }
@@ -69,7 +100,8 @@ class AgentCall
     args, stdin, answer_file = cli_call(preset.key, model, prompt, space)
     return Outcome.new("failed", nil, "Choose a model for #{executor.name} (agent or executor default).", nil) if args.nil?
 
-    stream = @on_text && preset.key == "claude_code" ? ClaudeStream.new(@on_text) : nil
+    # Spec 030, G2: Claude Code always streams JSON, so its tool calls, usage and cost reach the trace.
+    stream = @stream = preset.key == "claude_code" ? ClaudeStream.new(@on_text) : nil
     args = stream.arguments(args) if stream
     result = begin
       HostProcess.run(program, args, stdin: stdin, chdir: @chdir, timeout: @timeout, max_output: (stream ? 4 : 1) * TaskRun::MAX_OUTPUT + 1024, # a bit more, so the cut is marked
@@ -114,9 +146,25 @@ class AgentCall
     Outcome.new("succeeded", text, nil, nil)
   end
 
+  # Spec 030, G3: tokens as the local servers report them (Ollama: prompt_eval_count/eval_count; OpenAI: usage).
+  def api_usage(preset, data)
+    return {} unless data.is_a?(Hash)
+
+    if preset.protocol == "ollama"
+      { input_tokens: data["prompt_eval_count"], output_tokens: data["eval_count"] }.compact
+    else
+      usage = data["usage"].is_a?(Hash) ? data["usage"] : {}
+      { input_tokens: usage["prompt_tokens"], output_tokens: usage["completion_tokens"] }.compact
+    end
+  end
+
   def stream_piece(preset, line)
     if preset.protocol == "ollama"
-      JSON.parse(line).dig("message", "content") if line.start_with?("{")
+      return unless line.start_with?("{")
+
+      data = JSON.parse(line)
+      @usage = api_usage(preset, data) if data["done"]
+      data.dig("message", "content")
     elsif line.start_with?("data:") && line != "data: [DONE]"
       JSON.parse(line.delete_prefix("data:").strip).dig("choices", 0, "delta", "content")
     end
@@ -189,6 +237,7 @@ class AgentCall
     return Outcome.new("failed", nil, "Answered #{response.code} #{response.message}. #{ExecutorCheck.clean(raw)}", response.code.to_i) unless response.is_a?(Net::HTTPSuccess)
 
     data = JSON.parse(raw)
+    @usage = api_usage(preset, data)
     answer = preset.protocol == "ollama" ? data.dig("message", "content") : data.dig("choices", 0, "message", "content")
     answer.is_a?(String) ? Outcome.new("succeeded", answer, nil, nil) : Outcome.new("failed", nil, "The answer had no message.", nil)
   rescue Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout
