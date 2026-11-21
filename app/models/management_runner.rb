@@ -263,7 +263,20 @@ class ManagementRunner
             when "chat" then chat_prompt(proposing_changes:)
             when "director" then plan_prompt
             end
-    AgentCall::Prompt.new(system: agent.master_prompt, sections: [ [ "context", context_header ], [ "instructions", rules ] ]) # spec 030: named parts
+    # Spec 031, G5: the brain's remembered context, between the situation and the rules (spec 030: named parts).
+    AgentCall::Prompt.new(system: agent.master_prompt, sections: [ [ "context", context_header ], *memory_section(agent), [ "instructions", rules ] ])
+  end
+
+  def memory_section(agent)
+    query, options = if @run.purpose == "chat"
+      [ @user.chat_messages.current.where(author: "user").ordered.last(3).map(&:content).join("\n"), { director: true } ]
+    elsif @item
+      [ [ @item.title, @item.description ].compact.join("\n"), { space: @item.space } ]
+    else
+      [ "", {} ]
+    end
+    text, = Brain::Retriever.new(@user, agent: agent, query: query, **options).section
+    text ? [ [ "memory", text ] ] : []
   end
 
   def context_header
@@ -485,6 +498,9 @@ class ManagementRunner
       {"type": "update_space", "id": 1, "kind": ..., "name": "...", "goal": "...", "description": "..."} (give only fields to change; a project space needs a goal; a space's working folder is set by #{@user.username} on the space's form only)
       A project space works towards a goal; a team space has no goal and takes care of ongoing work.
       {"type": "cancel_item", "id": 1}
+      {"type": "remember", "subject": "user" or "space:<id>" or "agent:<id>", "kind": "preference" or "decision" or "fact" or "constraint", "statement": "one short sentence"} (only when #{@user.username} asks you to remember something; never secrets)
+      {"type": "forget", "id": <fact id from the remembered context>} (only when #{@user.username} asks you to forget it)
+      {"type": "approve_facts", "ids": [ ... ]} and {"type": "reject_facts", "ids": [ ... ]} (only when #{@user.username} answers the list of things Agentaro learned about them)
       {"type": "reprioritize", "id": 1, "priority": "normal" or "high"}
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
@@ -656,8 +672,52 @@ class ManagementRunner
       rescue StepChain::Ineligible => e # stale between the check and now: nothing changed
         "Not retried: step #{step.position} of \"#{item.title}\" — #{e.message}."
       end
+    when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
     else
       raise Invalid, "unknown action #{action["type"].inspect}"
+    end
+  end
+
+  # Spec 031, G8: memory changes only on the user's own clear request (R1), and only on their own facts.
+  MEMORY_REQUEST = /zapami[ęe]t|pami[ęe]taj|remember|note that|zapomnij|forget|zostaw|zatwierd|akceptuj|approve|keep|accept|odrzu|reject|drop|usu[ńn]|wyrzu/i
+
+  def memory_action(action)
+    type = action["type"]
+    unless user_request&.content.to_s.match?(MEMORY_REQUEST)
+      raise Invalid, "#{type}: #{@user.username} has not asked in their message to remember, forget, keep or drop anything"
+    end
+
+    case type
+    when "remember"
+      subject_type, subject_id = begin
+        Brain::Extractor.subject(@user, action["subject"].presence || "user")
+      rescue Brain::Extractor::Invalid => e
+        raise Invalid, "remember: #{e.message}"
+      end
+      fact = @user.memory_facts.new(subject_type: subject_type, subject_id: subject_id, statement: action["statement"],
+                                    kind: MemoryFact::KINDS.include?(action["kind"]) ? action["kind"] : "fact", status: "active", origin: "remembered", confidence: 1.0)
+      raise Invalid, "remember: #{fact.errors.full_messages.to_sentence}" unless fact.valid?
+
+      request = user_request
+      lambda do
+        fact.save!
+        episode = MemoryEpisode.find_by(source_type: "ChatMessage", source_id: request.id)
+        fact.memory_fact_sources.create!(memory_episode: episode) if episode
+        "Remembered: #{fact.statement}"
+      end
+    when "forget"
+      fact = @user.memory_facts.current.find_by(id: action["id"].to_s[/\A\d+\z/]) or raise Invalid, "forget: no current fact #{action["id"].inspect}"
+      -> { fact.invalidate!; "Forgotten: #{fact.statement}" }
+    else
+      ids = Array(action["ids"]).map { |id| id.to_s[/\A\d+\z/] }.compact
+      facts = @user.memory_facts.proposed.where(id: ids).to_a
+      raise Invalid, "#{type}: none of #{ids.inspect} waits for approval" if facts.empty?
+
+      if type == "approve_facts"
+        -> { facts.each { |f| Brain.approve!(f) }; "Kept in memory: #{facts.map(&:statement).join("; ").truncate(300)}" }
+      else
+        -> { facts.each(&:invalidate!); "Not kept: #{facts.map(&:statement).join("; ").truncate(300)}" }
+      end
     end
   end
 
@@ -684,7 +744,7 @@ class ManagementRunner
     current.where(author: "user", id: (last_reply || 0).succ..).order(:id).last
   end
 
-  def work_changes_proposed?(data)
+  def work_changes_proposed?(data) # spec 031: memory actions count as changes too
     actions = data["actions"]
     actions.is_a?(Array) && actions.any? && !retry_proposed?(actions)
   end

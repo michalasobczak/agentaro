@@ -1,0 +1,11 @@
+<%# Spec 031, G7: why a fact exists — the episodes it came from. %>
+<% sources = fact.memory_fact_sources.map(&:memory_episode).compact %>
+<% if sources.any? %>
+  <details class="brain-detail"><summary>Why (<%= pluralize(sources.size, "source") %>)</summary>
+    <ul>
+      <% sources.each do |episode| %>
+        <li><span class="muted small"><%= l(episode.occurred_at, format: :short) %> · <%= episode.kind.tr("_", " ") %>:</span> <%= episode.excerpt.truncate(400) %></li>
+      <% end %>
+    </ul>
+  </details>
+<% end %>

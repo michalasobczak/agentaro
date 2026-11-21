@@ -26,6 +26,7 @@ class Agent < ApplicationRecord
   validate :shared_only_by_admins, on: :create
 
   before_destroy :unassign_tasks
+  after_destroy_commit { Brain.forget_scope(MemoryFact.where(subject_type: "agent", subject_id: id).select(:user_id), "agent", id) } # spec 031
 
   scope :ordered, -> { order(:name) }
   # G2: my private agents and every shared agent; admins do not see other users' private agents.

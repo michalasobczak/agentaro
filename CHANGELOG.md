@@ -321,4 +321,33 @@
   - **Real check.** A Claude Code step on demo data gave the right answer, 7 events, tokens and cost, and the rebuilt prompt matched. The run page has no horizontal scroll.
   - **Seen in that trace.** In print mode Claude Code answered WebFetch with "No such tool available" and used a web-fetch sub-agent instead.
   - **Security (B20)** is in the spec. Open item: the run's joined `prompt` column is still stored unfiltered.
+- Spec 031 closed (2026-11-21).
+  - **Models** (Q1): `qwen3:8b` for extraction and `bge-m3` for embeddings, pulled into Ollama.
+  - **sqlite-vec** (Q2) is expected to load: the bundled SQLite 3.54.1 allows extensions and has FTS5, and the gem has an Apple Silicon build. Fallback: cosine similarity in Ruby.
+  - **Profile facts** (Q3) are approved in a daily chat summary.
+  - **Prompt budget** (Q4): 12 facts, about 1,500 characters.
+  - **Chat history** (Q5) is imported once, with profile facts proposed for approval.
+- Spec 031 implemented (2026-11-21): the brain, a long-term memory per user.
+  - **Data** (migration `20261121131000`): core blocks, temporal facts, episodes, fact sources, and an FTS5 index.
+  - **Extraction.** A local model (`qwen3:8b`) reads the user's messages in the background and proposes ADD, UPDATE, INVALIDATE or NOOP. Operations are validated on the user's own subjects, at most 300 characters, with no secrets. Profile facts wait for approval; space and agent facts apply at once. Updates supersede and keep history, and each call is a traced run (`memory`).
+  - **Retrieval.** Each director answer, plan and step gets a "remembered context" section: blocks plus at most 12 facts, labelled as data. Facts are ranked by FTS5 and `bge-m3` cosine fused with RRF; vectors are BLOBs with cosine in Ruby, the spec's fallback, chosen over sqlite-vec for now.
+  - **Chat:** remember, forget, keep and drop actions, only on the user's own request.
+  - **Daily:** duplicates merged, unused facts fade and the weakest are archived, missing vectors computed, and profile facts listed in the chat for approval (Polish when the conversation is).
+  - **Brain page:** model status, approval, blocks, facts with sources and history, edit, pin, delete, and a one-off history import (also `bin/rails agentaro:brain:import_history`).
+  - **Tests.** `brain_test.rb` (15), `brain_page_test.rb` (7), with a stand-in model server in every test; full suite 392 runs, 0 failures. Brakeman: 0 warnings.
+  - **Real models on demo data:** about 5 s per message, correct facts, the update to English superseding the Polish rule, and the facts in the step prompt.
+  - **Security (B20)** is in the spec.
+- Spec 031 fixes after deployment (2026-11-21), each with a test:
+  - **The brain's background work stopped after its first pass.** The lock was taken in the scheduler's thread and released in the worker's, which Ruby refuses. It is now a flag set under a short lock.
+  - **The local model sometimes copied the whole known-facts line** ("12 user: …") as the id of an UPDATE or INVALIDATE. The leading number is now taken as the id.
+  - **History import** (Q5) ran in production: 203 earlier messages were queued.
+- Spec 031: the history import was withdrawn on the owner's word (2026-11-21).
+  - **Why.** It gave poor facts: one-off requests as facts, and wrong invalidations.
+  - **Cleanup.** Its 25 facts, 203 episodes, 55 memory runs with their traces, and the daily summary that listed them were deleted, after a backup (`production-before-import-rollback`). The Brain page no longer offers the import.
+  - **Extraction is stricter:**
+    - a prompt with what never to remember and "when unsure, nothing";
+    - a confidence floor of 0.6;
+    - no changes to facts waiting for the user.
+
+    Full suite: 395 runs, 0 failures.
 

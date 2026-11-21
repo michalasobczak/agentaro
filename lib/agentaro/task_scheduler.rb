@@ -73,6 +73,7 @@ module Agentaro
           begin
             Rails.application.executor.wrap { tick }
             Rails.application.executor.wrap { RunTrace.run_if_due } # spec 030, G6: once a day
+            Brain::Worker.kick # spec 031: extraction and the daily work, in their own thread
           rescue StandardError => e
             Rails.logger.error("[runs] scheduler tick failed: #{e.class}: #{e.message}")
           end

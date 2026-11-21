@@ -1,6 +1,6 @@
 # 031 — Brain: long-term memory about the user, agents and spaces
 
-Status: **draft**
+Status: **closed** 2026-11-21 (the owner's answers to Q1–Q2 and acceptance of the proposals for Q3–Q5); **implemented** 2026-11-21.
 Date: 2026-11-21
 Depends on: [030](030-run-traces.md), [004](004-data-changelog.md), [011](011-list-and-management.md), [013](013-projects.md), [022](022-model-lists-and-check.md)
 
@@ -85,8 +85,8 @@ A local model through Ollama extracts facts after each conversation turn. Retrie
 | System | `ManagementRunner` and step prompts: memory section | to change |
 | System | Brain page (`BrainController`, views, `desktop-only` editing on phones if needed) | to create |
 | System | Settings: which Ollama executor and models the brain uses | to create |
-| External | Ollama with an extraction model and an embedding model | [TO BE DETERMINED] Q1 |
-| External | `sqlite-vec` extension available to Ruby | [TO BE DETERMINED] Q2 |
+| External | Ollama with `qwen3:8b` and `bge-m3` | exists (Q1) |
+| External | `sqlite-vec` gem (loadable extension; fallback: cosine in Ruby) | to add (Q2) |
 
 ## 5. Functional Domain Changes
 
@@ -156,14 +156,103 @@ A local model through Ollama extracts facts after each conversation turn. Retrie
   - a separate vector database;
   - Claude for extraction (owner's decision 1: local).
 - **Technical debt:** no graph traversal between facts (only subject links). Add it if retrieval misses related facts.
-- **External dependencies:** Ollama (installed, no models yet); sqlite-vec.
+- **External dependencies:** Ollama with `qwen3:8b` and `bge-m3`; the `sqlite-vec` gem.
 - **Sources and questions:**
-  - Q1. [TO BE DETERMINED] Models:
-    - proposed `qwen3:8b` for extraction (good at JSON, handles Polish);
-    - proposed `bge-m3` for embeddings (multilingual).
-    - Pull both (about 6 GB)?
-  - Q2. [TO BE DETERMINED] If sqlite-vec cannot be loaded cleanly from Ruby, is FTS5-only acceptable for the first version?
-  - Q3. [TO BE DETERMINED] Should the profile be approved fact by fact, or by a daily summary "I learned these 5 things about you — keep?"? Proposed: the daily summary in the chat.
-  - Q4. [TO BE DETERMINED] Prompt budget: 12 facts / about 1,500 characters. Is that enough?
-  - Q5. [TO BE DETERMINED] Should old chat history (before this spec) be imported into memory once? Proposed: yes, as a one-off job, with the resulting profile facts proposed for approval.
+  - Q1. Models: `qwen3:8b` for extraction, `bge-m3` for embeddings. (Owner, 2026-11-21: yes; pulled into Ollama.)
+  - Q2. sqlite-vec. Checked 2026-11-21:
+    - the bundled SQLite (3.54.1, `sqlite3` gem 2.10.2) allows loading extensions and has FTS5;
+    - the `sqlite-vec` gem (0.1.9) ships a build for Apple Silicon.
+
+    It is expected to work. If it ever does not load (a future gem or SQLite change, or the extension being pre-1.0), the fallback is embeddings as BLOBs with cosine similarity computed in Ruby. That is a few milliseconds for thousands of facts, so meaning search stays. FTS5 alone is only the last resort, when Ollama is down. (Owner asked why it might fail; answered.)
+  - Q3. Profile facts are approved in a daily summary in the chat ("I learned these things about you — keep?"), not one by one. (Owner, 2026-11-21: as proposed.)
+  - Q4. Prompt budget: at most 12 facts, about 1,500 characters. (Owner: as proposed.)
+  - Q5. The chat history from before this spec is imported once, by a one-off job. The resulting profile facts are proposed for approval. (Owner: as proposed.)
+    **Withdrawn the same day.** The import ran in production and gave poor facts: one-off requests ("cancel item", "check the latest trends") and wrong invalidations of facts still waiting. The owner: "wycofaj tę historię słabej jakości, możemy popracować nad świeżymi danymi". Its facts, episodes and runs were deleted (backup first), and the page no longer offers it. `bin/rails agentaro:brain:import_history` stays for a later, deliberate try.
   - Research: Letta core memory; Graphiti temporal facts; Mem0 extraction; vstash (arXiv 2604.15484); MemConflict (arXiv 2605.20926); Retrieval-Driven Memory Reconsolidation (arXiv 2609.16053).
+
+## Implementation notes (2026-11-21)
+
+- **Data:** migration `20261121131000`.
+  - Tables: `memory_blocks`, `memory_facts` (with `supersedes`/`superseded_by`, pin, use count and a float32 vector), `memory_episodes` (with retry fields) and `memory_fact_sources`.
+  - FTS5 table `memory_facts_fts` (unicode61, diacritics removed), kept in step by the fact model.
+- **Vectors without sqlite-vec (Q2 fallback, chosen now).**
+  - Vectors are BLOBs, and cosine similarity is computed in Ruby over the candidate facts of one prompt (the user's, the space's and the agent's).
+  - At this size it takes milliseconds and needs no native extension in the server. sqlite-vec can come later if the memory grows to tens of thousands of facts.
+  - Keyword and meaning ranks are fused with RRF (k = 60), plus pinning, confidence and recency.
+  - When a scope has at most 12 facts, all of them go in, so a fresh preference is used even when the task's words do not match it (S1).
+- **Where memory goes** (a section named `memory`, so the run trace shows it, spec 030):
+  - chat answers and proposal passes: the user's facts and facts about every active space;
+  - epic planning: the epic's space and the director's playbook;
+  - each step: its space and the step agent's playbook.
+
+  The verifier's prompt and old calendar tasks get none.
+- **Extraction.**
+  - The scheduler starts it in its own thread, up to 5 waiting messages at a time, with `qwen3:8b` in JSON mode, thinking off, temperature 0.
+  - Each call is a run with the purpose `memory`, with its trace.
+  - If the server is down, it retries after 2, 4, 8… minutes and gives up after 6 attempts.
+  - Episodes of director answers and epic outcomes are kept as evidence but not extracted (R1, the stricter reading); spec 033 uses them.
+- **R2.**
+  - A profile fact added or changed by extraction waits as *proposed*; an update keeps the old fact in force until the new one is kept.
+  - An INVALIDATE of the user's own fact applies at once, since it comes from the user's own words.
+- **Chat actions** (G8): `remember`, `forget`, `approve_facts`, `reject_facts`.
+  - They are accepted only when the user's latest message asks for it (remember, forget, keep, drop, in Polish or English).
+  - `forget` makes the fact no longer true (history kept); permanent deletion is on the Brain page (R3).
+- **Daily** (G6, Q3):
+  - duplicates are merged (same text, or cosine ≥ 0.95);
+  - facts unused for 60 days lose 10% confidence, and below 0.2 they are archived, unless pinned;
+  - missing vectors are computed;
+  - after 09:00, profile facts waiting for approval are listed in the chat, in Polish when the conversation is.
+
+  Contradictions are resolved on arrival: the extractor sees the related facts and updates or invalidates them.
+- **History import** (Q5): a button on the Brain page and `bin/rails agentaro:brain:import_history`, once per user.
+- **Settings:** `AGENTARO_BRAIN_URL` (localhost only, R7), `AGENTARO_BRAIN_MODEL`, `AGENTARO_BRAIN_EMBEDDING_MODEL`. The Brain page shows whether the server and both models are there.
+- **Data changelog.** Facts, blocks and episodes are recorded; use counts and vectors are not (`changelog_ignored`). A deleted space or agent takes its facts and block along.
+- **Checks.**
+  - Tests: `test/models/brain_test.rb` (15), `test/integration/brain_page_test.rb` (7). Tests use a stand-in model server; the real one is never called.
+  - Full suite: 392 runs, 0 failures.
+  - Real models on demo data: about 5 s per message. "Raporty zawsze po polsku i krótko…" became a proposed profile fact. A space decision applied at once. "Zmiana: raporty jednak po angielsku" became an update of that fact, and after approval the old one was history (S2). Greetings and one-off requests gave nothing. The step's prompt carried the facts (S1).
+  - The Brain page at 719 px had no horizontal scroll.
+
+## Security analysis (B20), after spec 031
+
+- **Injection (R1, R5).**
+  - Facts come only from the user's messages, the user's edits and explicit remember requests. Director answers, step outputs, web and file content never create facts.
+  - The extractor's context labels earlier messages as context only.
+  - In prompts, memory is labelled as data, not instructions. It cannot add actions, and the working folder is still set only on the space form (B20 after spec 021).
+  - A remember, forget or approve action is refused unless the user's own latest message asks for it (test).
+- **Validation (R6).**
+  - Only known operations are accepted, on the user's own spaces and agents and the user's own facts.
+  - Statements are at most 300 characters, and secrets are rejected with the run-trace filter (spec 030 R2) (tests).
+- **Access.**
+  - Facts, blocks and the history import are limited to the signed-in user. Another user's fact is 404, and a block for another user's space is refused (tests).
+  - Memory is per user; retrieval queries only the user's rows.
+- **Local only (R7).**
+  - The model server must be on localhost; another host raises an error before any call (test).
+  - Memory, episodes and traces stay in `storage/`, which is never committed.
+- **Search.** FTS5 terms are reduced to letters and digits and quoted, so a message cannot inject FTS syntax; values are bound.
+- **Rendering.**
+  - The page prints through ERB escaping (a test shows `<b>` escaped). There are no inline styles or scripts.
+  - The daily summary goes through the chat's existing safe Markdown.
+- **Load.**
+  - One extraction thread, at most 5 messages per scheduler pass, with exponential retry.
+  - Query embeddings have a 3-second limit, after which only keyword search is used.
+- **Earlier specs.**
+  - Spec 004: usage bookkeeping skips the changelog; real changes do not.
+  - Spec 025: space deletion also removes the space's memory.
+  - Spec 030: memory runs are traced.
+  - No regressions found.
+- **Tools.** Brakeman: 0 warnings. No new gems.
+
+## Fixes after deployment (2026-11-21)
+
+- **The worker stayed locked after its first pass.**
+  - The mutex was locked in the scheduler thread and unlocked in the worker thread, which raises `ThreadError`, so extraction never ran again.
+  - Now a `@running` flag is set and cleared under a short lock.
+  - Test: two passes in a row both extract.
+- **Ids with copied text.** The model sometimes answered an UPDATE id as the whole known-facts line. The leading number is read as the id (test).
+- **Extraction quality, after the import.**
+  - The prompt now lists what is never remembered: requests to do, check, cancel, move or plan something, questions, thanks, single-task remarks. It also says "when unsure, remember nothing".
+  - Facts below confidence 0.6 are dropped.
+  - Extraction may update or invalidate only facts in force, never one waiting for the user (R2).
+  - Tests cover both rules.
+

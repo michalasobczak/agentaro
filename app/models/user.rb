@@ -17,6 +17,10 @@ class User < ApplicationRecord
   has_many :work_items, dependent: :destroy
   has_many :spaces, dependent: :destroy # spec 013 (after work_items, which need them)
   has_many :chat_messages, dependent: :destroy
+  # Spec 031: the brain (facts before episodes, which they cite)
+  has_many :memory_facts, dependent: :destroy
+  has_many :memory_episodes, dependent: :destroy
+  has_many :memory_blocks, dependent: :destroy
 
   def director_role = team_roles.directors.includes(agent: :executor).first
   def verifier_role = team_roles.verifiers.includes(agent: :executor).first # spec 019

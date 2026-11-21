@@ -848,3 +848,23 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .trace-parts summary, .trace-events summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; min-width: 0; }
 .trace-preview { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 12rem; }
 
+/* Spec 031: the Brain page */
+.brain-status .brain-model { margin-left: 0.5rem; white-space: nowrap; }
+.brain-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.brain-fact { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; background: var(--surface); min-width: 0; }
+.brain-fact.is-proposed { border-style: dashed; border-color: var(--accent); }
+.brain-fact.is-old { color: var(--muted); }
+.brain-fact-text { overflow-wrap: anywhere; }
+.brain-subject { font-size: 0.9rem; color: var(--muted); margin: 1rem 0 0.5rem; }
+.brain-detail { margin-top: 0.35rem; font-size: 0.9rem; }
+.brain-detail summary, .brain-block summary { cursor: pointer; }
+.brain-detail ul { margin: 0.3rem 0 0; padding-left: 1.2rem; overflow-wrap: anywhere; }
+.brain-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: flex-start; margin-top: 0.5rem; }
+.brain-actions form { margin: 0; }
+.brain-edit { flex: 0 0 auto; }
+.brain-edit[open] { flex: 1 1 100%; order: 10; }
+.brain-edit > summary { list-style: none; display: inline-flex; }
+.brain-edit > summary::-webkit-details-marker { display: none; }
+.brain-edit[open] form { margin-top: 0.5rem; }
+.brain-block { border-top: 1px solid var(--line); padding: 0.6rem 0; }
+.brain-block form { margin-top: 0.5rem; }

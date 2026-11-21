@@ -213,6 +213,8 @@ class StepChain
     end
     earlier = earlier_answers(step)
     lines << [ "earlier_answers", "#{HISTORY_HEADING}#{earlier}" ] if earlier.present?
+    memory, = Brain::Retriever.new(item.user, space: item.space, agent: agent, query: [ step.title, step.description, item.title ].compact.join("\n")).section
+    lines << [ "memory", "\n#{memory}" ] if memory # spec 031, G5
     lines << [ "instructions", "\nDo the task now and answer with the result." ]
     AgentCall::Prompt.new(system: agent.master_prompt, sections: lines, joiner: "\n")
   end

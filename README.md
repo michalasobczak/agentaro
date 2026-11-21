@@ -81,6 +81,12 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - **Notices (spec 026)** — the closed chat's button blinks while an answer is unread, and the tab title blinks while the tab is in the background. A blocked epic pops up on every page with its reason, **Try again**, **Open epic** and **Close**. Close is remembered on every device until the epic is blocked again. After you allow it once, a block also comes as a macOS notification while the tab is in the background.
 - **Page background (spec 028)** — application pages have a subtle background of two soft glows drifting slowly behind the content, in light and dark colours. It is CSS only, never takes clicks, and stays still when the system asks for reduced motion. The chat keeps its own background.
 - **Chat background (spec 029)** — the chat header (Director page and side panel) has a **Chat background** selector: Solid (default), Dots, Grid, Gradient or Animated. The choice is saved on your account, so it stays after a reload and on other devices. The pattern is drawn only behind the messages, in light and dark colours; Animated stands still as a gradient when the system asks for reduced motion. Messages waiting to be sent are opaque with a dashed outline. Every label in the chat reads at least 4.5:1 in both palettes, and the header wraps instead of clipping.
+- **Brain (spec 031)** — Agentaro remembers what matters, on this Mac only. A local model (`qwen3:8b` in Ollama) reads your messages in the background and keeps short facts: preferences, decisions, constraints and facts about you, your spaces and your agents. A fact about you waits until you keep it, either on the **Brain** page or in the chat's daily list; facts about spaces and agents apply at once. A newer fact replaces an older one, which stays in its history.
+  - **In prompts.** The director, the planning and every step get a "remembered context" section: your notes on the Brain page ("about you", per space, per agent) and the facts that fit the task best. Keywords and meaning (`bge-m3`) are combined, within 12 facts.
+  - **In the chat.** Say "Zapamiętaj, że…" or "Zapomnij o…".
+  - **On the Brain page.** See why each fact exists, edit it (the old version is kept), pin, or delete it for good.
+  - **Without Ollama.** Everything works as before, and reading waits.
+  - **Settings:** `AGENTARO_BRAIN_URL`, `AGENTARO_BRAIN_MODEL`, `AGENTARO_BRAIN_EMBEDDING_MODEL`.
 - **Run traces (spec 030)** — every model call is kept as a trace, on this Mac only:
   - the prompt in named parts, each distinct text stored once;
   - the answer and what the agent did (tool calls and results, each up to 8 KB, marked web, file or command);
@@ -173,7 +179,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 028 | [Animated page background](specs/028-animated-page-background.md) | implemented with proposed defaults (Q1, Q2 awaiting owner) |
 | 029 | [Chat background patterns](specs/029-chat-background-patterns.md) | implemented with proposed defaults (Q1, Q2 awaiting owner; release-gate failures fixed) |
 | 030 | [Run traces](specs/030-run-traces.md) | implemented |
-| 031 | [Brain: long-term memory](specs/031-brain-memory.md) | draft (Q1–Q5 open) |
+| 031 | [Brain: long-term memory](specs/031-brain-memory.md) | implemented |
 | 032 | [Ratings and sentiment](specs/032-ratings-and-sentiment.md) | draft (Q1–Q3 open) |
 | 033 | [Reflection and playbooks](specs/033-reflection-and-playbooks.md) | draft (Q1–Q3 open) |
 | 034 | [Model of the owner and when agents ask](specs/034-owner-model-and-questions.md) | draft (Q1–Q4 open) |

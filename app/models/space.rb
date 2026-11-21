@@ -8,6 +8,7 @@ class Space < ApplicationRecord
 
   belongs_to :user
   has_many :work_items, dependent: :restrict_with_error # spec 013, R5: only empty spaces can be deleted
+  after_destroy_commit { Brain.forget_scope(user_id, "space", id) } # spec 031: its brief and facts go with it
 
   normalizes :name, with: ->(value) { value.to_s.strip.presence }
   normalizes :goal, with: ->(value) { value.to_s.strip.presence }

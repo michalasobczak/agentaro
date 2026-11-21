@@ -40,6 +40,8 @@ class WorkItem < ApplicationRecord
 
   # Steps not started are dropped (spec 011: calendar steps; spec 016, G7: pending steps are cancelled; a running
   # step finishes and its answer is kept).
+  after_update_commit :record_outcome, if: -> { saved_change_to_state? && state.in?(%w[done blocked]) } # spec 031, G3
+
   def cancel!
     transaction do
       reload
@@ -94,4 +96,8 @@ class WorkItem < ApplicationRecord
     errors.add(:space, "is not one of your spaces") if space.user_id != user_id
     errors.add(:space, "is archived") if (new_record? || space_id_changed?) && !space.active?
   end
+
+  private
+
+  def record_outcome = Brain.record_epic(self, state == "done" ? "epic_done" : "epic_blocked")
 end

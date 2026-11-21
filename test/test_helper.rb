@@ -1,6 +1,7 @@
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
+require_relative "support/fake_brain"
 
 module ActiveSupport
   class TestCase
@@ -13,6 +14,9 @@ module ActiveSupport
     end
 
     include ActiveSupport::Testing::TimeHelpers
+
+    # Spec 031: never the real local model in tests — a stand-in that is "down" unless a test gives it answers.
+    setup { Brain.client = FakeBrain.new.tap { |brain| brain.down = true } }
 
     PASSWORD = "correct horse battery staple"
 

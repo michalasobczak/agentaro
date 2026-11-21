@@ -19,6 +19,13 @@ namespace :agentaro do
     end
   end
 
+  namespace :brain do
+    desc "Spec 031, Q5: read every user's chat history from before the brain, once (in the background)"
+    task import_history: :environment do
+      User.find_each { |user| puts "#{user.username}: #{Brain::Worker.import_history(user)} messages queued" }
+    end
+  end
+
   namespace :traces do
     desc "Spec 030: give runs from before run traces a trace with their joined prompt as one part"
     task backfill: :environment do

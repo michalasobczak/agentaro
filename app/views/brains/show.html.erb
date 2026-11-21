@@ -1,0 +1,109 @@
+<%= page_header "Brain", "What Agentaro remembers about you, your spaces and your agents. It goes into their prompts as context; you decide what stays." %>
+
+<%# Spec 031: the local model server and the work waiting for it. %>
+<div class="card brain-status">
+  <dl class="facts">
+    <dt>Local model</dt>
+    <dd>
+      <% if @status[:reachable] %>
+        <%= badge("reachable", "ok") %>
+        <% @status[:models].each do |name, present| %><span class="brain-model"><code><%= name %></code> <%= present ? badge("ready", "ok") : badge("missing", "bad") %></span><% end %>
+      <% else %>
+        <%= badge("not reachable", "warn") %> <span class="muted small">Memory still works with what it has; reading new messages waits.</span>
+      <% end %>
+    </dd>
+    <dt>Waiting to be read</dt><dd><%= pluralize(@waiting, "message") %></dd>
+    <dt>Remembered</dt><dd><%= pluralize(@active.values.sum(&:size), "fact") %><%= ", #{@proposed.size} waiting for you" if @proposed.any? %></dd>
+  </dl>
+</div>
+
+<% if @proposed.any? %>
+  <div class="card" id="proposed">
+    <div class="card-header"><h2>Learned about you — keep?</h2></div>
+    <ul class="brain-facts">
+      <% @proposed.each do |fact| %>
+        <li class="brain-fact is-proposed" id="fact-<%= fact.id %>">
+          <div class="brain-fact-text"><%= fact.statement %> <%= badge(fact.kind) %>
+            <% if fact.supersedes %><span class="muted small">replaces: “<%= fact.supersedes.statement %>”</span><% end %></div>
+          <%= render "brains/sources", fact: fact %>
+          <div class="brain-actions">
+            <%= button_to "Keep", approve_memory_fact_path(fact), class: "button" %>
+            <%= button_to "Drop", reject_memory_fact_path(fact), class: "button secondary" %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<div class="card" id="blocks">
+  <div class="card-header"><h2>Always in mind</h2></div>
+  <p class="hint">Short notes that go into every prompt of their scope (at most <%= MemoryBlock::MAX %> characters each).</p>
+  <% scopes = [ [ "user", nil, "About you", "How you like things done, who you are, what matters to you." ] ] +
+       @spaces.map { |s| [ "space", s.id, "Space “#{s.name}”", "Goal, decisions and conventions of this space." ] } +
+       @agents.map { |a| [ "agent", a.id, "Agent #{a.name}", "This agent's playbook: what works for you." ] } %>
+  <% scopes.each do |type, id, title, hint| %>
+    <% block = @blocks[[ type, id ]] %>
+    <details class="brain-block" <%= "open" if type == "user" %>>
+      <summary><strong><%= title %></strong> <% if block&.content.present? %><span class="muted small">version <%= block.version %></span><% else %><span class="muted small">empty</span><% end %></summary>
+      <%= form_with url: block_brain_path, method: :patch, class: "stack" do |f| %>
+        <%= hidden_field_tag :scope_type, type %>
+        <%= hidden_field_tag :scope_id, id %>
+        <%= text_area_tag :content, block&.content, rows: 4, maxlength: MemoryBlock::MAX, placeholder: hint, "aria-label": title %>
+        <div><%= f.submit "Save", class: "button secondary" %></div>
+      <% end %>
+    </details>
+  <% end %>
+</div>
+
+<div class="card" id="facts">
+  <div class="card-header"><h2>Facts</h2></div>
+  <% if @active.empty? %>
+    <p class="muted">Nothing yet. Tell the director, for example, “Zapamiętaj, że raporty mają być krótkie”, or just talk — the brain reads your messages.</p>
+  <% end %>
+  <% @active.each do |_, facts| %>
+    <h3 class="brain-subject">About <%= facts.first.subject_label %></h3>
+    <ul class="brain-facts">
+      <% facts.each do |fact| %>
+        <li class="brain-fact" id="fact-<%= fact.id %>">
+          <div class="brain-fact-text">
+            <%= fact.statement %> <%= badge(fact.kind) %> <%= badge("pinned", "accent") if fact.pinned %>
+            <span class="muted small"><%= fact.origin %> · confidence <%= (fact.confidence * 100).round %>% ·
+              <%= fact.last_used_at ? "last used #{time_ago_in_words(fact.last_used_at)} ago" : "not used yet" %></span>
+          </div>
+          <%= render "brains/sources", fact: fact %>
+          <% if (history = fact.history).any? %>
+            <details class="brain-detail"><summary>History (<%= history.size %>)</summary>
+              <ul><% history.each do |old| %><li><span class="muted small"><%= l(old.valid_from, format: :short) %> – <%= old.invalid_at ? l(old.invalid_at, format: :short) : "…" %>:</span> <%= old.statement %></li><% end %></ul>
+            </details>
+          <% end %>
+          <div class="brain-actions">
+            <details class="brain-edit"><summary class="button secondary">Edit</summary>
+              <%= form_with url: memory_fact_path(fact), method: :patch, class: "stack" do |f| %>
+                <%= text_area_tag :statement, fact.statement, rows: 2, maxlength: MemoryFact::MAX, "aria-label": "Fact" %>
+                <%= select_tag :kind, options_for_select(MemoryFact::KINDS, fact.kind), "aria-label": "Kind" %>
+                <div><%= f.submit "Save", class: "button" %></div>
+              <% end %>
+            </details>
+            <%= button_to (fact.pinned ? "Unpin" : "Pin"), pin_memory_fact_path(fact), class: "button secondary" %>
+            <%= button_to "Delete", memory_fact_path(fact), method: :delete, class: "button danger", form: { data: { turbo_confirm: "Delete this fact for good? It also leaves its history." } } %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</div>
+
+<% if @old.any? %>
+  <details class="card">
+    <summary><strong>No longer true or faded (<%= @old.size %>)</strong></summary>
+    <ul class="brain-facts">
+      <% @old.each do |fact| %>
+        <li class="brain-fact is-old" id="fact-<%= fact.id %>">
+          <div class="brain-fact-text"><%= fact.statement %> <span class="muted small"><%= fact.status %> · about <%= fact.subject_label %><%= " · since #{l(fact.invalid_at, format: :short)}" if fact.invalid_at %></span></div>
+          <div class="brain-actions"><%= button_to "Delete", memory_fact_path(fact), method: :delete, class: "button danger", form: { data: { turbo_confirm: "Delete this fact for good?" } } %></div>
+        </li>
+      <% end %>
+    </ul>
+  </details>
+<% end %>

@@ -22,6 +22,7 @@ module ApplicationHelper
     send: '<path d="M4 12 20 4l-4 16-4-7-8-1Z"/><path d="m12 13 8-9"/>',
     chat: '<path d="M4 5h16v11H9l-5 4V5Z"/><path d="M8 9.5h8M8 12.5h5"/>',
     list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>',
+    brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a2 2 0 0 0-3-1z"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1"/>',
     org: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
     play: '<path d="M7 4.5v15l12-7.5-12-7.5Z"/>',
     chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M10 10h4v4h-4zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
@@ -128,6 +129,7 @@ module ApplicationHelper
   def run_purpose_label(run)
     case run.purpose
     when "chat" then "chat"
+    when "memory" then "the brain read a message" # spec 031
     when "epic_step" then run.epic_step ? "step #{run.epic_step.position}: #{run.epic_step.title}" : "step" # spec 016
     when "director" then run.work_item&.runs&.exists?(purpose: "manager") ? "director chose a manager" : "director planned"
     when "manager" then "manager planned (before spec 012)"

@@ -10,6 +10,8 @@ class ChatMessage < ApplicationRecord
   validates :author, inclusion: { in: AUTHORS }
   validates :content, presence: true, length: { maximum: 20_000 }
 
+  after_create_commit { Brain.record_message(self) } # spec 031, G3
+
   scope :ordered, -> { order(:created_at, :id) }
   scope :current, -> { where(archived_at: nil) } # spec 015: the conversation going on now
   scope :archived, -> { where.not(archived_at: nil) }

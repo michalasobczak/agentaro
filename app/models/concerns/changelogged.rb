@@ -11,9 +11,11 @@ module Changelogged
     class_attribute :changelog_summarized, default: []
     # Spec 030: run traces are derived from runs (which are recorded) and would only repeat their text here.
     class_attribute :changelog_skipped, default: false
+    # Spec 031: bookkeeping columns (when a fact was last used, its vector) are not data changes worth a row.
+    class_attribute :changelog_ignored, default: []
 
-    after_create_commit { record_data_change("create", saved_changes) }
-    after_update_commit { record_data_change("update", saved_changes.except("updated_at")) }
+    after_create_commit { record_data_change("create", saved_changes.except(*changelog_ignored)) }
+    after_update_commit { record_data_change("update", saved_changes.except("updated_at", *changelog_ignored)) }
     after_destroy_commit { record_data_change("destroy", attributes.transform_values { |value| [ value, nil ] }) }
   end
 

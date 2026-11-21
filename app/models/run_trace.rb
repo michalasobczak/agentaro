@@ -41,7 +41,8 @@ module RunTrace
       ModelCall.transaction do
         call = ModelCall.create!(
           task_run: run, user_id: run.user_id || run.task&.user_id, position: (run.model_calls.maximum(:position) || 0) + 1,
-          pass: pass || run.purpose, agent_id: agent.id, agent_name: agent.name, preset: agent.executor&.preset, model: model, effort: effort,
+          pass: pass || run.purpose, agent_id: agent&.id, agent_name: agent&.name || run.agent_name, preset: agent&.executor&.preset || run.preset,
+          model: model, effort: effort,
           state: outcome.state, started_at: started_at, duration_ms: (duration * 1000).round, joiner: prompt.joiner,
           error: (TaskRun.limit_tail(clean.(outcome.error), TaskRun::MAX_ERROR) if outcome.error.present?),
           output_part: (TracePart.for(TaskRun.limit_text(clean.(outcome.output), TaskRun::MAX_OUTPUT)) if outcome.output.present?),

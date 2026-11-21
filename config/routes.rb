@@ -52,6 +52,17 @@ Rails.application.routes.draw do
       patch :order
     end
   end
+  # Spec 031: the brain
+  resource :brain, only: :show do
+    patch :block
+  end
+  resources :memory_facts, only: %i[update destroy], path: "brain/facts" do
+    member do
+      post :pin
+      post :approve
+      post :reject
+    end
+  end
   resource :team, only: :show do
     get :status # spec 023: busy or free
   end

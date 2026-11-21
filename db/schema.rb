@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_131000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -82,6 +82,70 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_130000) do
     t.boolean "model_check_ok"
     t.text "model_check_output"
     t.index ["name"], name: "index_executors_on_name", unique: true
+  end
+
+  create_table "memory_blocks", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "scope_type", null: false
+    t.integer "scope_id"
+    t.text "content", default: "", null: false
+    t.integer "version", default: 1, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "scope_type", "scope_id"], name: "index_memory_blocks_on_user_id_and_scope_type_and_scope_id", unique: true
+    t.index ["user_id"], name: "index_memory_blocks_on_user_id"
+  end
+
+  create_table "memory_episodes", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "kind", null: false
+    t.string "source_type"
+    t.integer "source_id"
+    t.text "excerpt", null: false
+    t.datetime "occurred_at", null: false
+    t.datetime "processed_at"
+    t.integer "attempts", default: 0, null: false
+    t.datetime "next_attempt_at"
+    t.string "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["source_type", "source_id"], name: "index_memory_episodes_on_source_type_and_source_id"
+    t.index ["user_id", "processed_at"], name: "index_memory_episodes_on_user_id_and_processed_at"
+    t.index ["user_id"], name: "index_memory_episodes_on_user_id"
+  end
+
+  create_table "memory_fact_sources", force: :cascade do |t|
+    t.integer "memory_fact_id", null: false
+    t.integer "memory_episode_id", null: false
+    t.index ["memory_episode_id"], name: "index_memory_fact_sources_on_memory_episode_id"
+    t.index ["memory_fact_id", "memory_episode_id"], name: "idx_on_memory_fact_id_memory_episode_id_561796dd44", unique: true
+    t.index ["memory_fact_id"], name: "index_memory_fact_sources_on_memory_fact_id"
+  end
+
+  create_table "memory_facts", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "subject_type", null: false
+    t.integer "subject_id"
+    t.string "kind", null: false
+    t.string "statement", null: false
+    t.string "status", default: "active", null: false
+    t.string "origin", default: "extracted", null: false
+    t.float "confidence", default: 0.7, null: false
+    t.datetime "valid_from", null: false
+    t.datetime "invalid_at"
+    t.integer "superseded_by_id"
+    t.integer "supersedes_id"
+    t.boolean "pinned", default: false, null: false
+    t.datetime "last_used_at"
+    t.integer "use_count", default: 0, null: false
+    t.binary "embedding"
+    t.string "embedding_model"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["superseded_by_id"], name: "index_memory_facts_on_superseded_by_id"
+    t.index ["supersedes_id"], name: "index_memory_facts_on_supersedes_id"
+    t.index ["user_id", "status", "subject_type", "subject_id"], name: "idx_on_user_id_status_subject_type_subject_id_3196625777"
+    t.index ["user_id"], name: "index_memory_facts_on_user_id"
   end
 
   create_table "model_call_parts", force: :cascade do |t|
@@ -315,6 +379,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_130000) do
   add_foreign_key "chat_messages", "users"
   add_foreign_key "epic_steps", "agents"
   add_foreign_key "epic_steps", "work_items"
+  add_foreign_key "memory_blocks", "users"
+  add_foreign_key "memory_episodes", "users"
+  add_foreign_key "memory_fact_sources", "memory_episodes"
+  add_foreign_key "memory_fact_sources", "memory_facts"
+  add_foreign_key "memory_facts", "memory_facts", column: "superseded_by_id"
+  add_foreign_key "memory_facts", "memory_facts", column: "supersedes_id"
+  add_foreign_key "memory_facts", "users"
   add_foreign_key "model_call_parts", "model_calls"
   add_foreign_key "model_call_parts", "trace_parts"
   add_foreign_key "model_calls", "task_runs"
@@ -337,4 +408,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_130000) do
   add_foreign_key "team_roles", "users"
   add_foreign_key "work_items", "spaces"
   add_foreign_key "work_items", "users"
+
+  # Virtual tables defined in this database.
+  # Note that virtual tables may not work with other database engines. Be careful if changing database.
+  create_virtual_table "memory_facts_fts", "fts5", ["statement", "tokenize='unicode61 remove_diacritics 2'"]
 end
