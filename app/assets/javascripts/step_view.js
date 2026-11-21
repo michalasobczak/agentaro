@@ -50,7 +50,7 @@
     const meta = el("div", "small muted step-view-meta");
     meta.append(el("span", "step-view-state", data.step.label));
     if (data.step.agent) meta.append(el("span", null, data.step.agent));
-    if (data.run && data.run.elapsed != null) meta.append(el("span", null, `${data.running ? "running for" : "took"} ${clock(data.run.elapsed)}`));
+    if (data.run && data.run.elapsed != null) meta.append(el("span", null, `${data.running ? "running for" : "took"} ${clock(data.run.elapsed)}${data.step.limit ? ` of ${data.step.limit} min` : ""}`));
     step.append(meta);
     nodes.push(step);
 
@@ -62,6 +62,18 @@
     if (data.running && data.stream === "none") nodes.push(el("p", "small muted", "This executor reports when it ends."));
     if (data.running && data.stream !== "none" && !data.entries.length && !data.text) nodes.push(el("p", "small muted", "Starting…"));
 
+    if (data.decisions && data.decisions.length) { // spec 040: the director's decisions about this step
+      const list = el("ul", "step-view-decisions small");
+      data.decisions.forEach((d) => list.append(el("li", null, d.text)));
+      nodes.push(list);
+    }
+    if (data.processes && data.processes.length) { // spec 040: what the running step has started
+      const list = el("ul", "step-view-processes small muted");
+      data.processes.forEach((p) => list.append(el("li", null, `${p.command}${p.minutes != null ? ` · ${p.minutes} min` : ""}`)));
+      const box = el("div", "step-view-section");
+      box.append(el("h3", "step-view-label", "Running processes"), list);
+      nodes.push(box);
+    }
     if (data.earlier) nodes.push(el("p", "small muted", `${data.earlier} earlier entries`));
     if (data.entries.length) {
       const log = el("ol", "step-log");

@@ -32,6 +32,17 @@ class StepDecision < ApplicationRecord
     raise ArgumentError, "the answer is empty" if value.empty?
     raise ArgumentError, "the answer is longer than #{MAX_ANSWER} characters" if value.length > MAX_ANSWER
 
+    # Spec 040: the director's question about a failed step — its decision follows the answer.
+    if (review = StepReview.find_by(step_decision_id: id, status: "asked"))
+      answered = transaction do
+        next false unless reload.pending?
+
+        update!(status: "answered", answered_by: "owner", answer: value)
+      end
+      StepReviewer.new(review.review_run).owner_answered!(review, value) if answered
+      return answered
+    end
+
     item = work_item
     resumed = item.transaction do
       next false unless reload.pending?

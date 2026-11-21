@@ -7,7 +7,7 @@ class WorkItemsController < ApplicationController
     @item = current_user.work_items.find(params[:id])
     @runs = @item.runs.recent.limit(20)
     @steps = @item.tasks.includes(:agent, :runs).order(:starts_at) # calendar steps from before spec 016 (Q7)
-    @epic_steps = @item.epic_steps.includes(:agent, :runs).to_a
+    @epic_steps = @item.epic_steps.includes(:agent, :runs, :step_reviews).to_a
     @decisions = @item.step_decisions.order(:id).to_a # spec 033
   end
 

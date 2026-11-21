@@ -118,12 +118,8 @@
   </div>
 <% end %>
 
-<%# Spec 032, G5: automatic retries of failed steps. %>
+<%# Spec 040 (replaces spec 032's switch): the director decides about failed steps. %>
 <div class="card" id="failed-steps">
   <div class="card-header"><h2>Failed steps</h2></div>
-  <%= form_with url: account_auto_retry_path, method: :patch, class: "stack" do |f| %>
-    <%= hidden_field_tag :auto_retry, "0", id: nil %>
-    <label class="check"><%= check_box_tag :auto_retry, "1", current_user.auto_retry %><span>Try again by itself<br><span class="hint">A step stopped by a time limit, a usage limit or a network error is tried again up to <%= StepRetry::MAX_ATTEMPTS - 1 %> times, with pauses, before its epic is blocked (at most <%= StepRetry::DAILY_CAP %> retries a day).</span></span></label>
-    <div><%= f.submit "Save", class: "button secondary" %></div>
-  <% end %>
+  <p class="hint">When a step does not succeed, your director reads its error and log and decides: retry, retry with changed instructions, replan the rest, ask you or stop the epic (at most <%= StepReview::MAX_ATTEMPTS %> attempts per step, <%= StepReview::DAILY_CAP %> retries a day). How often it asks you follows the autonomy level in the chat.</p>
 </div>

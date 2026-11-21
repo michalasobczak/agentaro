@@ -157,7 +157,8 @@ module CalendarHelper
     return badge(note, "warn") if note # spec 032, G4
 
     return badge("waiting for your answer", "warn") if step.state == "waiting" # spec 033
-    kind = { "succeeded" => "ok", "failed" => "bad", "timed_out" => "bad", "skipped" => "warn", "running" => "accent", "queued" => "accent" }[step.state]
+    return badge("director decides", "warn") if step.state == "reviewing" # spec 040
+    kind = { "succeeded" => "ok", "failed" => "bad", "timed_out" => "bad", "skipped" => "warn", "running" => "accent", "queued" => "accent", "replaced" => "warn" }[step.state]
     badge(step.state_label, kind)
   end
 

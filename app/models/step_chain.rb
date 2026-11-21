@@ -26,7 +26,7 @@ class StepChain
       next unless item.state == "planned"
       next if item.awaiting_approval # spec 033, G1: level 1 waits for Approve
       next if item.waits_for # spec 037: one epic at a time in a space
-      next if item.active_steps.where(state: %w[queued running]).exists?
+      next if item.active_steps.where(state: %w[queued running reviewing]).exists? # spec 040: the director decides first
 
       step = item.active_steps.find_by(state: "pending")
       next finish!(item) unless step
@@ -44,7 +44,7 @@ class StepChain
   # G6, Q5: every step of the active plan succeeded.
   def self.finish!(item)
     steps = item.active_steps.to_a
-    return unless steps.any? && steps.all? { |step| step.state == "succeeded" }
+    return unless steps.any? && steps.all? { |step| EpicStep::DONE.include?(step.state) } # spec 040: replaced steps count as done
 
     item.done!
     order = item.recurring_order
@@ -59,6 +59,7 @@ class StepChain
   # Called when a step's run has finished (also for runs interrupted by a restart).
   def self.after_run(run)
     item = run.work_item or return
+    review_to_hand = nil
     continued = item.transaction do
       item.reload
       step = item.active_steps.find_by(id: run.epic_step_id)
@@ -70,14 +71,18 @@ class StepChain
         next decide(item, step, run) != :wait
       end
 
-      retry_run, note = StepRetry.schedule(item, step, run) # spec 032: a passing failure is tried again later
-      next false if retry_run
+      review_run, note = StepReview.request!(item, step, run) # spec 040, G1: the director decides (replaces spec 032's rule)
+      if review_run
+        review_to_hand = review_run
+        next false
+      end
 
       reason = "Step #{step.position} \"#{step.title}\" #{run.state_label}: #{run.error.to_s.truncate(300).presence || "no answer"}#{note}"
       item.block!(reason)
       say(item, "system", "\"#{item.title}\" stopped at step #{step.position} of #{item.active_steps.maximum(:position)}: #{run.error.to_s.truncate(300).presence || run.state_label}.#{note} Press Try again on the epic to resume from this step.")
       false
     end
+    hand_over(review_to_hand.id) if review_to_hand
     queue_next(item) if continued
   end
 
@@ -207,7 +212,7 @@ class StepChain
 
     agent = step.agent
     outcome = if agent
-      AgentCall.new(@run, agent, self.class.prompt_for(step, agent), **@call_options).call
+      AgentCall.new(@run, agent, self.class.prompt_for(step, agent), **{ timeout: step.time_limit_seconds }.merge(@call_options)).call # spec 040, G2
     else
       AgentCall::Outcome.new("skipped", nil, "The step has no agent (it was deleted).", nil)
     end

@@ -1,6 +1,6 @@
 # 032 — Automatic retry of failed steps
 
-Status: **closed** 2026-11-21 (the owner accepted the proposals for Q1–Q4); **implemented** 2026-11-21.
+Status: **closed** 2026-11-21 (the owner accepted the proposals for Q1–Q4); **implemented** 2026-11-21. **Partly replaced by [spec 040](040-director-controls-failed-and-hung-steps.md):** when to retry is the director's decision; the fixed waits (G2) and the switch (G5) are gone. The kinds (G1), reset times, waiting retries (R2), the retry prompt (G3) and the daily cap stay.
 Date: 2026-11-21
 Depends on: [010](010-task-execution.md), [016](016-sequential-steps.md), [021](021-director-sees-step-output.md), [026](026-unread-blink-and-blocked-notices.md)
 

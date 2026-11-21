@@ -116,7 +116,7 @@ class RecurringOrder < ApplicationRecord
 
   # Called when an occurrence finished: its steps become the plan to reuse.
   def remember_plan!(item)
-    steps = item.active_steps.map { |s| { "title" => s.title, "description" => s.description.to_s, "agent" => s.agent_id } }
+    steps = item.active_steps.where.not(state: "replaced").map { |s| { "title" => s.title, "description" => s.description.to_s, "agent" => s.agent_id, "minutes" => s.time_limit_minutes } }
     update!(last_plan: steps, last_plan_summary: item.plan_summary) if steps.any? && steps.all? { |s| s["agent"] }
   end
 
@@ -136,7 +136,7 @@ class RecurringOrder < ApplicationRecord
     item = user.work_items.create!(title: title, description: description, space: space, recurring_order: self,
                                    position: user.work_items.maximum(:position).to_i + 1, state: plan ? "planned" : "new",
                                    plan_summary: (last_plan_summary if plan))
-    plan&.each_with_index { |s, i| item.epic_steps.create!(position: i + 1, title: s["title"], description: s["description"].presence, agent_id: s["agent"]) }
+    plan&.each_with_index { |s, i| item.epic_steps.create!(position: i + 1, title: s["title"], description: s["description"].presence, agent_id: s["agent"], time_limit_minutes: s["minutes"]) } # spec 040
     update!(last_occurrence_at: due, note: nil)
     item
   end

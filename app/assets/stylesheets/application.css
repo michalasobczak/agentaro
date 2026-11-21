@@ -665,6 +665,10 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .step-log-entry.is-action .step-log-text { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .step-log-label { font-weight: 600; }
 .step-log-failed { color: var(--bad-text); font-weight: 600; }
+/* Spec 040: the director's decisions about a step, and the processes a running step has started */
+.step-view-decisions, .step-reviews { margin: 0.5rem 0; padding-left: 1.1rem; }
+.step-view-processes { margin: 0; padding-left: 1.1rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.step-reviews details { margin-top: 0.2rem; }
 .step-log-text { white-space: pre-wrap; overflow-wrap: anywhere; flex: 1 1 100%; }
 .work-step[data-live-step] { cursor: pointer; border-radius: 4px; }
 .work-step[data-live-step]:hover, .work-step[data-live-step]:focus-visible { background: var(--surface-2, var(--line)); }

@@ -116,6 +116,7 @@ class AgentCall
                       on_stdout: on_stdout, on_spawn: ->(pid) { spawned(pid) }) # spec 025: can be stopped
     ensure
       RunControl.finished(@run.id)
+      clean_up_processes # spec 040, G3: whatever the step left running
     end
     answer = answer_file && File.exist?(answer_file) ? File.read(answer_file) : (stream ? stream.answer(result.stdout) : result.stdout)
     if result.timed_out
@@ -145,11 +146,25 @@ class AgentCall
   end
 
   # Spec 025: the run can be stopped; spec 036, R5: its process is saved, so a restart waits for it to end.
+  # Spec 040, G3: a step's processes are followed from here on.
   def spawned(pid)
     RunControl.started(@run.id, pid)
+    @tracker = ProcessTracker.new(folder, pid).start if @live
     @run.update!(pid: pid)
   rescue StandardError => e
     Rails.logger.error("[runs] could not save the process of run #{@run.id}: #{e.class}: #{e.message}")
+  end
+
+  # Spec 040, G3, R4: stops every process the step started that is still alive; the step's log says which.
+  def clean_up_processes
+    stopped = @tracker&.finish! or return
+    return if stopped.empty?
+
+    event = { "kind" => "text", "text" => "Agentaro stopped #{stopped.size} process#{"es" unless stopped.size == 1} the step left running: #{stopped.first(10).join("; ")}" }
+    @live&.add(event)
+    @stream.events << event if @stream && @stream.events.size < ClaudeStream::MAX_EVENTS
+  rescue StandardError => e
+    Rails.logger.error("[processes] run #{@run.id}: #{e.class}: #{e.message}")
   end
 
   # Spec 017: a streamed API answer — Ollama sends JSON lines, OpenAI-compatible servers send "data:" lines.

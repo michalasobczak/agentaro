@@ -356,17 +356,18 @@ class ParallelTasksTest < ActiveSupport::TestCase
     FileUtils.rm_rf(File.join(Rails.application.config.x.runs_dir, nextone.id.to_s)) if nextone
   end
 
-  test "S4, R6: an automatic retry gets its own folder and leaves the failed attempt's files alone" do
-    @user.update!(auto_retry: true)
+  test "S4, R6: a retry gets its own folder and leaves the failed attempt's files alone" do
     failed = queued_step("Fail9")
     with_waiting_agent do
       go("Fail9")
       Scheduler.process(Scheduler.claim_next)
       assert_equal "failed", failed.reload.state
       first_folder = pwd_of("Fail9")
-      retry_run = TaskRun.find_by!(epic_step: failed.epic_step, trigger: "retry") # spec 032: an unknown error is retried once
+      failed.epic_step.update!(state: "queued") # spec 040: the director's retry, as StepReviewer creates it
+      failed.work_item.reload.update!(state: "planned", blocked_reason: nil)
+      retry_run = TaskRun.create!(user: @user, work_item: failed.work_item, epic_step: failed.epic_step, agent: @agent, purpose: "epic_step",
+                                  trigger: "retry", occurrence_start: Time.current, state: "queued", attempt: 2)
       @runs = [ failed, retry_run ]
-      retry_run.update!(retry_at: nil) # what the tick does when its time has come
       Scheduler.process(Scheduler.claim_next)
       folders = @runs.map { |run| File.realpath(File.join(Rails.application.config.x.runs_dir, run.id.to_s, "work")) }
       assert_equal folders[0], first_folder

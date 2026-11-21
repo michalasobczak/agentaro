@@ -413,7 +413,11 @@ class ManagementRunner
           note = " — Excerpt omitted: budget reached"
         end
       end
-      "  step #{step.position} \"#{step.title}\" (#{step.agent&.name || "agent removed"}): #{step.state_label}#{took}#{note}#{excerpt}"
+      processes = if step.state == "running" && run # spec 040, G4: what the step runs now, so the director can stop a hung one
+        ProcessTracker.alive(LiveLog.dir_for(run.id)).first(10).map { |p| "\n    process of run #{run.id}, pid #{p["pid"]}: #{p["command"].to_s.truncate(120)} (since #{Time.zone.parse(p["since"].to_s)&.strftime("%H:%M") rescue "?"})" }.join
+      end
+      limit = " (limit #{step.time_limit} min)" if step.state == "running"
+      "  step #{step.position} \"#{step.title}\" (#{step.agent&.name || "agent removed"}): #{step.state_label}#{took}#{limit}#{note}#{excerpt}#{processes}"
     end
     lines.unshift("  Older steps omitted; see the epic page.") if steps.size > MAX_PROGRESS_STEPS
     lines
@@ -534,6 +538,7 @@ class ManagementRunner
       {"type": "answer_decision", "id": <decision id>, "answer": "#{@user.username}'s answer in their words or the option they chose"} (only when #{@user.username} answers a question waiting for them)
       {"type": "approve_plan", "id": <epic id>} (only when #{@user.username} approves a plan waiting for approval)
       {"type": "set_autonomy", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks; 1 #{Autonomy.name(1)}: ask more, 2 #{Autonomy.name(2)}, 3 #{Autonomy.name(3)}: agents decide)
+      {"type": "stop_process", "run": <run id>, "pid": <pid>} (only when #{@user.username} asks to stop or kill a process of a running step; only the processes listed under its step)
       {"type": "set_reply_length", "level": 1, 2 or 3} (only when #{@user.username} asks for shorter, longer or more detailed replies from now on; 1 #{ReplyLength.name(1)}, 2 #{ReplyLength.name(2)}, 3 #{ReplyLength.name(3)}; not for one detailed answer)
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
@@ -626,7 +631,7 @@ class ManagementRunner
       Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member. A member can run several tasks at once, up to its limit; when the right skills allow a choice, prefer a member with free slots, since a step for a busy member (at its limit) waits until one of its tasks ends. Write the summary, titles and descriptions in the language of the work item.
       #{autonomy_plan_rule}
       Reply with ONLY one JSON object, no other text:
-      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>}], "assumptions": ["what you assumed yourself, one short sentence each (may be empty)"]}
+      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>, "minutes": <the step's time limit, 5 to 240: your estimate of how long it needs, with a margin; 30 if unsure>}], "assumptions": ["what you assumed yourself, one short sentence each (may be empty)"]}
       or, if you cannot plan it or need #{@user.username}'s decision: {"blocked": "your question to #{@user.username}"}
     PROMPT
   end
@@ -740,6 +745,7 @@ class ManagementRunner
     when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
     when "answer_decision", "approve_plan", "set_autonomy" then autonomy_action(action) # spec 033
     when "set_reply_length" then reply_length_action(action) # spec 039
+    when "stop_process" then stop_process_action(action) # spec 040, G4
     when "add_recurring", "update_recurring", "pause_recurring", "resume_recurring", "cancel_recurring" then recurring_action(action) # spec 034
     else
       raise Invalid, "unknown action #{action["type"].inspect}"
@@ -840,6 +846,26 @@ class ManagementRunner
       else
         -> { @user.update!(autonomy_level: level); "Your autonomy: #{Autonomy.name(level)}" }
       end
+    end
+  end
+
+  # Spec 040, G4, R3: a process of the owner's own running step, only on the owner's words, only one the step started.
+  STOP_REQUEST = /zabij|ubij|kill|zatrzymaj|stop|przerwij|wyłącz|wylacz|zako[ńn]cz|terminate/i
+
+  def stop_process_action(action)
+    raise Invalid, "stop_process: #{@user.username} has not asked in their message to stop a process" unless user_request&.content.to_s.match?(STOP_REQUEST)
+
+    run = TaskRun.find_by(id: action["run"].to_s.to_i, user_id: @user.id, purpose: "epic_step", state: "running")
+    raise Invalid, "stop_process: run #{action["run"].inspect} is not a running step of yours" unless run
+
+    dir = LiveLog.dir_for(run.id)
+    pid = action["pid"].to_s.to_i
+    raise Invalid, "stop_process: pid #{action["pid"].inspect} is not a process of that step" unless ProcessTracker.alive(dir).any? { |p| p["pid"] == pid }
+
+    lambda do
+      stopped = ProcessTracker.stop_one(dir, pid).to_a
+      LiveLog.new(dir).add("kind" => "text", "text" => "Stopped at #{@user.username}'s request: #{stopped.join("; ")}") if stopped.any?
+      stopped.any? ? "Stopped: #{stopped.first.truncate(80)}" : "Already ended: pid #{pid}"
     end
   end
 
@@ -1015,7 +1041,12 @@ class ManagementRunner
     agent = members[step["agent"].to_i] or raise Invalid, "step #{number}: agent #{step["agent"].inspect} is not one of your team members"
     raise Invalid, "step #{number}: #{agent.name} is not available" unless agent.usable?
 
-    { "title" => title, "description" => step["description"].to_s.truncate(5000), "agent" => agent.id }
+    minutes = step["minutes"]
+    unless minutes.nil? || (minutes.is_a?(Integer) && EpicStep::LIMIT_MINUTES.cover?(minutes)) # spec 040, R5
+      raise Invalid, "step #{number}: \"minutes\" must be a whole number from 5 to 240"
+    end
+
+    { "title" => title, "description" => step["description"].to_s.truncate(5000), "agent" => agent.id, "minutes" => minutes }
   end
 
   # Spec 016, G2: a checked plan becomes the epic's ordered steps; the epic is planned and starts at its time.
@@ -1028,7 +1059,8 @@ class ManagementRunner
       @item.epic_steps.where(state: "pending").destroy_all # a re-plan replaces steps that never ran
       base = @item.epic_steps.maximum(:position).to_i
       steps.each_with_index do |step, i|
-        @item.epic_steps.create!(position: base + i + 1, title: step["title"], description: step["description"].presence, agent_id: step["agent"])
+        @item.epic_steps.create!(position: base + i + 1, title: step["title"], description: step["description"].presence, agent_id: step["agent"],
+                                 time_limit_minutes: step["minutes"]) # spec 040, G2
       end
       @item.update!(state: "planned", plan_summary: summary, blocked_reason: nil, active_step_from: base + 1,
                     started_at: nil, finished_at: nil, awaiting_approval: approval)

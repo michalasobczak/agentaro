@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_190000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -57,6 +57,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_180000) do
     t.string "state", default: "pending", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "time_limit_minutes"
     t.index ["agent_id"], name: "index_epic_steps_on_agent_id"
     t.index ["work_item_id", "position"], name: "index_epic_steps_on_work_item_id_and_position", unique: true
     t.index ["work_item_id"], name: "index_epic_steps_on_work_item_id"
@@ -294,6 +295,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_180000) do
     t.index ["work_item_id"], name: "index_step_decisions_on_work_item_id"
   end
 
+  create_table "step_reviews", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "work_item_id", null: false
+    t.integer "epic_step_id", null: false
+    t.integer "task_run_id"
+    t.integer "review_run_id"
+    t.integer "step_decision_id"
+    t.string "kind", null: false
+    t.string "status", default: "pending", null: false
+    t.string "decision"
+    t.text "reason"
+    t.datetime "retry_at"
+    t.integer "time_limit_minutes"
+    t.text "previous_description"
+    t.json "proposal"
+    t.json "stopped"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["epic_step_id", "kind", "created_at"], name: "index_step_reviews_on_epic_step_id_and_kind_and_created_at"
+    t.index ["epic_step_id"], name: "index_step_reviews_on_epic_step_id"
+    t.index ["review_run_id"], name: "index_step_reviews_on_review_run_id"
+    t.index ["step_decision_id"], name: "index_step_reviews_on_step_decision_id"
+    t.index ["task_run_id"], name: "index_step_reviews_on_task_run_id"
+    t.index ["user_id"], name: "index_step_reviews_on_user_id"
+    t.index ["work_item_id"], name: "index_step_reviews_on_work_item_id"
+  end
+
   create_table "task_exceptions", force: :cascade do |t|
     t.integer "task_id", null: false
     t.datetime "occurs_at", null: false
@@ -463,6 +491,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_180000) do
   add_foreign_key "step_decisions", "epic_steps"
   add_foreign_key "step_decisions", "task_runs"
   add_foreign_key "step_decisions", "work_items"
+  add_foreign_key "step_reviews", "epic_steps"
+  add_foreign_key "step_reviews", "step_decisions"
+  add_foreign_key "step_reviews", "task_runs"
+  add_foreign_key "step_reviews", "task_runs", column: "review_run_id"
+  add_foreign_key "step_reviews", "users"
+  add_foreign_key "step_reviews", "work_items"
   add_foreign_key "task_exceptions", "tasks"
   add_foreign_key "task_runs", "agents"
   add_foreign_key "task_runs", "epic_steps"

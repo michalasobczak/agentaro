@@ -47,11 +47,11 @@ class WorkItem < ApplicationRecord
   def cancel!
     transaction do
       reload
-      runs.where(user_id: user_id, purpose: "epic_step", state: "queued").find_each do |run|
+      runs.where(user_id: user_id, purpose: %w[epic_step step_review], state: "queued").find_each do |run| # spec 040: and the director's reviews
         run.update!(state: "skipped", error: "The epic was cancelled before this step started.", finished_at: Time.current)
       end
       tasks.where("starts_at > ?", Time.current).find_each(&:destroy!)
-      epic_steps.where(state: %w[pending queued waiting]).find_each { |step| step.update!(state: "cancelled") } # spec 033: waiting
+      epic_steps.where(state: %w[pending queued waiting reviewing]).find_each { |step| step.update!(state: "cancelled") } # spec 033: waiting; spec 040: reviewing
       step_decisions.pending.each { |d| d.update!(status: "answered", answer: "(the epic was cancelled)") }
       update!(state: "cancelled", finished_at: (Time.current if started_at))
     end

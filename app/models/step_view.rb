@@ -31,7 +31,8 @@ class StepView
     {
       epic: { id: @item.id, title: @item.title, state: @item.board_state, url: helpers.work_item_path(@item) },
       step: { id: @step.id, position: @step.position, of: @item.active_steps.maximum(:position), title: @step.title,
-              state: @step.state, label: @step.state_label, agent: @step.agent&.name, description: cut(@step.description, ANSWER_CHARS) },
+              state: @step.state, label: @step.state_label, agent: @step.agent&.name, description: cut(@step.description, ANSWER_CHARS),
+              limit: @step.time_limit }, # spec 040, G2
       run: run && { id: run.id, state: run.state, url: helpers.task_run_path(run), started_at: run.started_at&.iso8601,
                     elapsed: (((run.finished_at || @now) - run.started_at).round if run.started_at),
                     interrupted: run.finished? && live.present? },
@@ -42,11 +43,28 @@ class StepView
       answer: (cut(TaskRun.prompt_text(run.output), ANSWER_CHARS) if run&.state == "succeeded" && run.output.present?),
       error: (cut(run.error, ANSWER_CHARS) if run&.finished? && run.state != "succeeded" && run.error.present?),
       question: question,
-      waits: waits(run)
+      waits: waits(run),
+      processes: (running ? processes(run) : []), # spec 040, G3
+      decisions: decisions # spec 040, G1
     }
   end
 
   private
+
+  # Spec 040, G3: what the running step has started and is still running.
+  def processes(run)
+    ProcessTracker.alive(LiveLog.dir_for(run.id, runs_dir: @runs_dir)).first(20).map do |p|
+      since = Time.zone.parse(p["since"].to_s) rescue nil
+      { command: cut(p["command"], ACTION_CHARS), minutes: since ? ((@now - since) / 60).floor : nil }
+    end
+  end
+
+  # Spec 040, G1: the director's latest decisions about this step.
+  def decisions
+    @step.step_reviews.where(status: %w[decided asked]).where.not(decision: "none").order(:id).last(5).map do |r|
+      { text: cut("The director #{r.label}: #{r.reason}", ENTRY_CHARS) }
+    end
+  end
 
   def trace_events(run)
     return [] unless run
@@ -91,6 +109,7 @@ class StepView
   # G3: what a step that has not run (or waits to run again) waits for.
   def waits(run)
     return @step.retry_note if @step.state == "queued" && run&.retry_at
+    return "the director's decision about the failed attempt" if @step.state == "reviewing" # spec 040
     return unless @step.state == "pending"
 
     holder = @item.waits_for

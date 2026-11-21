@@ -99,7 +99,6 @@ Rails.application.routes.draw do
     resource :password, only: %i[edit update]
     resource :theme, only: :update # owner fix: auto, light or dark
     resource :chat_background, only: :update # spec 029: the chat background pattern
-    resource :auto_retry, only: :update # spec 032: automatic retries on or off
     resource :autonomy, only: :update # spec 033: the owner's default autonomy level
     resource :reply_length, only: :update # spec 039: how much the director writes
   end

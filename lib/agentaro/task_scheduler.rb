@@ -73,6 +73,7 @@ module Agentaro
         ManagementRunner.dispatch_due(now: now) # spec 011: new work items go to the director (spec 016: at once)
         StepChain.start_due(now: now)          # spec 016: epics whose start has come run their first step
         StepRetry.hand_over_due(now: now)      # spec 032: retries whose time has come
+        StepReview.review_running_due(now: now) # spec 040, G4: the director looks at long-running steps
         RecurringOrder.run_due(now: now)       # spec 034: recurring orders whose time has come
         due(now).filter_map do |occurrence|
           run = TaskRun.create!(task: occurrence.task, occurrence_start: occurrence.original_start, trigger: "scheduled")
@@ -151,6 +152,7 @@ module Agentaro
 
             run.update!(agent_id: claim.agent_id) if run.step? && run.agent_id != claim.agent_id # R2: the task's agent now
             if run.purpose == "epic_step" then StepChain.new(run).perform! # spec 016
+            elsif run.purpose == "step_review" then StepReviewer.new(run).perform! # spec 040
             elsif run.step? then TaskRunner.new(run).perform!
             else ManagementRunner.new(run).perform!
             end
@@ -168,14 +170,19 @@ module Agentaro
 
       def interrupt!(run)
         run.update!(state: "failed", error: "Interrupted: Agentaro stopped while this run was in progress.", finished_at: Time.current)
-        StepChain.after_run(run) if run.purpose == "epic_step" # spec 016: the epic stops here; Try again resumes
+        if run.purpose == "epic_step"
+          ProcessTracker.stop_saved(LiveLog.dir_for(run.id)) # spec 040, R8: what the step left running before the restart
+          StepChain.after_run(run) # spec 040: the director decides what next
+        end
+        StepReviewer.interrupted(run) if run.purpose == "step_review"
       end
 
       # R5: the run's process group still exists. Only while the run could still be within its time limit: after that a
       # live group with this number is taken for another program (numbers are reused), never killed.
       def executor_alive?(run)
         return false unless run.pid && run.started_at
-        return false if run.started_at < Time.current - Rails.application.config.x.run_timeout - ORPHAN_GRACE
+        limit = run.purpose == "epic_step" && run.epic_step ? run.epic_step.time_limit_seconds : Rails.application.config.x.run_timeout # spec 040, G2
+        return false if run.started_at < Time.current - limit - ORPHAN_GRACE
 
         Process.kill(0, -run.pid)
         true

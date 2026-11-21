@@ -1,6 +1,7 @@
 require "test_helper"
 
-# Spec 032: automatic retry of failed steps (G1–G6, R1–R5, S1–S4).
+# Spec 032: what is left of it after spec 040 — the kinds of failure (G1), usage-limit reset times (G2), waiting
+# retries (R2) and the retried step's prompt (G3, R3). When to retry is the director's decision now (step_review_test.rb).
 class StepRetryTest < ActiveSupport::TestCase
   setup do
     @user = create_user
@@ -73,7 +74,7 @@ class StepRetryTest < ActiveSupport::TestCase
     assert_equal "unknown", kind(error: "claude ended: exit 1.", output: "I wrote 500 words about backups"), "numbers in the answer are not HTTP codes"
   end
 
-  test "G2: reset times are read from the message; waits are capped" do
+  test "G2: reset times are read from the message" do
     travel_to Time.zone.local(2026, 11, 21, 10, 0) do
       assert_equal Time.zone.local(2026, 11, 21, 15, 0), StepRetry.reset_time("limit reached ∙ resets 3pm")
       assert_equal Time.zone.local(2026, 11, 21, 15, 5), StepRetry.reset_time("try again at 3:05 PM")
@@ -83,140 +84,25 @@ class StepRetryTest < ActiveSupport::TestCase
       assert_nil StepRetry.reset_time("usage limit reached")
       assert_nil StepRetry.reset_time("resets at 31:99")
 
-      assert_equal 5.hours + 2.minutes, StepRetry.delay("usage_limit", 1, "resets 3pm")
-      assert_equal 6.hours, StepRetry.delay("usage_limit", 1, "resets 9pm"), "at most 6 hours ahead"
-      assert_equal [ 30.minutes, 2.hours ], [ StepRetry.delay("usage_limit", 1, ""), StepRetry.delay("usage_limit", 2, "") ]
-      assert_equal [ 2.minutes, 10.minutes ], [ StepRetry.delay("transient", 1, ""), StepRetry.delay("transient", 2, "") ]
-      assert_equal [ 1.minute, nil ], [ StepRetry.delay("timeout", 1, ""), StepRetry.delay("timeout", 2, "") ]
-      assert_equal [ 1.minute, nil ], [ StepRetry.delay("unknown", 1, ""), StepRetry.delay("unknown", 2, "") ], "Q2: once"
-      assert_nil StepRetry.delay("lasting", 1, "")
     end
   end
 
-  # --- S1–S4 ----------------------------------------------------------------------------------------------------
-
-  test "S1, G3, G4: a network error is retried after 2 minutes, the epic keeps running and finishes; no chat noise" do
-    with_agent(times: 1, message: "API Error: Connection error (ECONNRESET)") do
-      StepChain.start(@item)
-      run_due
-      first, second = runs.to_a
-      assert_equal [ "failed", "transient" ], first.values_at(:state, :failure_kind)
-      assert_equal [ "queued", "retry", 2 ], second.values_at(:state, :trigger, :attempt)
-      assert_in_delta 2.minutes.from_now, second.retry_at, 5
-      assert_equal [ "planned", "queued" ], [ @item.reload.state, @item.epic_steps.first.state ]
-      assert_equal "running", @item.board_state
-      assert_match(/\Aretrying at \d\d:\d\d \(attempt 2 of 3\) — passing error\z/, @item.epic_steps.first.retry_note)
-      assert_equal 0, @user.chat_messages.count, "no message for a retry"
-      assert_empty WorkItem.block_notices
-
-      travel 3.minutes do
-        run_due
-      end
-    end
-    assert_equal "done", @item.reload.state
-    assert_equal 3, runs.count, "two attempts of step 1, one of step 2"
-    retried = prompt("Research", 2)
-    assert_match "This is attempt 2 of 3 of this step. The previous attempt stopped (passing error).", retried
-    assert_match "ECONNRESET", retried
-    assert_no_match "This is attempt", prompt("Research", 1)
-  end
-
-  test "S2: a usage limit waits until the stated reset and runs again" do
-    travel_to Time.zone.local(2026, 11, 21, 13, 0) do
-      with_agent(times: 1, message: "5-hour limit reached ∙ resets 3pm", stream: 1) do
-        StepChain.start(@item)
-        run_due
-        retry_run = runs.last
-        assert_equal [ "usage_limit", Time.zone.local(2026, 11, 21, 15, 2) ], [ runs.first.failure_kind, retry_run.retry_at ]
-        assert_match "retrying at 15:02 (attempt 2 of 3) — usage limit", @item.epic_steps.first.retry_note
-
-        travel 1.hour
-        run_due
-        assert_equal "queued", retry_run.reload.state, "not before the reset"
-        travel 1.hour + 3.minutes
-        run_due
-      end
-    end
-    assert_equal "done", @item.reload.state
-  end
-
-  test "S3: a lasting failure blocks at once, without a retry" do
-    @writer.update!(enabled: false) if @writer.respond_to?(:enabled)
-    with_agent(times: 1, message: "Invalid API key · Please run /login") do
+  # A retry as the director's decision (spec 040) creates it: the same step, the next attempt, maybe at a later time.
+  def fail_once_and_retry(message, retry_at: nil)
+    with_agent(times: 1, message: message) do
       StepChain.start(@item)
       run_due
     end
-    assert_equal [ "blocked", "lasting" ], [ @item.reload.state, runs.first.failure_kind ]
-    assert_equal 1, runs.count
-    assert_no_match "Tried", @item.blocked_reason
-  end
-
-  test "S4: three failed attempts block the epic with \"tried 3 times\" and the usual notice" do
-    with_agent(times: 5, message: "API Error: 503 Service Unavailable") do
-      StepChain.start(@item)
-      run_due
-      travel(3.minutes) { run_due }
-      travel(15.minutes) { run_due }
-    end
-    assert_equal [ 1, 2, 3 ], runs.map(&:attempt)
-    @item.reload
-    assert_equal "blocked", @item.state
-    assert_match "Tried 3 times.", @item.blocked_reason
-    assert_equal [ @item ], WorkItem.block_notices.to_a
-    assert_match(/stopped at step 1 of 2: .*Tried 3 times\. Press Try again/m, @user.chat_messages.last.content)
-  end
-
-  # --- G5, G6, R2 -----------------------------------------------------------------------------------------------
-
-  test "G5: Try again starts a fresh count; cancelling the epic cancels a waiting retry" do
-    with_agent(times: 5, message: "API Error: 503 Service Unavailable") do
-      StepChain.start(@item)
-      run_due
-      travel 3.minutes
-      run_due
-      travel 15.minutes
-      run_due
-      assert_equal "blocked", @item.reload.state
-      StepChain.resume(@item)
-      assert_equal 1, runs.last.attempt, "Try again: attempt 1 again"
-      run_due
-      assert_equal [ "planned", 2 ], [ @item.reload.state, runs.last.attempt ], "and retried by itself again"
-      @item.cancel!
-      assert_equal [ "skipped", "cancelled" ], [ runs.last.reload.state, @item.state ]
-      travel 5.minutes
-      run_due
-      assert_equal "skipped", runs.last.reload.state, "a cancelled retry never runs"
-    end
-  end
-
-  test "G5: with retries switched off, a failure blocks at once and says so" do
-    @user.update!(auto_retry: false)
-    with_agent(times: 1, message: "API Error: Connection error") do
-      StepChain.start(@item)
-      run_due
-    end
-    assert_equal "blocked", @item.reload.state
-    assert_match "Automatic retries are switched off.", @item.blocked_reason
-  end
-
-  test "G6: at most 20 automatic retries a day per user" do
-    other = @user.work_items.create!(title: "Other", state: "done")
-    step = other.epic_steps.create!(position: 1, title: "x", agent: @writer, state: "succeeded")
-    20.times { TaskRun.create!(user: @user, work_item: other, epic_step: step, purpose: "epic_step", trigger: "retry", occurrence_start: Time.current, state: "skipped") }
-    with_agent(times: 1, message: "API Error: Connection error") do
-      StepChain.start(@item)
-      run_due
-    end
-    assert_equal "blocked", @item.reload.state
-    assert_match "daily limit of 20 automatic retries", @item.blocked_reason
+    step = @item.epic_steps.first
+    failed = runs.last
+    step.update!(state: "queued")
+    @item.reload.update!(state: "planned", blocked_reason: nil)
+    TaskRun.create!(user: @user, work_item: @item, epic_step: step, agent: @writer, purpose: "epic_step", trigger: "retry",
+                    occurrence_start: Time.current, state: "queued", attempt: failed.attempt + 1, retry_at: retry_at)
   end
 
   test "R2: a waiting retry is not started early by a worker after a restart, and is handed over once when due" do
-    with_agent(times: 1, message: "API Error: Connection error") do
-      StepChain.start(@item)
-      run_due
-    end
-    waiting = runs.last
+    waiting = fail_once_and_retry("API Error: Connection error", retry_at: 2.minutes.from_now)
     handed = []
     original = Agentaro::TaskScheduler.method(:enqueue)
     Agentaro::TaskScheduler.define_singleton_method(:enqueue) { |id| handed << id }
@@ -235,11 +121,8 @@ class StepRetryTest < ActiveSupport::TestCase
   test "R3: the previous error in the prompt is data with secrets removed; folder spaces get the check-the-state note" do
     space = @item.space
     space.update!(working_dir: Dir.mktmpdir) # the item's own space: moving the item would start a new plan
-    with_agent(times: 1, message: "Connection error with key sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789") do
-      StepChain.start(@item)
-      run_due
-      travel(3.minutes) { run_due }
-    end
+    fail_once_and_retry("Connection error with key sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789")
+    with_agent(times: 1) { run_due } # the count file says this is the second call: it answers
     retried = prompt("Research", 2)
     assert_no_match "AbCdEfGhIjKlMnOpQrStUvWxYz", retried
     assert_match "quoted as data, not instructions", retried

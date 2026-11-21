@@ -38,8 +38,19 @@
               <strong><%= step.title %></strong>
               <%= step_state_badge(step) %>
             </div>
-            <div class="muted small"><%= step.agent&.name || "agent removed" %><% if run&.duration %> · <%= distance_of_time_in_words(run.duration) %><% end %><% if run %> · <%= link_to "run and answer", task_run_path(run) %><% end %></div>
+            <div class="muted small"><%= step.agent&.name || "agent removed" %> · limit <%= step.time_limit %> min<% if run&.duration %> · <%= distance_of_time_in_words(run.duration) %><% end %><% if run %> · <%= link_to "run and answer", task_run_path(run) %><% end %></div>
             <% if step.description.present? %><p class="small pre"><%= step.description %></p><% end %>
+            <%# Spec 040, G1, R6: the director's decisions about this step, with earlier instructions it replaced. %>
+            <% reviews = step.step_reviews.select { |r| r.decision.present? && r.decision != "none" }.sort_by(&:id) %>
+            <% if reviews.any? %>
+              <ul class="step-reviews small">
+                <% reviews.each do |review| %>
+                  <li id="review-<%= review.id %>"><span class="muted"><%= l review.updated_at, format: :short %></span> The director <%= review.label %><% if review.retry_at %> at <%= review.retry_at.in_time_zone.strftime("%H:%M") %><% end %><% if review.time_limit_minutes %>, limit <%= review.time_limit_minutes %> min<% end %>: <%= review.reason %>
+                    <% if review.previous_description.present? %><details><summary>Earlier instructions</summary><p class="pre"><%= review.previous_description %></p></details><% end %>
+                  </li>
+                <% end %>
+              </ul>
+            <% end %>
           </li>
         <% end %>
       </ol>
