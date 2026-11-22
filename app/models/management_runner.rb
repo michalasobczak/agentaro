@@ -692,7 +692,7 @@ class ManagementRunner
       {"type": "add_space", "kind": "project" or "team", "name": "...", "goal": "what #{@user.username} wants to achieve (project spaces only)", "description": "what the space is about; for a team space, what it takes care of"}
       {"type": "update_space", "id": 1, "kind": ..., "name": "...", "goal": "...", "description": "..."} (give only fields to change; a project space needs a goal; a space's working folder is set by #{@user.username} on the space's form only)
       A project space works towards a goal; a team space has no goal and takes care of ongoing work.
-      {"type": "cancel_item", "id": 1}
+      {"type": "cancel_item", "id": 1} (a step that is running is stopped at once; its files stay)
       {"type": "remember", "subject": "user" or "space:<id>" or "agent:<id>", "kind": "preference" or "decision" or "fact" or "constraint", "statement": "one short sentence"} (only when #{@user.username} asks you to remember something; never secrets)
       {"type": "forget", "id": <fact id from the remembered context>} (only when #{@user.username} asks you to forget it)
       {"type": "approve_facts", "ids": [ ... ]} and {"type": "reject_facts", "ids": [ ... ]} (only when #{@user.username} answers the list of things Agentaro learned about them)

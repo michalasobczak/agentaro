@@ -94,7 +94,8 @@ class StepChainTest < ActiveSupport::TestCase
     assert_equal 1, @item.epic_steps.first.runs.count, "the step that succeeded did not run again"
   end
 
-  test "G7: cancelling stops the chain; a running step finishes and its answer is kept" do
+  # Owner change 2026-11-22 ("kazałem anulować"): a running step is cancelled and stopped with the epic.
+  test "G7: cancelling stops the chain, the running step too; what its run still wrote is kept on the run" do
     with_agent do
       run = StepChain.start(@item)
       runner = StepChain.new(run)
@@ -106,7 +107,7 @@ class StepChainTest < ActiveSupport::TestCase
       StepChain.after_run(run)
     end
     @item.reload
-    assert_equal [ "cancelled", %w[succeeded cancelled cancelled] ], [ @item.state, @item.epic_steps.map(&:state) ]
+    assert_equal [ "cancelled", %w[cancelled cancelled cancelled] ], [ @item.state, @item.epic_steps.map(&:state) ]
     assert_equal "Answer for Research", @item.epic_steps.first.last_run.output.strip
     assert_equal 1, TaskRun.where(purpose: "epic_step").count
   end

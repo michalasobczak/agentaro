@@ -125,3 +125,8 @@ Scope: this spec and specs 001–015.
 - **Separation.** Step runs belong to the user (`user_id`), so other users' step runs are 404 and their epics cannot be resumed (tests).
 - **Resilience.** A run interrupted by a restart blocks its epic instead of losing track (test).
 - **Regressions in 001–015.** Brakeman: no warnings. `bundle-audit`: no vulnerabilities.
+- **Owner change (2026-11-22), G7:**
+  - The owner's words: "kazałem anulować", "anuluj to porządnie". A cancelled epic's running step (a local agent looping on its own test) kept working for 30 minutes.
+  - Cancelling an epic now also cancels its running step and stops it with all its processes (spec 025's stop, or its saved process group). Its files stay.
+  - Test `pause_epic_test.rb`; the G7 test in `step_chain_test.rb` adapted.
+

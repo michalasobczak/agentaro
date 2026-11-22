@@ -97,4 +97,20 @@ class PauseEpicTest < ActiveSupport::TestCase
     assert_not @city.reload.paused?
     assert_equal "blocked", @city.state
   end
+
+  # Owner fix ("kazałem anulować"): cancelling an epic left its running step working until its time limit.
+  test "owner fix: cancelling an epic stops its running step at once, with all its processes" do
+    StepChain.start(@city)
+    run = TaskRun.where(work_item: @city, state: "queued").sole
+    pid = Process.spawn("sleep", "60", pgroup: true)
+    run.update!(state: "running", started_at: Time.current, pid: pid)
+    @city.active_steps.first.update!(state: "running")
+    @city.cancel!
+    assert_equal "cancelled", @city.active_steps.first.reload.state
+    deadline = Time.current + 5
+    sleep 0.1 while Process.waitpid(pid, Process::WNOHANG).nil? && Time.current < deadline
+    assert_raises(Errno::ESRCH, Errno::ECHILD) { Process.kill(0, pid) }
+  ensure
+    Process.kill("KILL", -pid) rescue nil
+  end
 end

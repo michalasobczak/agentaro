@@ -129,7 +129,9 @@ class AgentCall
     elsif result.success?
       Outcome.new("succeeded", ExecutorCheck.clean_text(answer), nil, 0) # standard error holds progress logs only
     else
-      log = ExecutorCheck.clean_text(result.stderr).presence
+      log = ExecutorCheck.clean_text(result.stderr)
+      log = log.lines.reject { |l| l.include?("codex_models_manager") }.join.strip if preset.key == "codex_local" # spec 049, G3: not the step's error
+      log = log.presence
       error = limit_error(preset, executor, answer, log) || [ log, "#{preset.program} ended: #{result.ending}." ].compact.join("\n\n")
       Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, error, result.exit_status)
     end

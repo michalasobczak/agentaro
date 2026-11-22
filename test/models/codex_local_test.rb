@@ -119,4 +119,21 @@ class CodexLocalTest < ActiveSupport::TestCase
   ensure
     FileUtils.rm_rf(folder)
   end
+
+  test "G3: Codex's lines about refreshing its model list are not the step's error" do
+    with_ollama([ "mimo-v2.6:latest" ]) do
+      Dir.mktmpdir do |bin|
+        File.write(File.join(bin, "codex"), "#!/bin/sh\ncat > /dev/null\necho '2026-11-22T20:02:27Z ERROR codex_models_manager::manager: failed to refresh available models' >&2\necho 'Ollama connection refused' >&2\nexit 1\n")
+        File.chmod(0o755, File.join(bin, "codex"))
+        original = ENV["PATH"]
+        ENV["PATH"] = "#{bin}:#{original}"
+        outcome = call
+        assert_equal "failed", outcome.state
+        assert outcome.error.start_with?("Ollama connection refused"), outcome.error
+        assert_no_match(/codex_models_manager/, outcome.error)
+      ensure
+        ENV["PATH"] = original
+      end
+    end
+  end
 end

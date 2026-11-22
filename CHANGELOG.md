@@ -538,4 +538,11 @@
   - A real step with mimo-v2.6 read a file in a working folder and answered right in 2 min 47 s. It also found a misplaced network option, now fixed with a test.
   - Production: executor "Codex lokalny"; "Lokalny inżynier" moved to it. The deputy director stays on Ollama (API).
   - 5 new tests; 1 adapted. Brakeman 0 warnings.
+- Owner change: cancelling an epic stops its running step.
+  - The owner's words: "skąd wraca ciągle ollama? kazałem anulować".
+  - A cancelled epic's step (Lokalny inżynier on Codex with mimo-v2.6) kept running. It was looping on a test with a wrong expected value it had written itself, so Ollama kept loading the model. It was stopped by hand.
+  - Cause: by spec 016 G7 a running step finished after a cancel. The director had also stopped only the step's child processes and said the step would stop by itself.
+  - Now a cancel stops the running step with all its processes and marks it cancelled. The director's action list says so.
+  - Also, from spec 049 G3: Codex's lines about refreshing its model list no longer lead a step's error.
+  - Tests: 2 new; the spec 016 G7 test adapted.
 

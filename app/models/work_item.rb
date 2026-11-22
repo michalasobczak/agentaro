@@ -40,8 +40,8 @@ class WorkItem < ApplicationRecord
 
   def active_run? = runs.where(state: %w[queued running]).exists?
 
-  # Steps not started are dropped (spec 011: calendar steps; spec 016, G7: pending steps are cancelled; a running
-  # step finishes and its answer is kept).
+  # Steps not started are dropped (spec 011: calendar steps; spec 016, G7: pending steps are cancelled). Owner fix
+  # ("kazałem anulować"): a running step is stopped too, with all its processes, instead of working to its limit.
   after_update_commit :record_outcome, if: -> { saved_change_to_state? && state.in?(%w[done blocked]) } # spec 031, G3
 
   def cancel!
@@ -51,10 +51,11 @@ class WorkItem < ApplicationRecord
         run.update!(state: "skipped", error: "The epic was cancelled before this step started.", finished_at: Time.current)
       end
       tasks.where("starts_at > ?", Time.current).find_each(&:destroy!)
-      epic_steps.where(state: %w[pending queued waiting reviewing]).find_each { |step| step.update!(state: "cancelled") } # spec 033: waiting; spec 040: reviewing
+      epic_steps.where(state: %w[pending queued waiting reviewing running]).find_each { |step| step.update!(state: "cancelled") } # spec 033: waiting; spec 040: reviewing; owner fix: running
       step_decisions.pending.each { |d| d.update!(status: "answered", answer: "(the epic was cancelled)") }
       update!(state: "cancelled", finished_at: (Time.current if started_at), paused_at: nil)
     end
+    stop_running_steps
     StepChain.start_due(user: user) if space_id # spec 037, R6: the next epic of the space
   end
 
@@ -94,6 +95,19 @@ class WorkItem < ApplicationRecord
     return unless paused?
 
     pausing? ? "Pausing — the current step finishes first" : "Paused since #{paused_at.in_time_zone.strftime(paused_at.to_date == Date.current ? "%H:%M" : "%-d %b %H:%M")}"
+  end
+
+  # Owner fix: the running steps of a cancelled epic are stopped — through this process's own control (spec 025),
+  # else by the saved process group (a run started by another Agentaro process). Their processes are then cleaned up.
+  def stop_running_steps
+    runs.where(purpose: "epic_step", state: "running").find_each do |run|
+      next if RunControl.stop!(run.id)
+      next unless run.pid.to_i > 1 && run.pid != Process.pid
+
+      Process.kill("KILL", -run.pid)
+    rescue Errno::ESRCH, Errno::EPERM
+      nil
+    end
   end
 
   # Spec 013, Q10: the user closes an epic by hand.
