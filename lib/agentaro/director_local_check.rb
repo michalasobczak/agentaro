@@ -2,7 +2,7 @@
 # code (ManagementRunner) to a real local server; each is checked against what it should change. Runs on demand,
 # only on throwaway data (R4): the database must be a demo file.
 #   DATABASE_URL=sqlite3:storage/demo.sqlite3 AUDIT_DATABASE_URL=sqlite3:storage/demo_audit.sqlite3 \
-#     bin/rails agentaro:director:local_check MODEL=qwen3.5:9b
+#     bin/rails agentaro:director:local_check MODEL=mimo-v2.6
 #   llama.cpp: … PRESET=openai_compatible_api URL=http://localhost:8080/v1 MODEL=<any name>
 module Agentaro
   class DirectorLocalCheck

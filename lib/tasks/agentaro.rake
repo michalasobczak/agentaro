@@ -20,12 +20,12 @@ namespace :agentaro do
   end
 
   namespace :director do
-    desc "Spec 044, G4: acceptance run of a director on a local Ollama model (demo database only). MODEL=qwen3.5:9b"
+    desc "Spec 044, G4: acceptance run of a director on a local Ollama model (demo database only). MODEL=mimo-v2.6"
     task local_check: :environment do
       require "agentaro/director_local_check"
       preset = ENV.fetch("PRESET", "ollama_api")
       url = ENV["URL"] || ENV["OLLAMA_URL"] || (preset == "ollama_api" ? "http://localhost:11434" : "http://localhost:8080/v1")
-      results = Agentaro::DirectorLocalCheck.new(model: ENV.fetch("MODEL", "qwen3.5:9b"), base_url: url, preset: preset).run
+      results = Agentaro::DirectorLocalCheck.new(model: ENV.fetch("MODEL", "mimo-v2.6"), base_url: url, preset: preset).run
       exit 1 unless results.all?(&:ok)
     end
   end

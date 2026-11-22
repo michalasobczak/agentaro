@@ -501,5 +501,6 @@
     - All layers on the GPU ran out of Metal memory.
     - Generation is about 4 tokens/s once warm.
     - Reading a director-sized prompt (about 3 thousand tokens) took over 10 minutes and was stopped, because almost every expert is read from disk for the prompt.
-    - Not usable for a conversation on a 16 GB Mac. The GGUF file stays in `storage/models/` (not tracked).
-
+    - Not usable for a conversation on a 16 GB Mac. The GGUF file was then deleted on the owner's request. llama.cpp itself stays installed, because whisper.cpp (voice, spec 017) depends on it.
+- Production: the owner's deputy director is the new agent "Zastępca" on the existing Ollama executor, with model mimo-v2.6 and the director's master prompt (spec 043). It answered a director-shaped JSON request in 5.6 s.
+- Production: the agent "Lokalny inżynier" and the default model of the "Ollama na Mac Mini" executor now use mimo-v2.6. qwen3.5:9b was then unused and was removed from Ollama; the local check's default model is mimo-v2.6. Ollama keeps mimo-v2.6 (deputy, local engineer), qwen3:8b (Brain memory) and bge-m3 (Brain search).
