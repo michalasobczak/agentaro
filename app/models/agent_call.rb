@@ -101,6 +101,9 @@ class AgentCall
     return Outcome.new("failed", nil, "Working folder not found: #{space.working_dir}", nil) if space && !File.directory?(space.working_dir)
 
     @chdir = space ? space.working_dir : work_dir.to_s # spec 018: the space's folder, else the run's own empty folder
+    if preset.key == "codex_local" && model && (missing = LocalModels.missing(model)) # spec 049, S3: Codex would pull it
+      return Outcome.new("failed", nil, missing, nil)
+    end
     args, stdin, answer_file = cli_call(preset.key, model, prompt, space)
     return Outcome.new("failed", nil, "Choose a model for #{executor.name} (agent or executor default).", nil) if args.nil?
 
@@ -109,7 +112,7 @@ class AgentCall
     on_event = @live && @live.method(:add)
     stream = @stream = case preset.key
                        when "claude_code" then ClaudeStream.new(@on_text, on_event: on_event)
-                       when "codex" then CodexStream.new(on_event: on_event)
+                       when "codex", "codex_local" then CodexStream.new(on_event: on_event) # spec 049: the same stream
                        end
     args = stream.arguments(args) if stream
     on_stdout = stream ? stream.method(:feed) : (live_stdout if @live) # spec 038, G7: Ollama and LM Studio print their text
@@ -264,6 +267,13 @@ class AgentCall
       args += [ "--model", model ] if model
       args += [ "--effort", @effort ] if @effort # spec 022, G5
       [ args, prompt.text, nil ]
+    when "codex_local" # spec 049: Codex's loop and sandbox with a model of the local Ollama; no web search, no efforts
+      return nil unless model
+
+      answer = folder.join("answer.txt").to_s
+      args = [ "exec", "--oss", "--local-provider", "ollama", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
+      args.insert(args.index("--ephemeral"), "-c", "sandbox_workspace_write.network_access=true") if space # as for Codex (spec 018, Q5)
+      [ args + [ "-m", model, "-" ], prompt.text, answer ]
     when "codex"
       answer = folder.join("answer.txt").to_s
       args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]

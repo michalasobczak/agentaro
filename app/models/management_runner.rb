@@ -450,6 +450,7 @@ class ManagementRunner
     agent = member.agent
     limit = UsageLimit.reached_note(agent.executor) # spec 043, G6
     text_only = " (text only: on #{agent.executor.label}, no files, commands or web; give it only work done in its answer)" if agent.executor&.api? # owner fix
+    text_only = " (on #{agent.executor.label}: files and commands, but slower — give it time)" if agent.executor&.preset == "codex_local" # spec 049, G4
     "- Member id #{agent.id}: #{agent.name}, role: #{member.role_text || "-"}#{text_only}#{" — #{agent.description}" if agent.description.present?}#{" (not available)" unless agent.usable?}#{"; its #{agent.executor.label} #{limit}" if limit}; #{status_text(agent)}"
   end
 

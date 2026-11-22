@@ -530,4 +530,12 @@
   - The director's team list marks such members "text only: no files, commands or web", in planning and in step reviews.
   - A streamed answer's last line without a newline is no longer lost.
   - 2 tests in `local_director_test.rb`.
+- Spec 049 Codex with a local model.
+  - The owner asked why a local model has no tools while Claude has. The tools belong to the agent program around the model (Claude Code, Codex), not to the model.
+  - The new preset "Codex (local model)" runs `codex exec --oss --local-provider ollama -m <model>`, with Codex's sandbox and network rule and no web search.
+  - A model missing from the local Ollama fails the step with the reason, before Codex would pull it.
+  - The director sees such members as "files and commands, but slower".
+  - A real step with mimo-v2.6 read a file in a working folder and answered right in 2 min 47 s. It also found a misplaced network option, now fixed with a test.
+  - Production: executor "Codex lokalny"; "Lokalny inżynier" moved to it. The deputy director stays on Ollama (API).
+  - 5 new tests; 1 adapted. Brakeman 0 warnings.
 

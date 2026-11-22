@@ -15,6 +15,7 @@ class Executor < ApplicationRecord
   PRESETS = [
     Preset.new("claude_code", "Claude Code", "cli", "claude", [ "--version" ], nil, nil),
     Preset.new("codex", "Codex", "cli", "codex", [ "--version" ], nil, nil),
+    Preset.new("codex_local", "Codex (local model)", "cli", "codex", [ "--version" ], nil, nil), # spec 049: Codex's tools, a local Ollama model
     Preset.new("gemini_cli", "Gemini CLI", "cli", "gemini", [ "--version" ], nil, nil),
     Preset.new("grok_cli", "Grok CLI", "cli", "grok", [ "--version" ], nil, nil),
     Preset.new("ollama_cli", "Ollama (CLI)", "cli", "ollama", [ "--version" ], nil, nil),

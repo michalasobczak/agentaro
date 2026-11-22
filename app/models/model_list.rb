@@ -22,6 +22,7 @@ class ModelList
     case preset.key
     when "claude_code" then Result.new(true, [], "Claude Code lists no models; its aliases are always offered. Add full names below.")
     when "codex" then codex
+    when "codex_local" then named(LocalModels.names) # spec 049: the local Ollama's models
     when "ollama_cli" then cli("ollama", [ "list" ]) { |out| out.lines.drop(1).filter_map { |line| line.split.first } }
     when "lm_studio_cli" then cli("lms", [ "ls", "--llm", "--json" ]) { |out| Array(JSON.parse(out)).filter_map { |m| m["modelKey"] if m.is_a?(Hash) } }
     else

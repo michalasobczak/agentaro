@@ -138,7 +138,7 @@ class StepReviewer
       "  step #{s.position} \"#{s.title}\" (#{s.agent&.name || "no agent"}, limit #{s.time_limit} min): #{s.state_label}"
     end
     members = @user.team_roles.members.includes(agent: :executor).order(:id).map do |m|
-      "  - id #{m.agent_id}: #{m.agent.name}#{" — #{m.role_text}" if m.role_text.present?}#{" (text only: no files, commands or web)" if m.agent.executor&.api?}" # owner fix
+      "  - id #{m.agent_id}: #{m.agent.name}#{" — #{m.role_text}" if m.role_text.present?}#{" (text only: no files, commands or web)" if m.agent.executor&.api?}#{" (local model: files and commands, slower)" if m.agent.executor&.preset == "codex_local"}" # owner fix; spec 049
     end
     <<~TEXT
       The epic "#{@item.title}" in the space "#{@item.space.name}"#{" (folder: the space's working folder)" if @item.space.working_dir}.

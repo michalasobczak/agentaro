@@ -7,7 +7,7 @@ class StepView
   MAX_ENTRIES = 200
   TEXT_CHARS = 4000
   ANSWER_CHARS = 4000
-  LOG_PRESETS = %w[claude_code codex].freeze
+  LOG_PRESETS = %w[claude_code codex codex_local].freeze # spec 049
   TEXT_PRESETS = %w[ollama_cli lm_studio_cli ollama_api lm_studio_api openai_compatible_api].freeze
   ARGUMENT_KEYS = %w[command file_path path notebook_path pattern query url description prompt changes tool].freeze
 
