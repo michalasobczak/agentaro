@@ -523,4 +523,11 @@
   - Migration `20261122180000`.
   - 9 new tests; checked in the browser on demo data.
   - B20: a pause is cleared when the epic blocks (fixed with a test). Brakeman 0 warnings.
+- Owner fix: a local agent's step that did nothing no longer "succeeds".
+  - On production two steps for "Lokalny inżynier" (mimo-v2.6 on Ollama API) ended as succeeded in 8 s with no answer. The director could not check them and invented a setting "zapisywanie odpowiedzi", which does not exist.
+  - Cause: replayed on the same model, the step's prompt got only a tool call (`Read README.md`). A plain chat API has no tools, so nothing ran and the text was empty.
+  - Now an empty API answer fails, with the reason ("The model asked to use the tool Read, but Ollama (API) has no tools: it cannot read files, run commands or use the web…" or "The model gave an empty answer.").
+  - The director's team list marks such members "text only: no files, commands or web", in planning and in step reviews.
+  - A streamed answer's last line without a newline is no longer lost.
+  - 2 tests in `local_director_test.rb`.
 

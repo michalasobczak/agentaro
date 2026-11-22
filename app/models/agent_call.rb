@@ -213,6 +213,10 @@ class AgentCall
             emit_text(text)
           end
         end
+        if (piece = stream_piece(preset, buffer.strip)) # a last line without its newline
+          text << piece
+          emit_text(text)
+        end
       end
     end
     return Outcome.new("failed", nil, "Answered #{status.code} #{status.message}.", status.code.to_i) unless status.is_a?(Net::HTTPSuccess)
@@ -238,9 +242,12 @@ class AgentCall
 
       data = JSON.parse(line)
       @usage = api_usage(preset, data) if data["done"]
+      note_tool_calls(data.dig("message", "tool_calls"))
       data.dig("message", "content")
     elsif line.start_with?("data:") && line != "data: [DONE]"
-      JSON.parse(line.delete_prefix("data:").strip).dig("choices", 0, "delta", "content")
+      delta = JSON.parse(line.delete_prefix("data:").strip).dig("choices", 0, "delta") || {}
+      note_tool_calls(delta["tool_calls"])
+      delta["content"]
     end
   rescue JSON::ParserError
     nil
@@ -302,11 +309,29 @@ class AgentCall
     stream = @on_text.present? || @live.present? # spec 038, G7: a step's text streams for its live view
     path, body = preset.protocol == "ollama" ? [ "/api/chat", { model: model, messages: messages, stream: stream } ] : [ "/chat/completions", { model: model, messages: messages, stream: stream } ]
     uri = URI.parse(executor.base_url + path)
+    @api_tools = []
     if @schema # spec 044, G2: the whole prompt fits, the answer has the schema's shape, no thinking
       outcome = api_request(preset, uri, body.merge(structured(preset, prompt)), stream)
-      return outcome unless outcome.state == "failed" && outcome.exit_status.to_i.between?(400, 499) # resilience: once more without
+      return checked_api_answer(outcome, executor) unless outcome.state == "failed" && outcome.exit_status.to_i.between?(400, 499) # resilience: once more without
     end
-    api_request(preset, uri, body, stream)
+    checked_api_answer(api_request(preset, uri, body, stream), executor)
+  end
+
+  # Owner fix: a plain chat API has no tools (files, commands, web). A model that only asked for one, or answered
+  # nothing, did not do the work — never a success with an empty answer.
+  def checked_api_answer(outcome, executor)
+    return outcome unless outcome.state == "succeeded" && outcome.output.to_s.strip.empty?
+
+    if @api_tools.any?
+      Outcome.new("failed", nil, "The model asked to use the tool #{@api_tools.uniq.first(3).join(", ")}, but #{executor.label} has no tools: " \
+                                 "it cannot read files, run commands or use the web, only answer in text. Give such work to a member on Claude Code or Codex.", nil)
+    else
+      Outcome.new("failed", nil, "The model gave an empty answer.", nil)
+    end
+  end
+
+  def note_tool_calls(calls)
+    Array(calls).each { |c| @api_tools << (c.is_a?(Hash) ? (c.dig("function", "name") || c["name"]).to_s.presence : nil) || "a tool" } if calls.present?
   end
 
   # Spec 044, G2: what a director call adds for a local server.
@@ -333,6 +358,8 @@ class AgentCall
 
     data = JSON.parse(raw)
     @usage = api_usage(preset, data)
+    message = preset.protocol == "ollama" ? data["message"] : data.dig("choices", 0, "message")
+    note_tool_calls(message["tool_calls"]) if message.is_a?(Hash)
     answer = preset.protocol == "ollama" ? data.dig("message", "content") : data.dig("choices", 0, "message", "content")
     answer.is_a?(String) ? Outcome.new("succeeded", answer, nil, nil) : Outcome.new("failed", nil, "The answer had no message.", nil)
   rescue Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout

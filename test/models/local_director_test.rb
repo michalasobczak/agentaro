@@ -116,4 +116,27 @@ class LocalDirectorTest < ActiveSupport::TestCase
       assert_match "Tempo: Turbo", @user.chat_messages.where(author: "director").last.actions_summary
     end
   end
+
+  # Owner fix: on production a step for mimo-v2.6 on Ollama (API) "succeeded" with no text — the model asked for a
+  # Read tool that a plain chat API does not have, and Agentaro took the empty answer as a result.
+  test "owner fix: a model that only asks for a tool, or answers nothing, fails with the reason" do
+    tool = { message: { role: "assistant", content: "", tool_calls: [ { function: { name: "Read", arguments: { file_path: "README.md" } } } ] }, done: true }.to_json
+    empty = { message: { role: "assistant", content: "" }, done: true }.to_json
+    with_ollama([ [ "200 OK", tool ], [ "200 OK", empty ] ]) do |url, _bodies|
+      agent = team_on(Executor.create!(name: "Ollama", preset: "ollama_api", base_url: url))
+      run = TaskRun.create!(user: @user, agent: agent, purpose: "chat", trigger: "manual", occurrence_start: Time.current, state: "queued")
+      outcome = AgentCall.new(run, agent, AgentCall::Prompt.new(system: "s", user: "Read README.md")).call(on_text: ->(_) {})
+      assert_equal "failed", outcome.state
+      assert_match "asked to use the tool Read", outcome.error
+      assert_match "has no tools", outcome.error
+      outcome = AgentCall.new(run, agent, AgentCall::Prompt.new(system: "s", user: "x")).call
+      assert_equal [ "failed", "The model gave an empty answer." ], [ outcome.state, outcome.error ]
+    end
+  end
+
+  test "owner fix: the director sees which members work with text only" do
+    director = team_on(Executor.create!(name: "Ollama", preset: "ollama_api"))
+    prompt = chat_prompt(director)
+    assert_match(/Member id \d+: Pisarz, role: writer \(text only: on Ollama \(API\), no files, commands or web; give it only work done in its answer\)/, prompt.text)
+  end
 end

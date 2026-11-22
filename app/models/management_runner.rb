@@ -449,7 +449,8 @@ class ManagementRunner
   def member_line(member)
     agent = member.agent
     limit = UsageLimit.reached_note(agent.executor) # spec 043, G6
-    "- Member id #{agent.id}: #{agent.name}, role: #{member.role_text || "-"}#{" — #{agent.description}" if agent.description.present?}#{" (not available)" unless agent.usable?}#{"; its #{agent.executor.label} #{limit}" if limit}; #{status_text(agent)}"
+    text_only = " (text only: on #{agent.executor.label}, no files, commands or web; give it only work done in its answer)" if agent.executor&.api? # owner fix
+    "- Member id #{agent.id}: #{agent.name}, role: #{member.role_text || "-"}#{text_only}#{" — #{agent.description}" if agent.description.present?}#{" (not available)" unless agent.usable?}#{"; its #{agent.executor.label} #{limit}" if limit}; #{status_text(agent)}"
   end
 
   # Spec 023, G6: what the members work on, from the user's own runs only (R8) — the same rule as the Team page and the chat.
