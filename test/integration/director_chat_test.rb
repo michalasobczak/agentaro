@@ -262,11 +262,11 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
       assert_select "#{app} [data-voice-panel] button[type=button][data-voice-mute][aria-pressed=false][aria-label='Mute microphone']", 1 do
         assert_select "svg.icon.voice-mute-on", 1
         assert_select "svg.icon.voice-mute-off", 1, "R3: the crossed-out microphone, shown while muted"
-        assert_select ".voice-mute-label", text: "Mute"
+        assert_select ".voice-mute-label.visually-hidden", text: "Mute" # spec 041, G2: icon only, the label for screen readers
       end
       assert_select "#{app} [data-voice-panel] [data-voice-mute-status][role=status]", 1
-      assert_select "#{app} [data-voice-panel] .voice-info + [data-voice-mute]", 1, "R1: right after the state, before the speed switch"
-      assert_select "#{app} [data-voice-panel] [data-voice-mute] + .speed-switch", 1
+      assert_select "#{app} [data-voice-panel] .voice-info + [data-voice-mute]", 1, "R1: right after the state, before the speed button"
+      assert_select "#{app} [data-voice-panel] [data-voice-mute] + button.voice-speed[type=button]", 1 # spec 041, G2
     end
     assert_select ".chat-app[data-voice=missing] [data-voice-start][disabled]", 2, "voice not set up: voice mode cannot start, so the toggle cannot be used"
     assert_select "[style]", 0
@@ -307,7 +307,7 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
   test "spec 017: speech speed is saved per user" do
     @user.team_roles.create!(agent: @director, role: "director")
     get director_path
-    assert_select ".speed-switch button.is-active", text: "1,5×"
+    assert_select ".voice-speed[data-speed='1.5'][data-speeds='1.0,1.25,1.5,2.0'][aria-label='Speech speed 1,5×']", text: "1,5×" # spec 041, G2: one button
     patch speech_speed_director_path, params: { speed: "2.0" }, as: :json
     assert_equal 2.0, JSON.parse(response.body)["speed"]
     patch speech_speed_director_path, params: { speed: "9" }, as: :json

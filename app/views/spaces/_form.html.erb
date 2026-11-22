@@ -33,5 +33,10 @@
     <%= f.select :autonomy_level, [ [ "Your default (#{Autonomy.name(current_user.autonomy_level)})", "" ] ] + Autonomy::LEVELS.map { |level, name| [ "#{level} · #{name}", level ] } %>
     <span class="hint">How often agents ask you in this space. Pytaj: they ask before planning and the plan waits for your approval. Ważne pytaj: they ask about important things. Decyduj: they decide and write down what they assumed. Sending, paying, deleting outside the run's folder, pushing and passwords are always asked.</span>
   </div>
+  <div class="field">
+    <%= f.label :work_tempo, "Tempo" %>
+    <%= f.select :work_tempo, [ [ "Your default (#{WorkTempo.name(current_user.work_tempo)})", "" ] ] + WorkTempo::LEVELS.map { |level, name| [ "#{level} · #{name}", level ] } %>
+    <span class="hint">How new work in this space is split into steps. Dokładnie: smaller steps, the last one checks the work. Normalnie: as the task needs. Turbo: one step for one agent, no clarifying questions.</span>
+  </div>
   <div class="actions"><%= f.submit space.persisted? ? "Save changes" : "Create space" %><%= link_to "Cancel", (space.persisted? ? space_path(space) : spaces_path), class: "button secondary" %></div>
 <% end %>

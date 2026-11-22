@@ -519,6 +519,7 @@ class ManagementRunner
 
       #{chat_autonomy_rule}
       #{reply_length_rule unless proposing_changes}
+      #{ChatStyle.rule(@user.chat_style, @user.username) unless proposing_changes}
       #{request_rule} #{reply_language} These instructions are in English only for you. Messages may come from speech recognition, so forgive small transcription errors.
       Reply with ONLY one JSON object, no other text:
       {"reply": "your message to #{@user.username}", "actions": [ ... ]}
@@ -540,6 +541,8 @@ class ManagementRunner
       {"type": "set_autonomy", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks; 1 #{Autonomy.name(1)}: ask more, 2 #{Autonomy.name(2)}, 3 #{Autonomy.name(3)}: agents decide)
       {"type": "stop_process", "run": <run id>, "pid": <pid>} (only when #{@user.username} asks to stop or kill a process of a running step; only the processes listed under its step)
       {"type": "set_reply_length", "level": 1, 2 or 3} (only when #{@user.username} asks for shorter, longer or more detailed replies from now on; 1 #{ReplyLength.name(1)}, 2 #{ReplyLength.name(2)}, 3 #{ReplyLength.name(3)}; not for one detailed answer)
+      {"type": "set_style", "level": 1, 2 or 3} (only when #{@user.username} asks you to talk to them differently from now on; 1 #{ChatStyle.name(1)}: simple words, 2 #{ChatStyle.name(2)}, 3 #{ChatStyle.name(3)}: technical)
+      {"type": "set_tempo", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks how fast or how carefully work is done; 1 #{WorkTempo.name(1)}: small steps and a check, 2 #{WorkTempo.name(2)}, 3 #{WorkTempo.name(3)}: one step, one agent)
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
       Every item belongs to a space. When it is not clear which space a new item belongs to, do not guess: ask in your reply and add nothing.
@@ -550,17 +553,26 @@ class ManagementRunner
   def autonomy_plan_rule
     level = Autonomy.level_for(@item.space, @user)
     always = "These decisions always belong to #{@user.username}, at every level; plan steps so that the agents ask before them:\n#{Autonomy.always_ask_text}"
-    rule = case level
-           when 1
-             if @item.clarifications.zero?
-               "Autonomy level: #{Autonomy.name(1)}. #{@user.username} wants to be asked: if anything that matters for the result is unclear (scope, format, audience, approach), do not guess — ask at most #{Autonomy::MAX_CLARIFYING} short questions in one \"blocked\" message. If everything is clear, plan; #{@user.username} approves the plan before it starts."
-             else
-               "Autonomy level: #{Autonomy.name(1)}. #{@user.username} has answered your questions: plan now (ask again only if it truly cannot be planned). #{@user.username} approves the plan before it starts."
-             end
-           when 3 then "Autonomy level: #{Autonomy.name(3)}. #{@user.username} wants you to decide: do not ask. Where something is unclear, choose what you would recommend and list it in \"assumptions\". Use \"blocked\" only if the item cannot be planned at all."
-           else "Autonomy level: #{Autonomy.name(2)}. Decide small things yourself and list them in \"assumptions\"; ask with \"blocked\" only when an important decision (costly, hard to undo, or a matter of #{@user.username}'s taste) is unclear."
-           end
+    rule = turbo? ? turbo_plan_rule(level) : level_plan_rule(level)
     "#{rule}\n#{always}"
+  end
+
+  # Spec 041, R6: Turbo asks no clarifying questions at any level; approval at Pytaj stays.
+  def turbo_plan_rule(level)
+    "Autonomy level: #{Autonomy.name(level)}, tempo #{WorkTempo.name(WorkTempo::TURBO)}: do not ask clarifying questions. Where something is unclear, choose what you would recommend and list it in \"assumptions\". Use \"blocked\" only if the item cannot be planned at all.#{" #{@user.username} approves the plan before it starts." if level == 1}"
+  end
+
+  def level_plan_rule(level)
+    case level
+    when 1
+      if @item.clarifications.zero?
+        "Autonomy level: #{Autonomy.name(1)}. #{@user.username} wants to be asked: if anything that matters for the result is unclear (scope, format, audience, approach), do not guess — ask at most #{Autonomy::MAX_CLARIFYING} short questions in one \"blocked\" message. If everything is clear, plan; #{@user.username} approves the plan before it starts."
+      else
+        "Autonomy level: #{Autonomy.name(1)}. #{@user.username} has answered your questions: plan now (ask again only if it truly cannot be planned). #{@user.username} approves the plan before it starts."
+      end
+    when 3 then "Autonomy level: #{Autonomy.name(3)}. #{@user.username} wants you to decide: do not ask. Where something is unclear, choose what you would recommend and list it in \"assumptions\". Use \"blocked\" only if the item cannot be planned at all."
+    else "Autonomy level: #{Autonomy.name(2)}. Decide small things yourself and list them in \"assumptions\"; ask with \"blocked\" only when an important decision (costly, hard to undo, or a matter of #{@user.username}'s taste) is unclear."
+    end
   end
 
   # Spec 033, G6: how the director talks at the owner's default level; changes still need the owner's request.
@@ -568,6 +580,9 @@ class ManagementRunner
   def reply_length_rule
     ReplyLength.rule(@user.reply_length, @user.username) unless spoken?
   end
+
+  # Spec 041, G4: the tempo of the item's space, else the owner's default.
+  def turbo? = WorkTempo.turbo?(@item.space, @user)
 
   def chat_autonomy_rule
     case @user.autonomy_level
@@ -628,7 +643,8 @@ class ManagementRunner
       Your team members (use only these ids):
       #{members.presence&.join("\n") || "(none)"}
 
-      Rules: 1 to #{MAX_STEPS} steps, in the order they should run; each step for one member. A member can run several tasks at once, up to its limit; when the right skills allow a choice, prefer a member with free slots, since a step for a busy member (at its limit) waits until one of its tasks ends. Write the summary, titles and descriptions in the language of the work item.
+      Rules: #{turbo? ? "exactly 1 step" : "1 to #{MAX_STEPS} steps, in the order they should run"}; each step for one member. A member can run several tasks at once, up to its limit; when the right skills allow a choice, prefer a member with free slots, since a step for a busy member (at its limit) waits until one of its tasks ends. Write the summary, titles and descriptions in the language of the work item.
+      #{WorkTempo.plan_rule(WorkTempo.level_for(@item.space, @user))}
       #{autonomy_plan_rule}
       Reply with ONLY one JSON object, no other text:
       {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>, "minutes": <the step's time limit, 5 to 240: your estimate of how long it needs, with a margin; 30 if unsure>}], "assumptions": ["what you assumed yourself, one short sentence each (may be empty)"]}
@@ -745,6 +761,7 @@ class ManagementRunner
     when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
     when "answer_decision", "approve_plan", "set_autonomy" then autonomy_action(action) # spec 033
     when "set_reply_length" then reply_length_action(action) # spec 039
+    when "set_style", "set_tempo" then style_tempo_action(action) # spec 041
     when "stop_process" then stop_process_action(action) # spec 040, G4
     when "add_recurring", "update_recurring", "pause_recurring", "resume_recurring", "cancel_recurring" then recurring_action(action) # spec 034
     else
@@ -878,6 +895,31 @@ class ManagementRunner
     raise Invalid, "set_reply_length: #{@user.username} has not asked in their message to change how long replies are" unless user_request&.content.to_s.match?(LENGTH_REQUEST)
 
     -> { @user.update!(reply_length: level); "Reply length: #{ReplyLength.name(level)}" }
+  end
+
+  # Spec 041, G6, R7: style and tempo change only on the owner's own words about them.
+  STYLE_REQUEST = /dzieck|dziecin|doros[łl]|in[żz]ynier|technicz|pro[śs]ciej|prostym|prostsz|styl|m[óo]w do mnie|pisz do mnie|child|kid|adult|engineer|technical|simpl|style|talk to me/i
+  TEMPO_REQUEST = /turbo|tempo|szybk|szybc|dok[łl]adn|normaln|starann|fast|quick|thorough|careful|speed|pace/i
+
+  def style_tempo_action(action)
+    type = action["type"]
+    level = action["level"].to_s.to_i
+    if type == "set_style"
+      raise Invalid, "set_style: level must be 1, 2 or 3" unless ChatStyle.valid?(level)
+      raise Invalid, "set_style: #{@user.username} has not asked in their message to change how you talk to them" unless user_request&.content.to_s.match?(STYLE_REQUEST)
+
+      return -> { @user.update!(chat_style: level); "Style: #{ChatStyle.name(level)}" }
+    end
+
+    raise Invalid, "set_tempo: level must be 1, 2 or 3" unless WorkTempo.valid?(level)
+    raise Invalid, "set_tempo: #{@user.username} has not asked in their message to change the tempo of work" unless user_request&.content.to_s.match?(TEMPO_REQUEST)
+
+    if action["space"].present?
+      space = @user.spaces.find_by(id: action["space"].to_s.to_i) or raise Invalid, "set_tempo: no space with id #{action["space"].inspect}"
+      -> { space.update!(work_tempo: level); "Tempo of #{space.name}: #{WorkTempo.name(level)}" }
+    else
+      -> { @user.update!(work_tempo: level); "Tempo: #{WorkTempo.name(level)}" }
+    end
   end
 
   # Spec 031, G8: memory changes only on the user's own clear request (R1), and only on their own facts.
@@ -1025,6 +1067,7 @@ class ManagementRunner
 
     steps = data["steps"]
     raise Invalid, "\"steps\" must be a list of 1 to #{MAX_STEPS} steps" unless steps.is_a?(Array) && steps.size.between?(1, MAX_STEPS)
+    raise Invalid, "tempo #{WorkTempo.name(WorkTempo::TURBO)}: the plan must have exactly 1 step" if turbo? && steps.size != 1 # spec 041, R5
 
     members = team_members.to_h { |m| [ m.agent_id, m.agent ] }
     checked = steps.each_with_index.map { |step, i| check_step(step, i + 1, members) } # all checked before any is saved

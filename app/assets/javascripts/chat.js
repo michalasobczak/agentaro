@@ -536,6 +536,7 @@
       }
       if (muted && (state === "listening" || state === "hearing")) stateLabel.textContent = "Microphone muted";
       note.textContent = muted && state !== "error" ? MUTED_NOTE : lastNote;
+      if (stateLabel.parentElement) stateLabel.parentElement.title = note.textContent; // spec 041, G2: on a phone the note is a tooltip
       doneButton.hidden = muted || (state !== "listening" && state !== "hearing");
     }
 
@@ -802,23 +803,52 @@
       }
     });
 
-    // Owner fix: speech speed (1x–2x), saved for the user; the next sentence uses it.
-    const speeds = panel.querySelector("[data-speed-url]");
-    speeds?.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-speed]");
-      if (!button) return;
-      const response = await fetch(speeds.dataset.speedUrl, { method: "PATCH", body: JSON.stringify({ speed: button.dataset.speed }),
+    // Owner fix: speech speed (1x–2x), saved for the user; the next sentence uses it. Spec 041, G2: one button that
+    // moves to the next speed on each tap.
+    const speedButton = panel.querySelector("[data-speed-url]");
+    speedButton?.addEventListener("click", async () => {
+      const speeds = speedButton.dataset.speeds.split(",").map(Number);
+      const next = speeds[(speeds.indexOf(Number(speedButton.dataset.speed)) + 1) % speeds.length];
+      const response = await fetch(speedButton.dataset.speedUrl, { method: "PATCH", body: JSON.stringify({ speed: String(next) }),
         headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-Token": chat.csrf }, credentials: "same-origin" }).catch(() => null);
       if (!response?.ok) return;
       const { speed } = await response.json();
-      speeds.querySelectorAll("[data-speed]").forEach((b) => {
-        const on = Number(b.dataset.speed) === speed;
-        b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on));
-      });
+      const label = `${String(speed).replace(".", ",")}×`;
+      speedButton.dataset.speed = String(speed);
+      speedButton.textContent = label;
+      speedButton.setAttribute("aria-label", `Speech speed ${label}`);
     });
     window.addEventListener("pagehide", end, { signal: chat.signal });
     return { end };
   }
+
+  // ---------- Spec 041, G1: the settings panel in the chat header ----------
+  // Closes on Esc or a click outside. A switch inside it reloads the page (Turbo), so the panel that was open stays open.
+  const SETTINGS_KEY = "agentaro.chat.settings";
+  window.agentaroOnPage((signal) => {
+    const panels = [...document.querySelectorAll("[data-chat-settings]")];
+    if (!panels.length) return;
+    const reopen = store.get("sessionStorage", SETTINGS_KEY);
+    store.set("sessionStorage", SETTINGS_KEY, null);
+    panels.forEach((details) => {
+      const where = details.closest(".chat-app.is-dock") ? "dock" : "page";
+      if (reopen === where) details.open = true;
+      details.addEventListener("submit", (event) => { // the background saves in place (spec 029), without a reload
+        if (!event.target.matches("[data-chat-background-form]")) store.set("sessionStorage", SETTINGS_KEY, where);
+      }, { signal });
+    });
+    document.addEventListener("click", (event) => {
+      panels.forEach((details) => { if (details.open && !details.contains(event.target)) details.open = false; });
+    }, { signal });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const open = panels.find((details) => details.open);
+      if (!open) return;
+      event.stopPropagation(); // the floating chat stays open; only the panel closes
+      open.open = false;
+      open.querySelector("summary").focus();
+    }, { signal, capture: true });
+  });
 
   // ---------- The full-page chat (Director page): started on every visit, ended when the page is left ----------
   window.agentaroOnPage((signal) => {

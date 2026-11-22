@@ -417,3 +417,22 @@
   - Spec 032's fixed retry rule and its Team page switch are removed. Migration: `epic_steps.time_limit_minutes`, `step_reviews`.
   - 18 new tests; spec 032 and 036 tests adapted.
   - B20: the server's own process group is never stopped, whatever a saved list says (fixed with a test). Brakeman 0 warnings, bundle-audit clean.
+
+## 2026-11-22
+
+- Spec 041 Chat settings in one panel, conversation style and work tempo.
+  - The owner's words: "na mobile … powinny być przyciskami/ikonami, teraz zajmuje to za dużo miejsca"; "każda rzecz ma nową linię … chcę żeby to było bardziej kompaktowe".
+  - The owner's decisions: one panel on the phone and the computer; the style for the director's replies only; Turbo = 1 step; tempo per account and per space; both changeable from the chat.
+  - The chat header shows one settings icon instead of the switches. Its panel holds the language, autonomy, reply length, style, tempo and background.
+  - The voice bar is one row of icons. The speed is one button that moves to the next speed.
+  - **Style:** Dziecko / **Dorosły** (default) / Inżynier, for the director's chat replies, written and spoken.
+  - **Tempo:** Dokładnie (smaller steps, a checking step last) / **Normalnie** (default) / Turbo (exactly 1 step for 1 agent, no clarifying questions; approval at Pytaj stays).
+    - A space can have its own tempo on its form.
+    - The failure review's replan follows the tempo.
+    - At Turbo a plan with more steps is refused in code.
+  - Chat actions `set_style` and `set_tempo` need the owner's words.
+  - Migration `20261122090000`.
+  - 14 new tests; 3 tests adapted to the new header and voice bar.
+  - Checked in the browser at 375 px and at desktop width.
+  - B20 in the spec: Brakeman 0 warnings, bundle-audit clean, no findings.
+

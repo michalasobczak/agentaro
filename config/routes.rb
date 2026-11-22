@@ -101,6 +101,8 @@ Rails.application.routes.draw do
     resource :chat_background, only: :update # spec 029: the chat background pattern
     resource :autonomy, only: :update # spec 033: the owner's default autonomy level
     resource :reply_length, only: :update # spec 039: how much the director writes
+    resource :chat_style, only: :update # spec 041: how the director talks
+    resource :work_tempo, only: :update # spec 041: how finely work is split
   end
 
   namespace :admin do

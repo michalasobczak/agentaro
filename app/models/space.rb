@@ -22,6 +22,7 @@ class Space < ApplicationRecord
   validates :name, presence: true, length: { maximum: 60 }, uniqueness: { scope: :user_id, case_sensitive: false }
   validates :kind, inclusion: { in: KINDS }
   validates :autonomy_level, inclusion: { in: Autonomy::LEVELS.keys }, allow_nil: true # spec 033: nil = the owner's default
+  validates :work_tempo, inclusion: { in: WorkTempo::LEVELS.keys }, allow_nil: true # spec 041: nil = the owner's default
   validates :goal, presence: { message: "is required for a project space" }, if: :project?
   validates :goal, length: { maximum: 2000 }
   validates :description, length: { maximum: 5000 }

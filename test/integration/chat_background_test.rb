@@ -186,8 +186,9 @@ class ChatBackgroundTest < ActionDispatch::IntegrationTest
     assert_match(/color:\s*var\(--ok-text\)/, rule.(".from-verifier .bubble-name"))
   end
 
-  test "S3 fix: the header does not clip — the selector gets its own row in narrow chats; a hidden floating chat keeps no room" do
-    assert_match(/@container \(max-width: 760px\) \{ \.chat-head \{ flex-wrap: wrap; \} \.chat-head \.chat-bg \{ order: 10; flex-basis: 100%; \} \}/, css)
+  test "S3 fix: the header does not clip — the selector is in the settings panel (spec 041); a hidden floating chat keeps no room" do
+    assert_match(/\.chat-settings-panel \{ position: absolute;/, css)
+    assert_no_match(/\.chat-head \{ flex-wrap: wrap; \}/, css, "spec 041: the header no longer wraps")
     assert_match(/body:has\(\.content > \.chat-app, \.director-layout > \.chat-app\):has\(\.chat-dock\.is-open:not\(\.is-voice\)\) \.main \{ margin-right: 0; \}/, css)
   end
 end

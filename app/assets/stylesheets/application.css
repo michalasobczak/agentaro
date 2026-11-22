@@ -450,7 +450,6 @@ body:not([data-chat-background="solid"]) .chat-empty { background: var(--bg); pa
 .chat-bg { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0; flex: none; }
 .chat-bg .chat-bg-select { width: auto; min-height: 0; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 600; border-radius: 999px; background: var(--surface-2); color: var(--fg); }
 .chat-bg .chat-bg-apply { min-height: 0; padding: 0.2rem 0.6rem; font-size: 0.75rem; }
-.lang-switch + .chat-bg + .chat-links { margin-left: 0.4rem; }
 .chat-composer { display: flex; align-items: flex-end; gap: 0.5rem; padding: 0.65rem 0.75rem; border-top: 1px solid var(--line); background: var(--surface); }
 .chat-composer textarea { flex: 1; min-height: 2.75rem; max-height: 10rem; resize: none; border-radius: 1.4rem; padding: 0.65rem 1rem; line-height: 1.4; }
 .chat-composer .send { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; border-radius: 50%; flex: none; }
@@ -733,7 +732,7 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .voice-panel[data-state="error"] .voice-dots i { background: var(--bad); }
 /* Spec 035: the microphone mute toggle. Muted = warning fill on the button, its own panel colour and still grey dots.
    The text on the fill is the surface colour: white on dark orange (light theme), dark on light orange (dark theme). */
-.voice-mute { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.45rem 0.85rem; border-radius: 999px; flex: none;
+.voice-mute { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0; border-radius: 50%; flex: none; /* spec 041: icon only */
   background: var(--surface); color: var(--fg); border: 1px solid var(--line-strong); }
 .voice-mute svg.icon { width: 1.1rem; height: 1.1rem; }
 .voice-mute .voice-mute-off { display: none; }
@@ -749,14 +748,13 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 @media (prefers-reduced-motion: reduce) { .voice-dots i { animation: none !important; } }
 .bubble.is-streaming .bubble-text::after { content: "▍"; color: var(--accent); animation: caret-blink 1s steps(2) infinite; margin-left: 0.1rem; }
 @keyframes caret-blink { 50% { opacity: 0; } }
-.voice-done { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.45rem 0.85rem; border-radius: 999px; flex: none; }
+.voice-done { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0; border-radius: 50%; flex: none; } /* spec 041: icon only */
 .voice-done svg.icon { width: 1rem; height: 1rem; }
 /* Conversation language switch (owner fix after spec 017) */
-.lang-switch { display: inline-flex; padding: 0.15rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); margin-left: auto; flex: none; }
+.lang-switch { display: inline-flex; padding: 0.15rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); flex: none; }
 .lang-switch form { margin: 0; }
 .lang-switch .lang { min-height: 0; padding: 0.2rem 0.55rem; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 0.75rem; font-weight: 700; cursor: pointer; }
 .lang-switch .lang.is-active { background: var(--accent); color: #fff; }
-.lang-switch + .chat-links { margin-left: 0.4rem; }
 .chat-head .chat-who { flex: 1 1 auto; min-width: 0; overflow: hidden; }
 .chat-head .chat-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-head .lang-switch { margin-left: 0; }
@@ -798,16 +796,23 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 @container (max-width: 470px) { .lang-switch .lang { padding: 0.2rem 0.4rem; } }
 /* Spec 029 fix: the selector takes its own row below 760 px of chat width (the full chat beside the work panel at
    a 1280 px window was ~516 px and clipped the action buttons). */
-@container (max-width: 760px) { .chat-head { flex-wrap: wrap; } .chat-head .chat-bg { order: 10; flex-basis: 100%; } }
 @container (max-width: 620px) { .chat-head .chat-tool, .chat-links .verify-tool { width: 1.95rem; height: 1.95rem; } .chat-head { gap: 0.5rem; padding: 0.6rem 0.75rem; } }
 /* The verifier as a switch, and the speech speed switch (owner fixes) */
 .chat-links .verify-tool:not(.is-on) { background: var(--surface); color: var(--muted); border-color: var(--line); }
 .chat-links .verify-tool.is-on { background: var(--ok); color: #fff; border-color: var(--ok); }
 .voice-verify.is-on { background: var(--ok); color: #fff; border-color: var(--ok); }
-.speed-switch { display: inline-flex; padding: 0.12rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); flex: none; }
-.speed-switch .speed { min-height: 0; padding: 0.2rem 0.45rem; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 0.72rem; font-weight: 700; cursor: pointer; }
-.speed-switch .speed.is-active { background: var(--accent); color: #fff; }
-@container (max-width: 520px) { .voice-panel { flex-wrap: wrap; } .voice-info { flex-basis: calc(100% - 3rem); } }
+/* Spec 041, G2: the speech speed as one button that moves to the next speed. */
+.voice-speed { display: grid; place-items: center; min-width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0 0.45rem; border-radius: 999px; flex: none;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--line); font-size: 0.75rem; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; }
+.voice-speed:hover { border-color: var(--accent); }
+/* Spec 041, G2: one row on a phone — the note only as a tooltip, smaller gaps and dots. */
+@container (max-width: 520px) {
+  .voice-panel { gap: 0.4rem; padding: 0.55rem 0.6rem; }
+  .voice-info [data-voice-note] { display: none; }
+  .voice-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+  .voice-dots { gap: 0.18rem; } .voice-dots i { width: 0.4rem; }
+}
+@container (max-width: 360px) { .voice-panel .voice-mute, .voice-panel .voice-done, .voice-panel .voice-stop, .voice-panel .voice-verify, .voice-speed { width: 2.15rem; height: 2.15rem; } .voice-speed { width: auto; min-width: 2.15rem; } }
 /* Spec 020, Q1: on the Director page the floating chat shows only while voice mode runs in it, and then the
    page's own chat steps aside, so the conversation is never shown twice. */
 body:has(.content > .chat-app, .director-layout > .chat-app) .chat-dock:not(.is-voice) { display: none; }
@@ -945,7 +950,17 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .brain-block form { margin-top: 0.5rem; }
 
 /* Spec 033: the autonomy slider in the chat header, and decisions on the epic page. */
-.chat-head .lang-switch.chat-autonomy, .chat-head .lang-switch.chat-length { margin-left: 0.4rem; } /* spec 039: the length switch beside it */
+/* Spec 041, G1: every chat switch in one panel under the settings icon. */
+.chat-head { position: relative; }
+.chat-settings { flex: none; }
+.chat-settings > summary { list-style: none; cursor: pointer; }
+.chat-settings > summary::-webkit-details-marker { display: none; }
+.chat-settings[open] > summary { background: var(--surface-2); color: var(--accent); }
+.chat-settings-panel { position: absolute; top: calc(100% + 0.25rem); right: 0.5rem; z-index: 25; width: min(23rem, calc(100% - 1rem)); max-height: min(32rem, 70dvh); overflow-y: auto;
+  display: grid; gap: 0.65rem; padding: 0.8rem 0.9rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 12px 32px rgba(16, 24, 40, 0.18); }
+.chat-setting { display: grid; gap: 0.3rem; justify-items: start; }
+.chat-setting-label { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.chat-settings + .chat-links { margin-left: 0.15rem; }
 .decisions { display: grid; gap: 0.9rem; margin-bottom: 1rem; }
 .decision.is-pending { padding: 0.8rem 0.9rem; border: 1px solid var(--warn-text); border-radius: var(--radius); background: var(--surface-2); }
 .decision p { margin: 0 0 0.5rem; }

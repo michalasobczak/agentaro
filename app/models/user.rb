@@ -17,6 +17,8 @@ class User < ApplicationRecord
   has_many :work_items, dependent: :destroy
   has_many :recurring_orders, dependent: :destroy # spec 034
   validates :autonomy_level, inclusion: { in: Autonomy::LEVELS.keys } # spec 033
+  validates :chat_style, inclusion: { in: ChatStyle::LEVELS.keys } # spec 041
+  validates :work_tempo, inclusion: { in: WorkTempo::LEVELS.keys } # spec 041
   has_many :spaces, dependent: :destroy # spec 013 (after work_items, which need them)
   has_many :chat_messages, dependent: :destroy
   # Spec 031: the brain (facts before episodes, which they cite)

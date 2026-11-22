@@ -150,6 +150,7 @@ class StepReviewer
       Look at the error and the log: a passing problem (network, usage limit, a flaky test) is retried; a wrong approach is retried with changed instructions that avoid the mistake; a step that cannot work as planned is replanned; stop only when the result cannot be reached.
       The step's processes were stopped when it ended. Its files and changes stay: a retry continues from the current state.
       #{ask}
+      A replan follows the tempo: #{WorkTempo.plan_rule(WorkTempo.level_for(@item.space, @user))}
       Reply with ONLY one JSON object, no other text:
       {"decision": "retry" or "change" or "replan"#{' or "ask"' unless level == 3} or "stop",
        "reason": "one or two short sentences for #{@user.username}: what went wrong and why this decision",
@@ -244,6 +245,7 @@ class StepReviewer
     when "replan"
       steps = data["steps"]
       raise Invalid, "\"steps\" must be a list of 1 to #{ManagementRunner::MAX_STEPS} steps" unless steps.is_a?(Array) && steps.size.between?(1, ManagementRunner::MAX_STEPS)
+      raise Invalid, "tempo #{WorkTempo.name(WorkTempo::TURBO)}: a replan must have exactly 1 step" if WorkTempo.turbo?(@item.space, @user) && steps.size != 1 # spec 041, R4
 
       members = @user.team_roles.members.includes(:agent).to_h { |m| [ m.agent_id, m.agent ] }
       checked[:steps] = steps.each_with_index.map do |s, i|

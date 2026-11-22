@@ -85,8 +85,9 @@ class SpacesController < ApplicationController
   def set_space = @space = current_user.spaces.find(params[:id])
 
   def space_params
-    attrs = params.expect(space: %i[kind name goal description working_dir autonomy_level])
+    attrs = params.expect(space: %i[kind name goal description working_dir autonomy_level work_tempo])
     attrs[:autonomy_level] = attrs[:autonomy_level].presence&.to_i if attrs.key?(:autonomy_level) # spec 033: "" = the owner's default
+    attrs[:work_tempo] = attrs[:work_tempo].presence&.to_i if attrs.key?(:work_tempo) # spec 041, G5: "" = the owner's default
     attrs
   end
 end

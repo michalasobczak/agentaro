@@ -15,38 +15,78 @@
       <strong><%= director.name %></strong>
       <span class="chat-status muted small" data-status><%= writing ? "writing…" : "your director" %></span>
     </div>
-    <%# Owner fix after spec 017: the conversation language — recognition, replies and voice. %>
-    <div class="lang-switch" role="group" aria-label="Conversation language">
-      <% User::CHAT_LANGUAGES.each do |code, label| %>
-        <%= button_to label, chat_language_path(language: code), method: :patch, class: ["lang", ("is-active" if current_user.chat_language == code)].compact.join(" "),
-                      "aria-pressed": current_user.chat_language == code,
-                      title: { "auto" => "Language of your latest message", "pl" => "Polski", "en" => (Voice.english_voice? ? "English" : "English (English voice not installed: Polish voice reads it)") }[code] %>
-      <% end %>
-    </div>
-    <%# Spec 033, G2: the owner's default autonomy level, as three buttons like the language switch (no script). %>
-    <div class="lang-switch chat-autonomy" role="group" aria-label="Autonomy: how often agents ask you">
-      <% Autonomy::LEVELS.each do |level, name| %>
-        <%= button_to name, account_autonomy_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.autonomy_level == level)].compact.join(" "),
-                      "aria-pressed": current_user.autonomy_level == level, title: Autonomy::HINTS[level] %>
-      <% end %>
-    </div>
-    <%# Spec 039, G2: how much the director writes, as three buttons like the autonomy switch (no script). %>
-    <div class="lang-switch chat-length" role="group" aria-label="Reply length: how much the director writes">
-      <% ReplyLength::LEVELS.each do |level, name| %>
-        <%= button_to name, account_reply_length_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.reply_length == level)].compact.join(" "),
-                      "aria-pressed": current_user.reply_length == level, title: ReplyLength::HINTS[level] %>
-      <% end %>
-    </div>
-    <%# Spec 029: the chat background pattern, saved on the account. chat.js saves on change (and hides Apply);
-        without it the form posts normally. %>
-    <% background_id = dock ? "chat-dock-background" : "chat-background" %>
-    <%= form_with url: account_chat_background_path, method: :patch, class: "chat-bg", data: { chat_background_form: true } do %>
-      <label class="visually-hidden" for="<%= background_id %>">Chat background</label>
-      <%= select_tag :chat_background, options_for_select(User::CHAT_BACKGROUNDS.invert, current_user.shown_chat_background),
-                     id: background_id, class: "chat-bg-select", title: "Chat background", data: { chat_background_select: true } %>
-      <button type="submit" class="secondary chat-bg-apply" data-chat-background-apply>Apply</button>
-      <span class="visually-hidden" role="status" data-chat-background-status></span>
-    <% end %>
+    <%# Spec 041, G1: every switch behind one settings icon, on the phone and on the computer. Each switch saves at once,
+        as before; without script the panel is a plain disclosure (R8). chat.js closes it on Esc or a click outside. %>
+    <% settings_id = dock ? "chat-dock-settings" : "chat-settings" %>
+    <details class="chat-settings" data-chat-settings>
+      <summary class="chat-tool" title="Chat settings: language, autonomy, reply length, style, tempo, background" aria-label="Chat settings"><%= icon(:settings) %></summary>
+      <div class="chat-settings-panel" id="<%= settings_id %>">
+        <div class="chat-setting">
+          <span class="chat-setting-label">Language</span>
+          <%# Owner fix after spec 017: the conversation language — recognition, replies and voice. %>
+          <div class="lang-switch" role="group" aria-label="Conversation language">
+            <% User::CHAT_LANGUAGES.each do |code, label| %>
+              <%= button_to label, chat_language_path(language: code), method: :patch, class: ["lang", ("is-active" if current_user.chat_language == code)].compact.join(" "),
+                            "aria-pressed": current_user.chat_language == code,
+                            title: { "auto" => "Language of your latest message", "pl" => "Polski", "en" => (Voice.english_voice? ? "English" : "English (English voice not installed: Polish voice reads it)") }[code] %>
+            <% end %>
+          </div>
+        </div>
+        <div class="chat-setting">
+          <span class="chat-setting-label">Autonomy</span>
+          <%# Spec 033, G2: the owner's default autonomy level. %>
+          <div class="lang-switch chat-autonomy" role="group" aria-label="Autonomy: how often agents ask you">
+            <% Autonomy::LEVELS.each do |level, name| %>
+              <%= button_to name, account_autonomy_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.autonomy_level == level)].compact.join(" "),
+                            "aria-pressed": current_user.autonomy_level == level, title: Autonomy::HINTS[level] %>
+            <% end %>
+          </div>
+        </div>
+        <div class="chat-setting">
+          <span class="chat-setting-label">Reply length</span>
+          <%# Spec 039, G2: how much the director writes. %>
+          <div class="lang-switch chat-length" role="group" aria-label="Reply length: how much the director writes">
+            <% ReplyLength::LEVELS.each do |level, name| %>
+              <%= button_to name, account_reply_length_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.reply_length == level)].compact.join(" "),
+                            "aria-pressed": current_user.reply_length == level, title: ReplyLength::HINTS[level] %>
+            <% end %>
+          </div>
+        </div>
+        <div class="chat-setting">
+          <span class="chat-setting-label">Style</span>
+          <%# Spec 041, G3: how the director talks, written and spoken. %>
+          <div class="lang-switch chat-style" role="group" aria-label="Conversation style: how the director talks to you">
+            <% ChatStyle::LEVELS.each do |level, name| %>
+              <%= button_to name, account_chat_style_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.chat_style == level)].compact.join(" "),
+                            "aria-pressed": current_user.chat_style == level, title: ChatStyle::HINTS[level] %>
+            <% end %>
+          </div>
+        </div>
+        <div class="chat-setting">
+          <span class="chat-setting-label">Tempo</span>
+          <%# Spec 041, G4: how finely new work is split into steps (a space's own tempo wins, G5). %>
+          <div class="lang-switch chat-tempo" role="group" aria-label="Tempo: how fast work is done and how finely it is split">
+            <% WorkTempo::LEVELS.each do |level, name| %>
+              <%= button_to name, account_work_tempo_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.work_tempo == level)].compact.join(" "),
+                            "aria-pressed": current_user.work_tempo == level, title: WorkTempo::HINTS[level] %>
+            <% end %>
+          </div>
+        </div>
+        <div class="chat-setting">
+          <span class="chat-setting-label">Background</span>
+          <%# Spec 029: the chat background pattern, saved on the account. chat.js saves on change (and hides Apply);
+              without it the form posts normally. %>
+          <% background_id = dock ? "chat-dock-background" : "chat-background" %>
+          <%= form_with url: account_chat_background_path, method: :patch, class: "chat-bg", data: { chat_background_form: true } do %>
+            <label class="visually-hidden" for="<%= background_id %>">Chat background</label>
+            <%= select_tag :chat_background, options_for_select(User::CHAT_BACKGROUNDS.invert, current_user.shown_chat_background),
+                           id: background_id, class: "chat-bg-select", title: "Chat background", data: { chat_background_select: true } %>
+            <button type="submit" class="secondary chat-bg-apply" data-chat-background-apply>Apply</button>
+            <span class="visually-hidden" role="status" data-chat-background-status></span>
+          <% end %>
+        </div>
+      </div>
+    </details>
     <nav class="chat-links">
       <% if current_user.verifier_role %>
         <% on = current_user.verifier_active? %>
@@ -111,7 +151,7 @@
     </div>
   </div>
 
-  <%# Spec 017: voice mode — listening, thinking, speaking; the dots move with the state. %>
+  <%# Spec 017: voice mode — listening, thinking, speaking; the dots move with the state. Spec 041, G2: one row of icons. %>
   <div class="voice-panel" data-voice-panel hidden>
     <span class="voice-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
     <div class="voice-info">
@@ -120,14 +160,13 @@
     </div>
     <%# Spec 035: mute the microphone without ending voice mode. The accessible name stays; aria-pressed tells the state.
         chat.js swaps the icon (both are here, one hidden) and the visible label. %>
-    <button type="button" class="voice-mute" data-voice-mute aria-pressed="false" aria-label="Mute microphone" title="Mute the microphone — nothing you say is sent"><%= icon(:mic, css: "icon voice-mute-on") %><%= icon(:mic_off, css: "icon voice-mute-off") %><span class="voice-mute-label">Mute</span></button>
-    <div class="speed-switch" role="group" aria-label="Speech speed" data-speed-url="<%= speech_speed_director_path %>">
-      <% User::SPEECH_SPEEDS.each do |speed| %>
-        <button type="button" class="speed<%= " is-active" if current_user.speech_speed.to_f == speed %>" data-speed="<%= speed %>" aria-pressed="<%= current_user.speech_speed.to_f == speed %>"><%= speed.to_s.sub(/\.0\z/, "").tr(".", ",") %>×</button>
-      <% end %>
-    </div>
+    <button type="button" class="voice-mute" data-voice-mute aria-pressed="false" aria-label="Mute microphone" title="Mute the microphone — nothing you say is sent"><%= icon(:mic, css: "icon voice-mute-on") %><%= icon(:mic_off, css: "icon voice-mute-off") %><span class="voice-mute-label visually-hidden">Mute</span></button>
+    <%# Spec 041, G2: the speech speed as one button; each tap moves to the next speed (chat.js). %>
+    <% speed = User::SPEECH_SPEEDS.include?(current_user.speech_speed.to_f) ? current_user.speech_speed.to_f : User::SPEECH_SPEEDS.first %>
+    <button type="button" class="voice-speed" data-speed-url="<%= speech_speed_director_path %>" data-speed="<%= speed %>" data-speeds="<%= User::SPEECH_SPEEDS.join(",") %>"
+            title="Speech speed — tap for the next speed" aria-label="Speech speed <%= speed.to_s.sub(/\.0\z/, "").tr(".", ",") %>×"><%= speed.to_s.sub(/\.0\z/, "").tr(".", ",") %>×</button>
     <% if current_user.verifier_role %><button type="button" class="voice-verify<%= " is-on" if current_user.verifier_active? %>" data-voice-verify title="Invite or send away the verifier" aria-label="Verifier" aria-pressed="<%= current_user.verifier_active? %>"><%= icon(:verify) %></button><% end %>
-    <button type="button" class="voice-done" data-voice-done hidden title="I am done speaking — send now" aria-label="Done speaking, send now"><%= icon(:send) %> Done</button>
+    <button type="button" class="voice-done" data-voice-done hidden title="Done — send now" aria-label="Done speaking, send now"><%= icon(:send) %></button>
     <button type="button" class="voice-stop" data-voice-stop title="End voice mode" aria-label="End voice mode"><%= icon(:close) %></button>
     <span class="visually-hidden" role="status" data-voice-mute-status></span>
   </div>
