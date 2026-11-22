@@ -628,6 +628,8 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .work-epic.is-blocked { border-color: var(--bad); }
 .work-epic-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
 .work-epic-head a { font-weight: 600; overflow-wrap: anywhere; }
+.work-epic-head a { margin-right: auto; }
+.work-pause { padding: 0; min-height: 0; font-size: 0.78rem; } /* spec 048 */
 .work-state { flex: none; color: var(--muted); }
 .work-epic.is-running > .work-epic-head .work-state { color: var(--warn); }
 .work-epic.is-blocked > .work-epic-head .work-state { color: var(--bad); }

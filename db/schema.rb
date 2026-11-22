@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_180000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -464,6 +464,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_160000) do
     t.boolean "awaiting_approval", default: false, null: false
     t.integer "clarifications", default: 0, null: false
     t.integer "recurring_order_id"
+    t.datetime "paused_at"
     t.index ["recurring_order_id"], name: "index_work_items_on_recurring_order_id"
     t.index ["space_id"], name: "index_work_items_on_space_id"
     t.index ["user_id", "state"], name: "index_work_items_on_user_id_and_state"

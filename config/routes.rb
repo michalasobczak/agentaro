@@ -38,6 +38,8 @@ Rails.application.routes.draw do
       post :done # spec 013, Q10
       post :cancel
       post :approve # spec 033: a plan waiting for approval
+      post :pause # spec 048
+      post :resume # spec 048
     end
   end
   resources :recurring_orders, only: %i[new create edit update destroy], path: "recurring" do # spec 034: a part of its space (owner fix)

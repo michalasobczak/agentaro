@@ -25,6 +25,7 @@ class StepChain
       item.reload
       next unless item.state == "planned"
       next if item.awaiting_approval # spec 033, G1: level 1 waits for Approve
+      next if item.paused? && item.started_at # spec 048, G2: a started epic queues no next step while paused
       next if item.waits_for # spec 037: one epic at a time in a space
       next if item.active_steps.where(state: %w[queued running reviewing]).exists? # spec 040: the director decides first
 

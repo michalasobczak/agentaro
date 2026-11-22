@@ -25,6 +25,8 @@ class WorkPanel
   def epic_h(item)
     steps = item.epic_steps.select { |s| s.position >= item.active_step_from.to_i }
     { id: item.id, title: item.title, state: item.board_state, url: helpers.work_item_path(item),
+      paused: (item.pausing? ? "pausing" : "paused" if item.paused?), # spec 048
+      pause_url: (helpers.public_send(item.paused? ? :resume_work_item_path : :pause_work_item_path, item) if item.state == "planned"),
       steps: steps.map { |s| { id: s.id, position: s.position, title: s.title, state: s.state, agent: s.agent&.name,
                          note: (s.retry_note if s.state == "queued") } } } # spec 032, G4
   end

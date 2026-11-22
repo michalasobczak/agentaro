@@ -491,8 +491,9 @@ class ManagementRunner
     parts << "due #{item.due_on.iso8601}" if item.due_on
     lines = [ "- " + parts.join(", ") ]
     lines << "  plan waiting for #{@user.username}'s approval (approve_plan)" if item.state == "planned" && item.awaiting_approval # spec 033
+    lines << "  paused by #{@user.username}: #{item.pause_label.downcase_first}; nothing more of it starts until they resume it (resume_epic)" if item.paused? # spec 048
     if item.state == "planned" && (holder = item.waits_for) # spec 037: one epic at a time in a space
-      lines << "  waits for id #{holder.id} \"#{holder.title}\" in this space (one epic at a time; starts by itself when that one is done or cancelled)"
+      lines << "  waits for id #{holder.id} \"#{holder.title}\" in this space (one epic at a time; starts by itself when that one is done or cancelled#{"; that one is paused" if holder.paused?})"
     end
     item.step_decisions.order(:id).last(20).each do |d| # spec 033: questions waiting and assumptions made (the latest 20)
       if d.pending?
@@ -704,6 +705,7 @@ class ManagementRunner
       {"type": "set_style", "level": 1, 2 or 3} (only when #{@user.username} asks you to talk to them differently from now on; 1 #{ChatStyle.name(1)}: simple words, 2 #{ChatStyle.name(2)}, 3 #{ChatStyle.name(3)}: technical)
       {"type": "reassign_step", "id": <epic id>, "step": <step number>, "agent": <member id>} (only when #{@user.username} asks to hand a step to another member, for example because its agent is at a usage limit; only a step waiting for a usage-limit retry or a failed step; it starts at once with the new member)
       {"type": "set_conversation", "level": 1 or 2} (only when #{@user.username} asks for a more natural or a plainer conversation from now on; 1 #{ConversationMode.name(1)}, 2 #{ConversationMode.name(2)}: like talking to a person)
+      {"type": "pause_epic", "id": <epic id>} and {"type": "resume_epic", "id": <epic id>} (only when #{@user.username} asks to pause or resume a planned epic; a running step finishes first, then nothing more of it starts until it is resumed; there is no pause for several epics at once)
       {"type": "set_tempo", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks how fast or how carefully work is done; 1 #{WorkTempo.name(1)}: small steps and a check, 2 #{WorkTempo.name(2)}, 3 #{WorkTempo.name(3)}: one step, one agent)
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
@@ -729,6 +731,7 @@ class ManagementRunner
     of = item.active_steps.maximum(:position)
     line = "- id #{item.id} \"#{item.title.truncate(80)}\" (space #{item.space_id}, #{item.running? ? "running" : item.state}" \
            "#{", plan waiting for approval (approve_plan)" if item.state == "planned" && item.awaiting_approval}" \
+           "#{", paused (resume_epic)" if item.paused?}" \
            "#{", step #{step.position}/#{of} \"#{step.title.truncate(60)}\": #{step.state_label}" if step})"
     answered = item.step_decisions.where(status: "answered").where.not(answered_by: "assumption").where(updated_at: ANSWERED_SHOWN.ago..).order(:id).last
     line = "#{line}\n  question answered (decision #{answered.id}, closed): #{answered.question.to_s.tr("\n", " ").truncate(120)} — answer: #{answered.answer.to_s.truncate(120)}" if answered&.question.present?
@@ -979,6 +982,7 @@ class ManagementRunner
         "Not retried: step #{step.position} of \"#{item.title}\" — #{e.message}."
       end
     when "reassign_step" then reassign_step_action(action) # spec 043, G7
+    when "pause_epic", "resume_epic" then pause_action(action) # spec 048
     when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
     when "answer_decision", "approve_plan", "set_autonomy" then autonomy_action(action) # spec 033
     when "set_reply_length" then reply_length_action(action) # spec 039
@@ -1328,6 +1332,23 @@ class ManagementRunner
       end
     else
       raise Invalid, "reassign_step: step #{step.position} is #{step.state_label}; only a step waiting for a usage-limit retry or a failed step can go to another member"
+    end
+  end
+
+  # Spec 048, R3: pause or resume one of the owner's epics, only on their own words.
+  PAUSE_REQUEST = /wstrzym|zapauzuj|pauz|zatrzymaj|wstrzymaj|wzn[óo]w|odpauzuj|kontynuuj|pu[śs][ćc] dalej|ruszaj dalej|pause|hold|resume|unpause|continue/i
+
+  def pause_action(action)
+    item = own_item(action)
+    type = action["type"]
+    raise Invalid, "#{type}: #{@user.username} has not asked in their message to pause or resume an epic" unless user_request&.content.to_s.match?(PAUSE_REQUEST)
+    raise Invalid, "#{type}: \"#{item.title}\" is #{item.state_label}; only a planned epic can be paused or resumed" unless item.state == "planned"
+    raise Invalid, "resume_epic: \"#{item.title}\" is not paused" if type == "resume_epic" && !item.paused?
+
+    if type == "pause_epic"
+      -> { item.pause!; "Paused: #{item.title} (#{item.reload.pause_label})" }
+    else
+      -> { item.resume!; "Resumed: #{item.title}" }
     end
   end
 

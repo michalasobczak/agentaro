@@ -53,9 +53,47 @@ class WorkItem < ApplicationRecord
       tasks.where("starts_at > ?", Time.current).find_each(&:destroy!)
       epic_steps.where(state: %w[pending queued waiting reviewing]).find_each { |step| step.update!(state: "cancelled") } # spec 033: waiting; spec 040: reviewing
       step_decisions.pending.each { |d| d.update!(status: "answered", answer: "(the epic was cancelled)") }
-      update!(state: "cancelled", finished_at: (Time.current if started_at))
+      update!(state: "cancelled", finished_at: (Time.current if started_at), paused_at: nil)
     end
     StepChain.start_due(user: user) if space_id # spec 037, R6: the next epic of the space
+  end
+
+  # Spec 048: the owner pauses one planned epic. A running step finishes; nothing more of the epic starts (the
+  # scheduler never claims its runs, R1) until the owner resumes it. The pause is saved, so it holds across restarts.
+  NotPausable = Class.new(StandardError)
+
+  def paused? = paused_at.present?
+
+  def pause!
+    transaction do
+      reload
+      raise NotPausable, "\"#{title}\" is #{state_label}; only a planned epic can be paused" unless state == "planned"
+
+      update!(paused_at: Time.current) unless paused?
+    end
+  end
+
+  def resume!
+    resumed = transaction do
+      reload
+      raise NotPausable, "\"#{title}\" is not paused" unless paused?
+
+      update!(paused_at: nil)
+    end
+    if runs.where(purpose: "epic_step", state: "queued").exists? then Agentaro::TaskScheduler.wake # what waited starts
+    else StepChain.queue_next(self)
+    end
+    resumed
+  end
+
+  # Spec 048, G5: paused while its step still runs.
+  def pausing? = paused? && runs.where(purpose: "epic_step", state: "running").exists?
+
+  # Spec 048, G5: "Pausing — the current step finishes first" or "Paused since 16:30", or nil.
+  def pause_label
+    return unless paused?
+
+    pausing? ? "Pausing — the current step finishes first" : "Paused since #{paused_at.in_time_zone.strftime(paused_at.to_date == Date.current ? "%H:%M" : "%-d %b %H:%M")}"
   end
 
   # Spec 013, Q10: the user closes an epic by hand.
@@ -107,7 +145,8 @@ class WorkItem < ApplicationRecord
   def block!(reason)
     block_dismissed_at_will_change! # written even when this copy never saw the notice closed (another request did)
     update!(state: "blocked", blocked_reason: reason.to_s.truncate(2000), finished_at: (Time.current if started_at),
-            block_dismissed_at: nil) # spec 026: a new block shows its notice again
+            block_dismissed_at: nil, # spec 026: a new block shows its notice again
+            paused_at: nil) # spec 048, B20: a blocked epic stands anyway; Try again is the owner's resume
   end
 
   # Spec 026: blocked epics whose notice the user has not closed.

@@ -36,6 +36,10 @@ class WorkItemsController < ApplicationController
     redirect_to work_item_path(item), (approved ? { notice: "Plan approved." } : { alert: "This plan is not waiting for approval." })
   end
 
+  # Spec 048: pause or resume one epic (the epic's page, and the work panel as JSON).
+  def pause = toggle_pause(:pause!, "Paused: the current step finishes, then nothing more starts until you resume.")
+  def resume = toggle_pause(:resume!, "Resumed.")
+
   # Spec 013, Q10: the user closes or cancels an epic by hand (on the board or the epic's page).
   def done
     item = current_user.work_items.find(params[:id])
@@ -52,5 +56,21 @@ class WorkItemsController < ApplicationController
 
     item.cancel!
     redirect_back_or_to work_item_path(item), notice: "Cancelled: #{item.title}. Its steps that had not started were removed."
+  end
+
+  private
+
+  def toggle_pause(change, notice)
+    item = current_user.work_items.find(params[:id])
+    item.public_send(change)
+    respond_to do |format|
+      format.json { render json: { ok: true, paused: item.reload.paused? } }
+      format.html { redirect_back_or_to work_item_path(item), notice: notice }
+    end
+  rescue WorkItem::NotPausable => e
+    respond_to do |format|
+      format.json { render json: { ok: false, error: e.message }, status: :unprocessable_content }
+      format.html { redirect_back_or_to work_item_path(item), alert: e.message }
+    end
   end
 end

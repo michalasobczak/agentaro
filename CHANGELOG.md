@@ -510,3 +510,17 @@
   - Cause: the work list showed only waiting questions and assumptions. The director remembered the question from the conversation and took it as still open.
   - Now a question answered in the last 24 hours is listed as closed, with who answered, when, and the answer (the short local prompt too).
   - Test in `management_runner_test.rb`.
+- Spec 048 Pause an epic.
+  - The owner's words: "zapauzuj te wszystkie co teraz się uruchomiły, bo chcę zrobić restart"; the director had only cancel.
+  - The owner chose:
+    - a running step finishes first;
+    - the pause is for a single epic;
+    - a paused epic keeps its space;
+    - only the owner resumes it.
+  - Pause and Resume are on the epic's page, in the work panel, and in the chat (`pause_epic`, `resume_epic`, on the owner's words).
+  - The scheduler never starts a run of a paused epic. A waiting retry waits too, and so does a step interrupted by a restart.
+  - The pause is shown as "Paused since 16:30" or "Pausing — the current step finishes first", and to the director.
+  - Migration `20261122180000`.
+  - 9 new tests; checked in the browser on demo data.
+  - B20: a pause is cleared when the epic blocks (fixed with a test). Brakeman 0 warnings.
+

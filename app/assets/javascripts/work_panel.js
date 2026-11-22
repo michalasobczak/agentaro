@@ -25,7 +25,14 @@
         const title = link(epic.title, epic.url);
         title.dataset.liveEpic = String(epic.id); // spec 038: a click shows what the epic is doing
         title.title = "Show what it is doing";
-        head.append(title, el("span", "work-state small", epic.state));
+        head.append(title, el("span", "work-state small", epic.paused || epic.state));
+        if (epic.pause_url) { // spec 048: pause or resume the epic from the panel
+          const button = el("button", "work-pause link small", epic.paused ? "Resume" : "Pause");
+          button.type = "button";
+          button.dataset.pauseUrl = epic.pause_url;
+          button.title = epic.paused ? "Start the epic's work again" : "The current step finishes, then nothing more starts until you resume";
+          head.append(button);
+        }
         item.append(head);
         if (epic.steps.length) {
           const steps = el("ol", "work-steps");
@@ -67,6 +74,15 @@
       timer = setTimeout(poll, POLL_MS);
     }
     signal.addEventListener("abort", () => clearTimeout(timer));
+    holder.addEventListener("click", async (event) => { // spec 048
+      const button = event.target.closest("[data-pause-url]");
+      if (!button) return;
+      event.preventDefault();
+      button.disabled = true;
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+      await fetch(button.dataset.pauseUrl, { method: "POST", headers: { Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin", signal }).catch(() => null);
+      clearTimeout(timer); last = ""; poll(); // "" (not null) so the next answer is drawn
+    }, { signal });
     document.addEventListener("visibilitychange", () => { if (!document.hidden) { clearTimeout(timer); poll(); } }, { signal });
     poll();
   });

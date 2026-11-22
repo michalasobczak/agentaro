@@ -6,7 +6,7 @@ module DirectorSchema
   ACTION_TYPES = %w[add_item update_item add_space update_space cancel_item remember forget approve_facts reject_facts
                     reprioritize add_recurring update_recurring pause_recurring resume_recurring cancel_recurring
                     answer_decision approve_plan set_autonomy stop_process set_reply_length set_style set_conversation
-                    set_tempo reassign_step retry_step].freeze
+                    set_tempo reassign_step retry_step pause_epic resume_epic].freeze
   TEXT = { type: [ "string", "null" ] }.freeze
   NUMBER = { type: [ "integer", "null" ] }.freeze
   ACTION = { type: "object", properties: {

@@ -195,6 +195,7 @@ module Agentaro
       # Whether this queued run may start now, as a Claim; nil leaves it queued (called under @claims).
       def claim_for(run)
         return if StepRetry.waiting?(run) # spec 032: the tick hands it over when due
+        return if run.purpose == "epic_step" && run.work_item&.paused? # spec 048, R1: a paused epic starts nothing
         return Claim.new(run.id, nil, nil) unless run.limited? # chat, planning, verification: their own rules (R1)
 
         agent_id = run.step? ? run.task&.agent_id : run.agent_id # a calendar run reads its task's agent at run time

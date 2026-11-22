@@ -113,7 +113,8 @@ class StepView
     return unless @step.state == "pending"
 
     holder = @item.waits_for
-    return "“#{holder.title}” in this space (one epic at a time)" if holder # spec 037
+    return "“#{holder.title}” in this space (one epic at a time#{", paused" if holder.paused?})" if holder # spec 037; spec 048
+    return "you to resume the paused epic" if @item.paused? # spec 048
     return "your approval of the plan" if @item.awaiting_approval
     return "the epic's start at #{@item.starts_at.in_time_zone.strftime("%-d %b %H:%M")}" if @item.starts_at && !@item.started_at && @item.starts_at > @now
     return "your answer or Try again on the epic" if @item.state == "blocked"

@@ -116,6 +116,7 @@ module ApplicationHelper
 
   # Spec 011: states of work items.
   def item_state_badge(item)
+    return badge(item.pausing? ? "pausing" : "paused", "warn") if item.paused? # spec 048, G5
     kind = { "planned" => "accent", "running" => "warn", "done" => "ok", "blocked" => "bad", "cancelled" => nil, "new" => nil }[item.board_state]
     badge(item.board_state.tr("_", " "), kind)
   end

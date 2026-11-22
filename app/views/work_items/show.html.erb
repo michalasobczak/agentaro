@@ -17,11 +17,13 @@
       <% if @item.description.present? %><dt>Details</dt><dd class="pre"><%= @item.description %></dd><% end %>
       <% if @item.plan_summary.present? %><dt>Plan</dt><dd class="pre"><%= @item.plan_summary %></dd><% end %>
       <% if @item.blocked_reason.present? && @item.state == "blocked" %><dt>Blocked</dt><dd class="pre"><%= @item.blocked_reason %></dd><% end %>
-      <% if @item.state == "planned" && (holder = @item.waits_for) %><dt>Waiting</dt><dd>Waits for “<%= link_to holder.title, work_item_path(holder) %>” in this space: one epic at a time (spec 037).</dd><% end %>
+      <% if @item.state == "planned" && (holder = @item.waits_for) %><dt>Waiting</dt><dd>Waits for “<%= link_to holder.title, work_item_path(holder) %>” in this space: one epic at a time (spec 037)<%= ", and it is paused" if holder.paused? %>.</dd><% end %>
+      <% if @item.paused? %><dt>Paused</dt><dd class="pause-note"><%= @item.pause_label %>. Nothing more of this epic starts until you resume it.</dd><% end %>
     </dl>
     <% unless %w[done cancelled].include?(@item.state) %>
       <div class="actions spaced">
         <% if @item.state == "blocked" && @decisions.none?(&:pending?) %><%= button_to "Try again", retry_work_item_path(@item), class: "secondary" %><% end %>
+        <% if @item.state == "planned" %><%= button_to(@item.paused? ? "Resume" : "Pause", @item.paused? ? resume_work_item_path(@item) : pause_work_item_path(@item), class: "secondary", title: (@item.paused? ? "Start the epic's work again" : "The current step finishes, then nothing more starts until you resume")) %><% end %>
         <%= button_to "Done", done_work_item_path(@item), class: "secondary" %>
         <%= button_to "Cancel epic", cancel_work_item_path(@item), class: "link", form: { data: { confirm: "Cancel \"#{@item.title}\"? Its steps that have not started are removed." } } %>
       </div>

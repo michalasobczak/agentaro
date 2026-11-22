@@ -80,6 +80,7 @@ class StepRetry
         next Agentaro::TaskScheduler.enqueue(run.id)
       end
       next if run.work_item&.waits_for # spec 037, R2: keeps waiting (retry_at stays) while another epic holds the space
+      next if run.work_item&.paused? # spec 048, G2: keeps waiting until the owner resumes the epic
       run.update!(retry_at: nil)
       StepChain.hand_over(run.id)
     end

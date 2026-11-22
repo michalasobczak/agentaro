@@ -13,7 +13,7 @@
           <ul class="work-epics">
             <% space[:epics].each do |epic| %>
               <li class="work-epic is-<%= epic[:state] %>">
-                <div class="work-epic-head"><%= link_to epic[:title], epic[:url], data: { live_epic: epic[:id] }, title: "Show what it is doing" %><span class="work-state small"><%= epic[:state] %></span></div>
+                <div class="work-epic-head"><%= link_to epic[:title], epic[:url], data: { live_epic: epic[:id] }, title: "Show what it is doing" %><span class="work-state small"><%= epic[:paused] || epic[:state] %></span><% if epic[:pause_url] %><button type="button" class="work-pause link small" data-pause-url="<%= epic[:pause_url] %>" title="<%= epic[:paused] ? "Start the epic's work again" : "The current step finishes, then nothing more starts until you resume" %>"><%= epic[:paused] ? "Resume" : "Pause" %></button><% end %></div>
                 <% if epic[:steps].any? %>
                   <ol class="work-steps">
                     <% epic[:steps].each do |step| %>
