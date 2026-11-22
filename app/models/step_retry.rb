@@ -8,7 +8,7 @@ class StepRetry
   LABELS = { "timeout" => "time limit", "usage_limit" => "usage limit", "transient" => "passing error",
              "unknown" => "unknown error", "lasting" => "lasting error", "stopped" => "stopped" }.freeze
 
-  USAGE_LIMIT = /usage limit|rate[ _-]?limit|limit reached|hit your (usage )?limit|too many requests|\b429\b|quota|resets? (at |in )?\d|try again (at|in) \d/i
+  USAGE_LIMIT = /usage limit|rate[ _-]?limit|limit reached|hit your (usage |[\w-]+ )?limit|too many requests|\b429\b|quota|resets? (at |in )?\d|try again (at|in) \d/i
   LASTING = Regexp.union(
     /was not found on this computer/i, /working folder not found/i, /is not available \(disabled/i,
     /has no agent/i, /choose a model/i, /model name .* fix it/i, /is not runnable|cannot run/i,
@@ -46,6 +46,12 @@ class StepRetry
     if (epoch = text[/limit reached\|(\d{10})/i, 1])
       return Time.zone.at(epoch.to_i)
     end
+    # Spec 043, G3: Agentaro's own message, "usage limit reached until 15:10" or "until 2026-11-24 15:10".
+    if (m = text.match(/limit reached until (?:(\d{4}-\d{2}-\d{2}) )?(\d{1,2}):(\d{2})\b/i))
+      day = m[1] ? (Date.iso8601(m[1]) rescue nil) : now.to_date
+      at = day && Time.zone.local(day.year, day.month, day.day, m[2].to_i, m[3].to_i) rescue nil
+      return at && !m[1] && at <= now ? at + 1.day : at if at
+    end
     if (span = text[/(?:try again|resets?) in ((?:\d+\s*(?:days?|d|hours?|h|minutes?|mins?|m|seconds?|s)\b[\s,and]*)+)/i, 1])
       seconds = span.scan(/(\d+)\s*(d|h|m|s)/i).sum { |n, u| n.to_i * { "d" => 86_400, "h" => 3600, "m" => 60, "s" => 1 }[u.downcase] }
       return now + seconds if seconds.positive?
@@ -68,7 +74,11 @@ class StepRetry
   # Scheduler tick: retries whose time has come go to the workers. retry_at is cleared once handed over, so a
   # waiting retry is never queued twice and the worker knows it may start.
   def self.hand_over_due(now: Time.current)
-    TaskRun.where(state: "queued", purpose: "epic_step").where(retry_at: ..now).find_each do |run|
+    TaskRun.where(state: "queued", purpose: %w[epic_step step_review]).where(retry_at: ..now).find_each do |run|
+      if run.purpose == "step_review" # spec 043, G5: a review that waited for the director's usage limit to reset
+        run.update!(retry_at: nil)
+        next Agentaro::TaskScheduler.enqueue(run.id)
+      end
       next if run.work_item&.waits_for # spec 037, R2: keeps waiting (retry_at stays) while another epic holds the space
       run.update!(retry_at: nil)
       StepChain.hand_over(run.id)

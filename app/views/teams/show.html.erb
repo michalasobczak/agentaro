@@ -4,6 +4,11 @@
 <%# Spec 023: busy or free per agent (G3; spec 036: tasks in progress against the limit); team_status.js updates the badges in place (G5). %>
 <% status_for = ->(agent) { agent_status_badge(@statuses[agent.id] || { id: agent.id, status: "free", headline: "free", label: "free", show_dot: true, activities: [] }) } %>
 
+<% cli_local = [ @director, @deputy ].compact.select { |r| %w[ollama_cli lm_studio_cli].include?(r.agent.executor&.preset) } %>
+<% if cli_local.any? %>
+  <%# Spec 044, G3: the command-line presets cannot set the context size, so a long director prompt is cut. %>
+  <div class="flash alert" role="status"><%= cli_local.map { |r| r.agent.name }.to_sentence %> runs on <%= cli_local.first.agent.executor.label %>: use Ollama (API) or LM Studio (API) for the director — the command line cannot set the context size, so the director's prompt would be cut.</div>
+<% end %>
 <div class="card org-card" data-status-url="<%= status_team_path %>" data-status-stamp="<%= @team_status[:stamp] %>">
   <div class="card-header"><h2>Org chart</h2></div>
   <% if @director.nil? && @members.empty? %>
@@ -29,6 +34,14 @@
             <strong><%= @verifier.agent.name %></strong> <%= role_badge_for.(@verifier.agent) %>
             <span class="muted small"><%= @verifier.agent.runtime_label %></span>
             <%= status_for.(@verifier.agent) %>
+          </div>
+        <% end %>
+        <% if @deputy %>
+          <div class="org-node is-verifier">
+            <span class="org-role">Deputy director</span>
+            <%= agent_icon(agent_initials(@deputy.agent.name), kind: "director", size: "strip", agent_id: @deputy.agent_id, status: @statuses[@deputy.agent_id]) %>
+            <strong><%= @deputy.agent.name %></strong> <%= role_badge_for.(@deputy.agent) %>
+            <span class="muted small"><%= @deputy.agent.runtime_label %></span>
           </div>
         <% end %>
         <% if @members.any? %>
@@ -81,6 +94,21 @@
           <%= f.hidden_field :role, value: "verifier" %>
           <div class="field"><%= f.label :agent_id, "Agent" %><%= f.select :agent_id, agent_options %></div>
           <div><%= f.submit "Make verifier" %></div>
+        <% end %>
+      <% end %>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Deputy director</h2></div>
+      <%# Spec 043, G4: answers in the chat, plans and decides while the director's tool is at its usage limit. %>
+      <% if @deputy %>
+        <p><strong><%= @deputy.agent.name %></strong> takes the director's work while the director's <%= @director&.agent&.executor&.label || "tool" %> is at its usage limit.</p>
+        <%= button_to "Change deputy", team_role_path(@deputy), method: :delete, class: "secondary", form: { data: { confirm: "Remove #{@deputy.agent.name} as deputy director?" } } %>
+      <% else %>
+        <p class="muted small">Answers in the chat, plans and decides while the director's tool is at its usage limit. Choose an agent on another executor — e.g. Codex or a local model when the director runs on Claude.</p>
+        <%= form_with model: TeamRole.new, url: team_roles_path, class: "form" do |f| %>
+          <%= f.hidden_field :role, value: "deputy" %>
+          <div class="field"><%= f.label :agent_id, "Agent" %><%= f.select :agent_id, agent_options %></div>
+          <div><%= f.submit "Make deputy director" %></div>
         <% end %>
       <% end %>
     </div>

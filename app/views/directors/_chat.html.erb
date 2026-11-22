@@ -8,7 +8,8 @@
 <% strip = team_status[:agents].select { |a| a[:member] } %>
 <div class="chat-app<%= " is-dock" if dock %>" data-messages-url="<%= chat_messages_path %>" data-last-id="<%= messages.last&.id.to_i %>"
      data-voice="<%= voice_ready ? "ready" : "missing" %>" data-voice-transcribe-url="<%= voice_transcribe_path %>" data-voice-speak-url="<%= voice_speak_path %>"
-     data-writing="<%= writing %>" data-team-stamp="<%= team_status[:stamp] %>"<% if dock %> data-lazy="true" data-latest-reply-id="<%= latest_reply_id.to_i %>"<% end %>>
+     data-writing="<%= writing %>" data-team-stamp="<%= team_status[:stamp] %>"
+     data-conversation="<%= ConversationMode.natural?(current_user) ? "natural" : "plain" %>" data-acknowledgements="<%= ConversationMode::ACKNOWLEDGEMENTS.fetch(current_user.chat_language == "en" ? "en" : "pl").join("|") %>"<% if dock %> data-lazy="true" data-latest-reply-id="<%= latest_reply_id.to_i %>"<% end %>>
   <header class="chat-head">
     <span class="chat-avatar is-director" aria-hidden="true" data-agent-icon="<%= director.id %>"><%= agent_initials(director.name) %><%= status_dot(statuses[director.id]) %></span>
     <div class="chat-who">
@@ -19,7 +20,7 @@
         as before; without script the panel is a plain disclosure (R8). chat.js closes it on Esc or a click outside. %>
     <% settings_id = dock ? "chat-dock-settings" : "chat-settings" %>
     <details class="chat-settings" data-chat-settings>
-      <summary class="chat-tool" title="Chat settings: language, autonomy, reply length, style, tempo, background" aria-label="Chat settings"><%= icon(:settings) %></summary>
+      <summary class="chat-tool" title="Chat settings: language, autonomy, reply length, style, conversation, tempo, background" aria-label="Chat settings"><%= icon(:settings) %></summary>
       <div class="chat-settings-panel" id="<%= settings_id %>">
         <div class="chat-setting">
           <span class="chat-setting-label">Language</span>
@@ -63,6 +64,16 @@
           </div>
         </div>
         <div class="chat-setting">
+          <span class="chat-setting-label">Conversation</span>
+          <%# Spec 046, G1: how the conversation flows, written and spoken. %>
+          <div class="lang-switch chat-conversation" role="group" aria-label="Conversation: how the director talks with you">
+            <% ConversationMode::LEVELS.each do |level, name| %>
+              <%= button_to name, account_conversation_mode_path(level: level), method: :patch, class: ["lang", ("is-active" if current_user.conversation_mode == level)].compact.join(" "),
+                            "aria-pressed": current_user.conversation_mode == level, title: ConversationMode::HINTS[level] %>
+            <% end %>
+          </div>
+        </div>
+        <div class="chat-setting">
           <span class="chat-setting-label">Tempo</span>
           <%# Spec 041, G4: how finely new work is split into steps (a space's own tempo wins, G5). %>
           <div class="lang-switch chat-tempo" role="group" aria-label="Tempo: how fast work is done and how finely it is split">
@@ -72,6 +83,13 @@
             <% end %>
           </div>
         </div>
+        <% if %w[claude_code codex].include?(director.executor&.preset) %>
+          <div class="chat-setting chat-limit">
+            <span class="chat-setting-label">Usage limit</span>
+            <%# Spec 043, G2: the director's subscription limit as its tool last reported it. %>
+            <span class="chat-limit-text small"><%= director.executor.label %>: <%= usage_limit_text(director.executor) %></span>
+          </div>
+        <% end %>
         <div class="chat-setting">
           <span class="chat-setting-label">Background</span>
           <%# Spec 029: the chat background pattern, saved on the account. chat.js saves on change (and hides Apply);

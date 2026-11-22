@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_160000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -83,6 +83,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_090000) do
     t.datetime "model_checked_at"
     t.boolean "model_check_ok"
     t.text "model_check_output"
+    t.text "usage_limits"
+    t.datetime "usage_read_at"
     t.index ["name"], name: "index_executors_on_name", unique: true
   end
 
@@ -437,6 +439,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_090000) do
     t.integer "reply_length", default: 1, null: false
     t.integer "chat_style", default: 2, null: false
     t.integer "work_tempo", default: 2, null: false
+    t.integer "conversation_mode", default: 2, null: false
     t.index ["username"], name: "index_users_on_username", unique: true
   end
 

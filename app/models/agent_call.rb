@@ -31,8 +31,9 @@ class AgentCall
   end
 
   # pass (spec 030): which call of the run this is, when a run makes more than one ("proposal").
-  def initialize(run, agent, prompt, timeout: Rails.application.config.x.run_timeout, runs_dir: Rails.application.config.x.runs_dir, pass: nil)
-    @run, @agent, @prompt, @pass = run, agent, prompt, pass
+  # schema (spec 044, G2): the JSON schema of the answer, for the director's calls; local servers are held to it.
+  def initialize(run, agent, prompt, timeout: Rails.application.config.x.run_timeout, runs_dir: Rails.application.config.x.runs_dir, pass: nil, schema: nil)
+    @run, @agent, @prompt, @pass, @schema = run, agent, prompt, pass, schema
     @timeout = timeout
     @runs_dir = Pathname(runs_dir)
   end
@@ -92,6 +93,7 @@ class AgentCall
   # --- Command-line tools: prompt on standard input, fixed arguments, the run folder as working folder ---
 
   def run_cli(preset, executor, model, prompt)
+    result = nil
     program = ExecutorCheck.locate(preset.program)
     return Outcome.new("failed", nil, "#{preset.program} was not found on this computer.", nil) unless program
 
@@ -125,8 +127,33 @@ class AgentCall
       Outcome.new("succeeded", ExecutorCheck.clean_text(answer), nil, 0) # standard error holds progress logs only
     else
       log = ExecutorCheck.clean_text(result.stderr).presence
-      Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, [ log, "#{preset.program} ended: #{result.ending}." ].compact.join("\n\n"), result.exit_status)
+      error = limit_error(preset, executor, answer, log) || [ log, "#{preset.program} ended: #{result.ending}." ].compact.join("\n\n")
+      Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, error, result.exit_status)
     end
+  ensure
+    read_limits(preset, executor) if result
+  end
+
+  # Spec 043, G1: after every Claude Code or Codex call, the subscription's limit as the tool reported it.
+  def read_limits(preset, executor)
+    case preset.key
+    when "claude_code" then UsageLimit.record!(executor, @stream&.limit_reading) unless @limit_recorded
+    when "codex"
+      reading, at = UsageLimit.codex_session_reading
+      UsageLimit.record!(executor, reading, at: at) if reading && !@limit_recorded
+    end
+  end
+
+  # Spec 043, G3: a call that ended on a usage limit says so plainly ("Claude Code: 5-hour usage limit reached until
+  # 15:10.") and marks its executor; the text is the tool's own output, never a successful agent's words (R6).
+  def limit_error(preset, executor, answer, log)
+    return unless %w[claude_code codex].include?(preset.key)
+
+    text = preset.key == "codex" ? [ log, *@stream&.errors ].compact.join("\n") : [ answer, log ].compact.join("\n")
+    failure = UsageLimit.failure(preset.label, text, reading: (@stream&.limit_reading if preset.key == "claude_code")) or return
+    UsageLimit.record!(executor, failure[:reading])
+    @limit_recorded = true
+    failure[:message]
   end
 
   # Spec 038, G7: the text a command-line tool prints, as it prints it (terminal codes removed).
@@ -275,6 +302,27 @@ class AgentCall
     stream = @on_text.present? || @live.present? # spec 038, G7: a step's text streams for its live view
     path, body = preset.protocol == "ollama" ? [ "/api/chat", { model: model, messages: messages, stream: stream } ] : [ "/chat/completions", { model: model, messages: messages, stream: stream } ]
     uri = URI.parse(executor.base_url + path)
+    if @schema # spec 044, G2: the whole prompt fits, the answer has the schema's shape, no thinking
+      outcome = api_request(preset, uri, body.merge(structured(preset, prompt)), stream)
+      return outcome unless outcome.state == "failed" && outcome.exit_status.to_i.between?(400, 499) # resilience: once more without
+    end
+    api_request(preset, uri, body, stream)
+  end
+
+  # Spec 044, G2: what a director call adds for a local server.
+  CONTEXT_MIN = 16_384
+  CONTEXT_MAX = 32_768
+  ANSWER_TOKENS = 3072 # a director's answer is short; a held model that keeps writing (whitespace) stops here
+  def structured(preset, prompt)
+    if preset.protocol == "ollama"
+      tokens = (prompt.text.bytesize / 3.0).ceil + 4096 # room for the answer; Polish text is about 3 bytes a token or more
+      { format: @schema, think: false, options: { num_ctx: (tokens.clamp(CONTEXT_MIN, CONTEXT_MAX) / 1024.0).ceil * 1024, num_predict: ANSWER_TOKENS } }
+    else
+      { response_format: { type: "json_schema", json_schema: { name: "answer", schema: @schema } }, max_tokens: ANSWER_TOKENS }
+    end
+  end
+
+  def api_request(preset, uri, body, stream)
     return stream_api(preset, uri, body) if stream
 
     response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: @timeout, write_timeout: 30) do |http|

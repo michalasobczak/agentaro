@@ -53,6 +53,7 @@ class StepChain
     assumed = item.step_decisions.assumptions.where(epic_step_id: [ nil, *steps.map(&:id) ]).order(:id).map(&:text).uniq.first(10) # spec 033, G5
     note = assumed.any? ? "\nAssumed: #{assumed.join("; ")}. You can correct any of them on the epic's page." : ""
     say(item, "system", "Done: \"#{item.title}\" — all #{steps.size} step#{"s" unless steps.size == 1} finished. The results are on the epic's page.#{note}")
+    ManagementRunner.summarize!(item) # spec 045: then a short human summary from the director
     nil
   end
 

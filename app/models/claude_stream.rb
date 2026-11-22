@@ -13,7 +13,7 @@ class ClaudeStream
               "Bash" => "command", "Edit" => "agent", "Write" => "agent", "MultiEdit" => "agent", "NotebookEdit" => "agent",
               "TodoWrite" => "agent", "Task" => "agent", "Agent" => "agent" }.freeze
 
-  attr_reader :events, :usage, :events_cut
+  attr_reader :events, :usage, :events_cut, :limit_reading # spec 043, the subscription's usage-limit reading
 
   # on_event (spec 038): called with each event as it is kept, for the live log.
   def initialize(on_text = nil, on_event: nil)
@@ -64,6 +64,7 @@ class ClaudeStream
     when "assistant" then blocks(event).each { |block| assistant_block(block) }
     when "user" then blocks(event).each { |block| tool_result(block) }
     when "result" then result(event)
+    when "rate_limit_event" then @limit_reading = UsageLimit.from_claude(event["rate_limit_info"]) || @limit_reading # spec 043, G1
     end
   end
 

@@ -8,9 +8,11 @@ class ChatDockTest < ActionDispatch::IntegrationTest
     js = Rails.root.join("app/assets/javascripts/chat.js").read
     handler = js[/document\.addEventListener\("turbo:click", \(event\) => \{.*?\n  \}\);/m]
     assert handler, "chat.js listens to Turbo link clicks"
-    assert_match 'dock.classList.contains("is-max")', handler, "only a maximized chat changes"
-    assert_match '!event.target.closest("[data-chat-dock]")', handler, "links inside the chat keep it maximized"
-    assert_match "setMax(false)", handler, "back to the side panel (and remembered so)"
-    assert_no_match(/setOpen\(false/, handler, "the chat stays open")
+    # Spec 042: the decision moved to dockAfterClick() (tested in test/javascript/dock_test.rb); on a computer an
+    # outside click on a maximized chat gives "unmax", and the chat closes only on a phone.
+    assert_match 'max: dock.classList.contains("is-max")', handler
+    assert_match 'inside: !!event.target.closest("[data-chat-dock]")', handler, "links inside the chat keep it maximized"
+    assert_match 'else if (next === "unmax") setMax(false);', handler, "back to the side panel (and remembered so)"
+    assert_match "const phone = window.matchMedia?.(PHONE_QUERY).matches === true;", handler, "the chat closes only on a phone"
   end
 end

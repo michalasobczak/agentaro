@@ -40,10 +40,10 @@ class StyleAndTempoTest < ActionDispatch::IntegrationTest
     [ ".content .chat-app", ".chat-dock .chat-app.is-dock" ].each do |app|
       assert_select "#{app} .chat-head > details.chat-settings[data-chat-settings]", 1 do
         assert_select "summary.chat-tool[aria-label='Chat settings'] svg.icon", 1
-        assert_select ".chat-settings-panel .chat-setting-label", text: /\A(Language|Autonomy|Reply length|Style|Tempo|Background)\z/, count: 6
-        assert_select ".chat-settings-panel .lang-switch", 5
+        assert_select ".chat-settings-panel .chat-setting-label", text: /\A(Language|Autonomy|Reply length|Style|Conversation|Tempo|Background)\z/, count: 7 # spec 046: Conversation
+        assert_select ".chat-settings-panel .lang-switch", 6
         assert_select ".chat-settings-panel .lang-switch[aria-label='Conversation language']", 1
-        %w[chat-autonomy chat-length chat-style chat-tempo].each { |css| assert_select ".chat-settings-panel .#{css}", 1 }
+        %w[chat-autonomy chat-length chat-style chat-conversation chat-tempo].each { |css| assert_select ".chat-settings-panel .#{css}", 1 }
         assert_select ".chat-settings-panel form.chat-bg", 1
       end
       assert_select "#{app} .chat-head > .lang-switch, #{app} .chat-head > form.chat-bg", 0, "no switch outside the panel"

@@ -4,6 +4,7 @@
 # What runs is decided only by PRESETS in code (Q3): the web chooses a preset, never a program,
 # arguments or protocol.
 class Executor < ApplicationRecord
+  self.changelog_ignored = %w[usage_limits usage_read_at] # spec 043: readings after every call are bookkeeping, not data changes
   Preset = Data.define(:key, :label, :kind, :program, :version_args, :protocol, :default_url) do
     def cli? = kind == "cli"
     def api? = kind == "api"

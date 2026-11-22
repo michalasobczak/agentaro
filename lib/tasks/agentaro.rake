@@ -19,6 +19,15 @@ namespace :agentaro do
     end
   end
 
+  namespace :director do
+    desc "Spec 044, G4: acceptance run of a director on a local Ollama model (demo database only). MODEL=qwen3.5:9b"
+    task local_check: :environment do
+      require "agentaro/director_local_check"
+      results = Agentaro::DirectorLocalCheck.new(model: ENV.fetch("MODEL", "qwen3.5:9b"), base_url: ENV.fetch("OLLAMA_URL", "http://localhost:11434")).run
+      exit 1 unless results.all?(&:ok)
+    end
+  end
+
   namespace :brain do
     desc "Spec 031, Q5: read every user's chat history from before the brain, once (in the background)"
     task import_history: :environment do

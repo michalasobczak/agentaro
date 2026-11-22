@@ -103,6 +103,7 @@ Rails.application.routes.draw do
     resource :reply_length, only: :update # spec 039: how much the director writes
     resource :chat_style, only: :update # spec 041: how the director talks
     resource :work_tempo, only: :update # spec 041: how finely work is split
+    resource :conversation_mode, only: :update # spec 046: how the conversation flows
   end
 
   namespace :admin do

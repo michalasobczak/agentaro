@@ -163,6 +163,7 @@ module ApplicationHelper
     { id: message.id, author: message.author,
       name: { "user" => "You", "director" => director&.name || "Director", "verifier" => "#{verifier&.name || "Verifier"} · verifier", "system" => "Agentaro" }[message.author],
       content: message.content, actions: message.actions_summary, reply_to: message.reply_to_id,
+      kind: ("summary" if message.author == "director" && message.task_run_id && message.task_run&.purpose == "summary"), # spec 045, G4
       time: l(message.created_at, format: "%H:%M"), day: l(message.created_at.to_date, format: :long),
       **icon, icon_tone: nil, icon_agent: agent&.id }
   end
@@ -241,5 +242,20 @@ module ApplicationHelper
     where = activity[:cancelled] ? "finishing a step of a #{activity[:epic_state] == "cancelled" ? "cancelled" : "closed"} epic: #{activity[:epic]}" : activity[:epic]
     [ where, "step #{activity[:step]}/#{activity[:of]}: #{activity[:title].to_s.truncate(AgentStatus::TITLE_LIMIT)}",
       ("for #{AgentStatus.elapsed(started)}" if started) ].compact.join(" · ")
+  end
+
+  # Spec 043, G2: an executor's subscription limit as its tool last reported it (Claude Code, Codex only).
+  def usage_limit_text(executor)
+    return tag.span("—", class: "muted") unless %w[claude_code codex].include?(executor.preset)
+
+    summary = UsageLimit.summary(executor)
+    reached = UsageLimit.reached_note(executor)
+    return tag.span("not read yet", class: "muted small") unless summary || reached
+
+    safe_join([
+      (badge(reached, "bad") if reached),
+      (tag.span(summary) if summary),
+      (tag.span("read #{time_ago_in_words(executor.usage_read_at)} ago", class: "muted small") if executor.usage_read_at)
+    ].compact, " ")
   end
 end

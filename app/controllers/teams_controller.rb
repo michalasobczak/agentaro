@@ -3,6 +3,7 @@ class TeamsController < ApplicationController
   def show
     @director = current_user.director_role
     @verifier = current_user.verifier_role # spec 019
+    @deputy = current_user.deputy_role # spec 043
     @members = current_user.team_roles.members.includes(agent: :executor).order(:id)
     @candidates = Agent.visible_to(current_user).includes(:executor).ordered
     @team_status = AgentStatus.json(current_user) # spec 023, G3

@@ -18,6 +18,7 @@ class User < ApplicationRecord
   has_many :recurring_orders, dependent: :destroy # spec 034
   validates :autonomy_level, inclusion: { in: Autonomy::LEVELS.keys } # spec 033
   validates :chat_style, inclusion: { in: ChatStyle::LEVELS.keys } # spec 041
+  validates :conversation_mode, inclusion: { in: ConversationMode::LEVELS.keys } # spec 046
   validates :work_tempo, inclusion: { in: WorkTempo::LEVELS.keys } # spec 041
   has_many :spaces, dependent: :destroy # spec 013 (after work_items, which need them)
   has_many :chat_messages, dependent: :destroy
@@ -28,6 +29,7 @@ class User < ApplicationRecord
 
   def director_role = team_roles.directors.includes(agent: :executor).first
   def verifier_role = team_roles.verifiers.includes(agent: :executor).first # spec 019
+  def deputy_role = team_roles.deputies.includes(agent: :executor).first # spec 043
 
   # Owner fix after spec 017: the language of the chat with the director.
   CHAT_LANGUAGES = { "auto" => "Auto", "pl" => "PL", "en" => "EN" }.freeze

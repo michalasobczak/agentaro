@@ -107,24 +107,50 @@ class Voice
 
   # G5: text in, WAV bytes out, in the voice of the chosen language ("auto": guessed from the text).
   # speed: 1.0 is Piper's natural pace; 1.5 speaks 1.5 times faster (owner fix), without changing the pitch.
-  def self.speak(text, language: "auto", speaker: "director", speed: 1.5)
+  # Spec 046, G3: Naturalna — more varied intonation and a short pause between sentences (Piper's general defaults;
+  # the Polish voices ship with flatter values, 0.5 and 0.333).
+  NATURAL_ARGS = [ "--noise-scale", "0.667", "--noise-w-scale", "0.8", "--sentence-silence", "0.25" ].freeze
+
+  def self.speak(text, language: "auto", speaker: "director", speed: 1.5, natural: false)
     raise Error, "The voice is not installed on this computer." unless speaking?
 
     text = readable(text)
-    raise Error, "Nothing to say." if text.empty?
     raise Error, "At most #{MAX_TEXT} characters at a time." if text.length > MAX_TEXT
 
+    language = %w[pl en].include?(language) ? language : guess_language(text)
+    text = SpeechText.prepare(text, language) if natural # spec 046, G3
+    raise Error, "Nothing to say." if text.empty?
+
+    voice = voice_for(language, speaker.to_s == "verifier" ? "verifier" : "director")
+    # Pauses shrink less than sounds, so the scale goes a bit further than 1/speed: measured on the host, 1.5 gives
+    # about 1.5x and 2.0 about 2x the natural duration.
+    length = format("%.2f", speed.to_f.clamp(1.0, 2.0)**-1.35)
+    args = [ "-m", voice, nil, "--length-scale", length, *(NATURAL_ARGS if natural) ] # nil: where the output file goes
+    return cached(text, args) if ConversationMode.acknowledgement?(text) # spec 046, G4: made once and kept
+
+    synthesize(text, args)
+  end
+
+  def self.synthesize(text, args)
     Dir.mktmpdir("agentaro-voice") do |dir|
       path = File.join(dir, "speech.wav")
-      voice = voice_for(%w[pl en].include?(language) ? language : guess_language(text), speaker.to_s == "verifier" ? "verifier" : "director")
-      # Pauses shrink less than sounds, so the scale goes a bit further than 1/speed: measured on the host, 1.5 gives
-      # about 1.5x and 2.0 about 2x the natural duration.
-      length = format("%.2f", speed.to_f.clamp(1.0, 2.0)**-1.35)
-      result = HostProcess.run(config[:piper_bin], [ "-m", voice, "-f", path, "--length-scale", length ], stdin: text, chdir: dir, timeout: 30, max_output: 64 * 1024)
+      result = HostProcess.run(config[:piper_bin], args.flat_map { |a| a.nil? ? [ "-f", path ] : [ a ] }, stdin: text, chdir: dir, timeout: 30, max_output: 64 * 1024)
       raise Error, "The voice did not finish in time." if result.timed_out
       raise Error, "The voice failed." unless result.success? && File.file?(path)
 
       File.binread(path)
     end
+  end
+
+  # Spec 046, G4: an acknowledgement's sound, kept per phrase, voice and speed in tmp/voice (not tracked).
+  def self.cached(text, args)
+    file = Rails.root.join("tmp", "voice", "#{Digest::SHA256.hexdigest([ text, *args.compact ].join("\0"))}.wav")
+    return File.binread(file) if File.file?(file)
+
+    wav = synthesize(text, args)
+    FileUtils.mkdir_p(file.dirname)
+    File.binwrite("#{file}.tmp", wav)
+    File.rename("#{file}.tmp", file)
+    wav
   end
 end

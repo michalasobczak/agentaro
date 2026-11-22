@@ -462,6 +462,7 @@
       saved = null;
     };
     const talk = voice(app, instance);
+    instance.endVoice = () => talk?.end(); // spec 042
     instance.destroy = () => {
       stopped = true; clearTimeout(pollTimer); life.abort(); talk?.end();
       waiting.forEach((w) => w.row.remove()); // waiting ones stay stored for the next chat
@@ -694,10 +695,35 @@
         setState("thinking", `You: ${data.message.content}`);
         awaitingAfter = data.message.id; askedId = data.message.id; spoken = 0; finalText = null;
         chat.receive(data);
+        acknowledgeLater(mine, data.message.id);
       } catch (error) {
         if (mine === generation && state !== "off") { setState("error", error.message); setTimeout(() => { if (state === "error") listen(); }, 2500); }
       }
     }
+
+    // Spec 046, G4: in the Naturalna mode a long silence after the owner's words gets one short acknowledgement
+    // ("Już sprawdzam."), made once on the host and kept; nothing is saved in the chat or sent to the director (R3).
+    const ACK_DELAY = 2000;
+    function acknowledgeLater(mine, asked) {
+      const acknowledgements = (app.dataset.acknowledgements || "").split("|").filter(Boolean);
+      if (app.dataset.conversation !== "natural" || !acknowledgements.length) return;
+      setTimeout(() => {
+        if (mine !== generation || asked !== askedId || state !== "thinking" || spoken > 0 || pending > 0 || finalText != null) return;
+        say(acknowledgements[Math.floor(Math.random() * acknowledgements.length)], "director", true);
+      }, ACK_DELAY);
+    }
+
+    // Spec 045, G4: while the voice waits for the owner, a summary of a finished epic is read aloud too.
+    chat.on("message", (message) => {
+      if (state !== "listening" || awaitingAfter != null || message.author !== "director" || message.kind !== "summary") return;
+      if (message.id <= summaryHeard) return;
+      summaryHeard = message.id;
+      forget(); setState("thinking"); // the microphone waits while it is read
+      finalText = message.content;
+      sentences(message.content).forEach((t) => say(t));
+      finishWhenDone();
+    });
+    let summaryHeard = 0;
 
     // ---- Speaking the reply: complete sentences go to Piper in order, while the rest is still streaming ----
     chat.on("stream", ({ text, replyTo }) => {
@@ -754,7 +780,7 @@
       return out;
     }
 
-    function say(text, speaker = "director") {
+    function say(text, speaker = "director", acknowledgement = false) {
       const mine = generation;
       pending++;
       const audio = fetch(app.dataset.voiceSpeakUrl, { method: "POST", body: JSON.stringify({ text, speaker }),
@@ -774,6 +800,7 @@
         playing = null;
         pending--;
         if (mine === generation && pending === 0 && finalText != null) afterSpeech();
+        else if (acknowledgement && mine === generation && pending === 0 && state === "speaking") setState("thinking"); // the answer is still coming
       });
     }
 
@@ -836,6 +863,19 @@
       details.addEventListener("submit", (event) => { // the background saves in place (spec 029), without a reload
         if (!event.target.matches("[data-chat-background-form]")) store.set("sessionStorage", SETTINGS_KEY, where);
       }, { signal });
+      // Spec 046 (found in the browser check): the floating chat is kept across Turbo visits, so its switches are not
+      // drawn again after a save; the saved choice is marked here, and the voice learns the conversation mode.
+      details.addEventListener("turbo:submit-end", (event) => {
+        const group = event.target.closest(".lang-switch");
+        const chosen = event.target.querySelector("button");
+        if (!event.detail?.success || !group || !chosen) return;
+        group.querySelectorAll("button").forEach((b) => { b.classList.toggle("is-active", b === chosen); b.setAttribute("aria-pressed", String(b === chosen)); });
+        if (group.classList.contains("chat-conversation")) {
+          const level = new URL(event.target.action, location.href).searchParams.get("level");
+          const app = details.closest(".chat-app");
+          if (app) app.dataset.conversation = level === "2" ? "natural" : "plain";
+        }
+      }, { signal });
     });
     document.addEventListener("click", (event) => {
       panels.forEach((details) => { if (details.open && !details.contains(event.target)) details.open = false; });
@@ -860,6 +900,15 @@
     const instance = chat(page, { reply: markRead });
     signal.addEventListener("abort", () => instance.destroy());
   });
+
+  // Spec 042: what a page change started by a click does to the floating chat. On a phone (where the open chat
+  // covers the page) it closes; elsewhere a maximized chat goes back to the side panel when the click was outside it.
+  const PHONE_QUERY = "(max-width: 639px)";
+  function dockAfterClick({ phone, open, max, inside }) {
+    if (phone && open) return "close";
+    if (max && !inside) return "unmax";
+    return "keep";
+  }
 
   // ---------- The floating chat: one per window, kept across Turbo visits (spec 020, data-turbo-permanent) ----------
   const started = new WeakSet();
@@ -929,13 +978,19 @@
   setMax(store.get("localStorage", MAX_KEY) === "1");
   // Owner fix ("klikam na mózg… czat zasłania stronę"): going to another page from outside the chat (the menu, a link
   // on the page) shows that page — a maximized chat goes back to the side panel instead of covering it.
+  // Spec 042: on a phone the open chat covers the page, so any page change (the menu, a link in the chat) closes it
+  // and ends a voice conversation; the chat comes back only when the owner opens it.
   document.addEventListener("turbo:click", (event) => {
-    if (dock.classList.contains("is-max") && !event.target.closest("[data-chat-dock]")) setMax(false);
+    const phone = window.matchMedia?.(PHONE_QUERY).matches === true;
+    const next = dockAfterClick({ phone, open: isOpen(), max: dock.classList.contains("is-max"), inside: !!event.target.closest("[data-chat-dock]") });
+    if (next === "close") { instance.endVoice(); setMax(false); setOpen(false, false); }
+    else if (next === "unmax") setMax(false);
   });
 
   launcher.addEventListener("click", () => setOpen(true, true));
   dock.querySelector("[data-dock-close]").addEventListener("click", () => setOpen(false, true));
   dock.addEventListener("keydown", (event) => { if (event.key === "Escape" && isOpen()) setOpen(false, true); });
-  setOpen(store.get("localStorage", OPEN_KEY) === "1", false);
+  // Spec 042, G3: on a phone a new page starts with the chat closed, also after a full page load.
+  setOpen(store.get("localStorage", OPEN_KEY) === "1" && window.matchMedia?.(PHONE_QUERY).matches !== true, false);
   }
 })();

@@ -120,8 +120,9 @@ class RecurringOrderTest < ActiveSupport::TestCase
       second = o.work_items.order(:id).last
       assert_equal "done", second.reload.state
       assert_equal planning_calls, prompts.count { |p| p.include?("Mode: director") }, "G4: no planning call for the second occurrence"
-      assert_match "What the previous occurrence \"Przegląd backupów — 23.11\" answered last", prompts.last
-      assert_match "Kopie OK, run 2", prompts.last
+      step_prompt = prompts.reject { |p| p.include?("Mode: summary") }.last # spec 045: the director's summary comes after the step
+      assert_match "What the previous occurrence \"Przegląd backupów — 23.11\" answered last", step_prompt
+      assert_match "Kopie OK, run 2", step_prompt
     end
   end
 

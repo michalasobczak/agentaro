@@ -101,9 +101,10 @@ class TaskRunTest < ActiveSupport::TestCase
   end
 
   test "S3: failures, timeouts and missing programs end as states, with output kept" do
-    with_fake_program("claude", "echo partial; echo 'quota exceeded' >&2; exit 2") do
+    # Spec 043: a usage-limit text now gives the plain limit message (see usage_limit_test), so a disk error stands here.
+    with_fake_program("claude", "echo partial; echo 'disk full' >&2; exit 2") do
       run = TaskRunner.new(run_for(task)).perform!
-      assert_equal [ "failed", "partial", "quota exceeded\n\nclaude ended: exit status 2.", 2 ], [ run.state, run.output, run.error, run.exit_status ]
+      assert_equal [ "failed", "partial", "disk full\n\nclaude ended: exit status 2.", 2 ], [ run.state, run.output, run.error, run.exit_status ]
     end
     with_fake_program("claude", "sleep 30") do
       run = TaskRunner.new(run_for(task(title: "Slow")), timeout: 1).perform!

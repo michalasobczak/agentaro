@@ -436,3 +436,51 @@
   - Checked in the browser at 375 px and at desktop width.
   - B20 in the spec: Brakeman 0 warnings, bundle-audit clean, no findings.
 
+
+- Specs 042–046, from the owner's request of 2026-11-22. The owner chose: only the director gets a deputy at a usage limit; a short prompt for local models; the summary in the chat; "wszystko po trochu" for the natural conversation. Closed with "Zamknij i buduj".
+- Spec 042 On a phone, the menu shows the chosen page, not the chat.
+  - The owner's words: "na mobile działa w zasadzie tylko chat, z menu nie da się wybrać skutecznie innych opcji, bo znowu się wyświetla czat".
+  - Cause: on a phone the floating chat covers the page, and the open state was restored on every page.
+  - Now any page change started by a click closes it on a phone and ends voice mode. A full page load starts with it closed.
+  - Found in the browser check:
+    - the Team page was 921 px wide on a phone (the member's role form);
+    - the floating chat's settings switches kept showing the old choice after a save (since spec 041).
+    - Both are fixed.
+- Spec 043 Usage limits of Claude and Codex, and a deputy director.
+  - The owner's words: "jak model Claude/Codex wyczerpują limit to jest jakiś nieokreślony błąd". On production the runs said "claude ended: exit status 1." while Claude had written "You've hit your 5-hour limit · resets 3:10pm".
+  - Every Claude Code call reads its `rate_limit_event`: the 5-hour and 7-day windows, use and reset. Codex's come from its newest session log, since `codex exec --json` does not stream them.
+  - Shown on the Executors page and in the chat settings.
+  - A call at its limit now says "Claude Code: 5-hour usage limit reached until 15:10.".
+  - A deputy director, chosen on the Team page (another agent on another executor), answers, plans, decides and summarizes while the director's tool is at its limit, marked in the chat. Without one, the chat says until when, nothing is called, and step reviews wait for the reset.
+  - The director sees members at a limit. The new action `reassign_step` hands a waiting or failed step to another member when the owner asks.
+  - Migration `20261122150000`.
+- Spec 044 The director on a local model (Ollama).
+  - Prompts of 60–150 KB went to Ollama with no context size or format, so the model saw a cut prompt.
+  - Now a local director gets:
+    - a short prompt (≤ 24 KB);
+    - its answer held to a JSON schema, with thinking off, a sized context and a capped answer;
+    - always the proposal pass.
+  - `bin/rails agentaro:director:local_check` (demo database only) sends 8 Polish requests through the real director code. The runs found three faults, now fixed:
+    - a schema that let actions carry only their type;
+    - no answer cap: one run was still generating after 6 minutes;
+    - steps added as new epics.
+  - qwen3.5:9b passes 6/8, with each answer in 4–21 s. The misses are the model choosing the wrong action, which Agentaro refuses. S3 (7/8) is not met with this model.
+  - nemotron-3.5-bolt:e4b, tried on the owner's suggestion, passes 5/8 with each answer in 4–11 s. It repeats its earlier replies instead of answering the new message, and says "Anulowałem" without the action. qwen3.5:9b stays the better local director.
+- Spec 045 A short human summary when an epic ends.
+  - The director writes 2–4 plain sentences in the chat after the "Done" line, in the owner's style and conversation mode.
+  - The steps' results are given as cut, quoted data, and nothing else from the answer is used.
+  - It is read aloud in voice mode. A failed summary leaves only the Done line. Quiet recurring runs get none.
+- Spec 046 Natural conversation mode.
+  - **Rozmowa: Zwykła / Naturalna** (default) in the chat settings, and by words (`set_conversation`).
+  - Naturalna gives:
+    - a conversational rule in the director's prompts;
+    - speech text with times, dates and numbers as words, without links, paths or ids;
+    - a livelier Piper (noise 0.667/0.8, 0.25 s between sentences; not yet chosen by listening);
+    - one short "Już sprawdzam." when no reply starts within 2 s.
+  - System lines are not read aloud (already so before).
+  - Migration `20261122160000`.
+- Tests: 570 (43 new; 7 adapted for the changed behaviour). Brakeman 0 warnings, bundle-audit clean.
+- B20 after specs 001–046:
+  - a reset time read from output is not believed beyond 7 days (else "try again in 99 days" could block the director);
+  - the process tracker (spec 040) now drops the server before gathering children, so a saved list naming the server cannot reach other runs' processes. The existing test had caught this only in some test orders.
+  - Both are fixed with tests.

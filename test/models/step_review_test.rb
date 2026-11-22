@@ -99,10 +99,21 @@ class StepReviewTest < ActiveSupport::TestCase
         StepChain.start(@item)
         work(2)
       end
+      # Spec 043, G5: the director runs on the same (fake) Claude Code, now at its limit, so its review waits for the
+      # reset instead of failing; no call is made before then.
+      waiting = TaskRun.where(purpose: "step_review", state: "queued").sole
+      assert_equal Time.zone.local(2026, 11, 21, 15, 0), waiting.retry_at
+      assert_equal 0, TaskRun.where(purpose: "epic_step", trigger: "retry").count
+      assert(@user.chat_messages.where(author: "system").pluck(:content).any? { |c| c.include?("usage limit until 15:00") })
+    end
+    travel_to Time.zone.local(2026, 11, 21, 15, 1) do
+      with_claude(director: [ { decision: "retry", reason: "Limit użycia; ponawiam po resecie.", at: nil } ]) do
+        StepRetry.hand_over_due
+        work(1)
+      end
       retry_run = TaskRun.where(purpose: "epic_step", trigger: "retry").sole
-      assert_equal Time.zone.local(2026, 11, 21, 15, 0), retry_run.retry_at
-      assert_match "usage limit resets at 2026-11-21 15:00", dprompt(1)
-      assert_equal "queued", @build.reload.state
+      assert_nil retry_run.retry_at, "after the reset the retry starts at once"
+      assert_match "usage limit reset at 2026-11-21 15:00: a retry can run now", dprompt(1)
     end
   end
 

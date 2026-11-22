@@ -86,10 +86,10 @@ module AgentStatus
     members = roles.select { |r| r.role == "member" }
     list = members.map { |r| [ r.agent, r.role_text.presence || "Member", true ] }
     roles.each do |r|
-      next unless %w[director verifier].include?(r.role)
+      next unless %w[director verifier deputy].include?(r.role) # spec 043: the deputy director too
       next if list.any? { |agent, _, _| agent.id == r.agent_id }
 
-      list << [ r.agent, r.role.capitalize, false ]
+      list << [ r.agent, r.role == "deputy" ? "Deputy director" : r.role.capitalize, false ]
     end
     list
   end

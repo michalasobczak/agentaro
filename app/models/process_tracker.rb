@@ -103,9 +103,12 @@ class ProcessTracker
 
     snapshot = self.snapshot
     live = ->(list) { now = self.snapshot; list.select { |e| snapshot_has?(now, e) } }
-    targets = with_children(entries.select { |e| snapshot_has?(snapshot, e) }, snapshot)
     server = Set[0, 1, Process.getpgrp] # B20: never the server's own group, whatever a saved list says
-    targets = targets.reject { |e| (info = snapshot.find { |p| p.pid == e["pid"] }) && server.include?(info.pgid) }
+    in_server = ->(e) { e["pid"].to_i <= 1 || e["pid"] == Process.pid || ((info = snapshot.find { |p| p.pid == e["pid"] }) && server.include?(info.pgid)) }
+    # B20 (found in the spec 043 analysis): the server is dropped before its children are gathered, so a saved list
+    # naming it never reaches the other runs' processes, which have process groups of their own.
+    targets = with_children(entries.select { |e| snapshot_has?(snapshot, e) }.reject(&in_server), snapshot)
+    targets = targets.reject(&in_server)
     signal(targets, "TERM")
     deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + GRACE
     remaining = targets

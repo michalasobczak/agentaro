@@ -9,7 +9,7 @@ class CodexStream
   MAX_PAYLOAD = ClaudeStream::MAX_PAYLOAD
   MAX_LINE = ClaudeStream::MAX_LINE
 
-  attr_reader :events, :usage, :events_cut
+  attr_reader :events, :usage, :events_cut, :errors # errors: spec 043, what Codex reported as failing
 
   def initialize(on_event: nil)
     @on_event = on_event
@@ -18,6 +18,7 @@ class CodexStream
     @usage = {}
     @started = {}
     @messages = []
+    @errors = []
   end
 
   # The exec arguments with the event stream on (before the prompt's "-").
@@ -45,9 +46,14 @@ class CodexStream
     when "item.started" then started(event["item"])
     when "item.completed" then completed(event["item"])
     when "turn.completed" then read_usage(event["usage"])
-    when "turn.failed" then add("text", text: limit("Error: #{event.dig("error", "message")}"))
-    when "error" then add("text", text: limit("Error: #{event["message"]}"))
+    when "turn.failed" then failed(event.dig("error", "message"))
+    when "error" then failed(event["message"])
     end
+  end
+
+  def failed(message)
+    @errors << message.to_s.truncate(2000) if @errors.size < 10
+    add("text", text: limit("Error: #{message}"))
   end
 
   def started(item)

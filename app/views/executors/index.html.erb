@@ -9,7 +9,7 @@
   <div class="card card-flush">
     <div class="table-wrap">
       <table class="executors">
-        <thead><tr><th>Name</th><th>Kind</th><th>Preset</th><th>Default model</th><th>Status</th><th>Last check</th><% if current_user.admin? %><th class="desktop-only"></th><% end %></tr></thead>
+        <thead><tr><th>Name</th><th>Kind</th><th>Preset</th><th>Default model</th><th>Status</th><th>Usage limit</th><th>Last check</th><% if current_user.admin? %><th class="desktop-only"></th><% end %></tr></thead>
         <tbody>
           <% @executors.each do |executor| %>
             <tr>
@@ -18,6 +18,7 @@
               <td><%= executor.label %></td>
               <td><%= executor.default_model || tag.span("—", class: "muted") %></td>
               <td><%= executor.enabled? ? badge("enabled", "ok") : badge("disabled") %></td>
+              <td class="usage-limit"><%= usage_limit_text(executor) %></td>
               <td class="nowrap">
                 <% if executor.last_checked_at %>
                   <%= executor.last_check_ok? ? badge("answers", "ok") : badge("failed", "bad") %>
@@ -36,7 +37,7 @@
               <% end %>
             </tr>
             <% if current_user.admin? && executor.last_check_output.present? %>
-              <tr class="check-output desktop-only"><td colspan="7"><pre><%= executor.last_check_output %></pre></td></tr>
+              <tr class="check-output desktop-only"><td colspan="8"><pre><%= executor.last_check_output %></pre></td></tr>
             <% end %>
           <% end %>
         </tbody>

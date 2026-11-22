@@ -4,7 +4,8 @@ class VoicesController < ApplicationController
              with: -> { render json: { error: "Too much speech. Try again in a few minutes." }, status: :too_many_requests }
 
   def speak
-    send_data Voice.speak(params[:text], language: current_user.chat_language, speaker: params[:speaker], speed: current_user.speech_speed.to_f),
+    send_data Voice.speak(params[:text], language: current_user.chat_language, speaker: params[:speaker], speed: current_user.speech_speed.to_f,
+                          natural: ConversationMode.natural?(current_user)), # spec 046, G3
               type: "audio/wav", disposition: "inline"
   rescue Voice::Error => e
     render json: { error: e.message }, status: :unprocessable_content
