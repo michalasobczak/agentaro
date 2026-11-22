@@ -504,3 +504,9 @@
     - Not usable for a conversation on a 16 GB Mac. The GGUF file was then deleted on the owner's request. llama.cpp itself stays installed, because whisper.cpp (voice, spec 017) depends on it.
 - Production: the owner's deputy director is the new agent "Zastępca" on the existing Ollama executor, with model mimo-v2.6 and the director's master prompt (spec 043). It answered a director-shaped JSON request in 5.6 s.
 - Production: the agent "Lokalny inżynier" and the default model of the "Ollama na Mac Mini" executor now use mimo-v2.6. qwen3.5:9b was then unused and was removed from Ollama; the local check's default model is mimo-v2.6. Ollama keeps mimo-v2.6 (deputy, local engineer), qwen3:8b (Brain memory) and bge-m3 (Brain search).
+- Owner fix: answered questions in the director's work list.
+  - The owner's words, quoting the director: "widzę, że to pytanie u mnie dalej wisi jako otwarte, więc twoja odpowiedź chyba nie doszła … Nie mam jednak numeru tego pytania".
+  - The owner had answered it on the epic's page at 16:17, and the step had started again at once.
+  - Cause: the work list showed only waiting questions and assumptions. The director remembered the question from the conversation and took it as still open.
+  - Now a question answered in the last 24 hours is listed as closed, with who answered, when, and the answer (the short local prompt too).
+  - Test in `management_runner_test.rb`.

@@ -501,6 +501,22 @@ class StepExcerptsTest < ActiveSupport::TestCase
   def apply(data) = ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat")).send(:apply_chat!, data.deep_stringify_keys)
   def try_apply(data) = (apply(data); nil) rescue $!
 
+  test "owner fix: a question answered on the epic's page shows as closed, with the answer, so the director never calls it open" do
+    running = step(1, "Build the city", "running")
+    attempt(running, "running")
+    asked = @epic.step_decisions.create!(epic_step: running, question: "Which session finishes the work?", important: true,
+                                         options: [ "This one", "The other", "Stop both and start again" ], recommended: "The other")
+    assert_match "question waiting for alice (decision #{asked.id})", work_list(chat_prompt)
+    asked.answer_by_owner!("Stop both and start again")
+    list = work_list(chat_prompt)
+    assert_no_match(/question waiting/, list)
+    assert_match "question answered by alice at #{asked.reload.updated_at.in_time_zone.strftime("%H:%M")} (decision #{asked.id}, closed — nothing to do): " \
+                 "Which session finishes the work? — answer: Stop both and start again", list
+    travel 25.hours do
+      assert_no_match(/question answered/, work_list(chat_prompt), "after a day it is no longer listed")
+    end
+  end
+
   test "S1: the director and the verifier see what the topic-selection step found while a later step runs" do
     topics = step(1, "Find topics", "succeeded")
     attempt(topics, "succeeded", output: "Topics found: [Topic A], [Topic B]\nSources: two reports.")
