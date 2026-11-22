@@ -3,6 +3,7 @@
 # only on throwaway data (R4): the database must be a demo file.
 #   DATABASE_URL=sqlite3:storage/demo.sqlite3 AUDIT_DATABASE_URL=sqlite3:storage/demo_audit.sqlite3 \
 #     bin/rails agentaro:director:local_check MODEL=qwen3.5:9b
+#   llama.cpp: … PRESET=openai_compatible_api URL=http://localhost:8080/v1 MODEL=<any name>
 module Agentaro
   class DirectorLocalCheck
     Result = Data.define(:request, :ok, :seconds, :calls, :note)
@@ -12,8 +13,9 @@ module Agentaro
       File.basename(path).start_with?("demo")
     end
 
-    def initialize(model:, base_url: "http://localhost:11434", out: $stdout)
-      @model, @base_url, @out = model, base_url, out
+    # preset: "ollama_api" (default) or "openai_compatible_api" (e.g. llama.cpp's llama-server on :8080/v1).
+    def initialize(model:, base_url: "http://localhost:11434", preset: "ollama_api", out: $stdout)
+      @model, @base_url, @preset, @out = model, base_url, preset, out
     end
 
     def run
@@ -31,7 +33,7 @@ module Agentaro
 
     def setup!
       @user = User.create!(username: "localcheck#{Time.current.to_i}", role: "user", password: SecureRandom.hex(16) + "Aa1!", otp_required: false)
-      @executor = Executor.find_or_create_by!(name: "Ollama (local check)") { |e| e.preset = "ollama_api"; e.base_url = @base_url }
+      @executor = Executor.find_or_create_by!(name: "Local check (#{@preset})") { |e| e.preset = @preset; e.base_url = @base_url }
       @executor.update!(default_model: @model, enabled: true, base_url: @base_url)
       director = Agent.create!(user: @user, name: "Dyrektor", executor: @executor,
                                master_prompt: "Jesteś dyrektorem zespołu agentów. Prowadzisz listę prac właściciela i planujesz je dla zespołu.")

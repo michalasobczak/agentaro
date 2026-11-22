@@ -484,3 +484,22 @@
   - a reset time read from output is not believed beyond 7 days (else "try again in 99 days" could block the director);
   - the process tracker (spec 040) now drops the server before gathering children, so a saved list naming the server cannot reach other runs' processes. The existing test had caught this only in some test orders.
   - Both are fixed with tests.
+- Spec 047 Retry by agreement, and replies kept when an action is refused.
+  - On production the owner answered the director's offer ("Chcesz, żebym jeszcze raz puścił wodę w Słodziakach…?") with "Tak, najpierw robimy featurey z gry słodziaki…". Twice the chat said only "No answer from the director: … retry_step: admin has not asked in their message to retry step 1 …".
+  - `retry_step` now also counts:
+    - agreement to the director's previous offer that names the epic or its space;
+    - the epic or its space named with words that start it.
+  - Not with a negation. Inflected names match.
+  - A reply whose action is refused twice stays and is spoken: valid actions are made, refused ones are noted ("Not done: …").
+  - B20: in that path the reply pass may carry only a retry; found in the analysis and fixed with a test.
+  - 6 new tests reproduce the conversation (4 fail without the fix); 4 tests of the old behaviour adapted.
+- Colima was removed on the owner's request, then reinstalled when the step traces showed that the "Gra Słodziaki" steps had used Docker (smoke tests, 21 Nov). The VM's images were lost and are rebuilt by the smoke tests; the Dockerfile and the project files were not affected.
+- Local director, more models (spec 044's acceptance run; the check now also takes `PRESET=openai_compatible_api URL=…` for llama.cpp's server).
+  - **mimo-v2.6** (owner's suggestion): 7/8, 9–50 s per request. This is the best local director so far.
+    - Its miss: the planning request tried to change an epic that was already running, and that was refused.
+  - **Qwen3-30B-A3B Q4** (18.6 GB) through llama.cpp `llama-server`, with the MoE experts on the CPU, read from disk by mmap (`--cpu-moe`), and the rest on the GPU.
+    - All layers on the GPU ran out of Metal memory.
+    - Generation is about 4 tokens/s once warm.
+    - Reading a director-sized prompt (about 3 thousand tokens) took over 10 minutes and was stopped, because almost every expert is read from disk for the prompt.
+    - Not usable for a conversation on a 16 GB Mac. The GGUF file stays in `storage/models/` (not tracked).
+

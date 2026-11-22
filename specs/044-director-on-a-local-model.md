@@ -115,4 +115,6 @@ A director on Ollama with a local model (on this computer qwen3.5:9b) can turn t
     - after the fixes: 6/8. It fails "pracuj w turbo" (it proposed `reassign_step`) and "zapamiętaj" (it proposed `set_tempo`). Agentaro refused both, as R3 requires.
     - S3 (7 of 8) is not met with this model: the misses are the model choosing the wrong action.
     - nemotron-3.5-bolt:e4b (the owner's suggestion): 5/8, 4–11 s per answer. It repeats earlier replies and claims a cancellation without the action.
+    - mimo-v2.6 (the owner's suggestion): 7/8, 9–50 s per request. S3 is met with this model.
+    - Qwen3-30B-A3B through llama.cpp, with the experts read from disk: about 4 tokens/s once warm, but a 3-thousand-token prompt took over 10 minutes. Not usable on a 16 GB Mac.
   - Tests: `local_director_test.rb` (6).

@@ -146,7 +146,7 @@ class DeputyDirectorTest < ActiveSupport::TestCase
       end
     end
     assert_equal @writer, item.epic_steps.sole.agent
-    assert_match "not accepted twice", @user.chat_messages.ordered.last.content
+    assert_match "Not done: reassign_step: Kodeks's Claude Code usage limit reached until 15:10", @user.chat_messages.ordered.last.actions_summary # spec 047, G2
   end
 
   test "R4: the deputy is another agent, on another executor, and not the verifier" do

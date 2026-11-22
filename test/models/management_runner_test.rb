@@ -102,7 +102,7 @@ class ManagementRunnerTest < ActiveSupport::TestCase
     assert_equal 0, EpicStep.count
   end
 
-  test "chat actions are checked together: one bad action applies none" do
+  test "spec 047, G2: a bad action refused twice is noted; the valid one is made and the reply stays" do
     @user.chat_messages.create!(author: "user", content: "add two")
     other = WorkItem.create!(user: create_user(username: "bob"), title: "Bob's item")
     answer = { reply: "Done", actions: [ { type: "add_item", title: "Mine" }, { type: "cancel_item", id: other.id } ] }
@@ -110,10 +110,12 @@ class ManagementRunnerTest < ActiveSupport::TestCase
       ManagementRunner.chat!(@user)
       run_all
     end
-    assert_equal 0, @user.work_items.count, "nothing added"
+    assert_equal [ "Mine" ], @user.work_items.pluck(:title), "the valid change is made"
     assert_equal "new", other.reload.state, "other users' items are not reachable"
-    assert_match "No answer from the director", @user.chat_messages.last.content
-    assert_match "no item with id #{other.id}", @user.chat_messages.last.content
+    reply = @user.chat_messages.where(author: "director").sole
+    assert_equal "Done", reply.content
+    assert_match "Not done: cancel_item: no item with id #{other.id}", reply.actions_summary
+    assert_equal 0, @user.chat_messages.where("content LIKE ?", "No answer from the director%").count
   end
 
   test "spec 016, G2: new epics are planned at once, whatever their start time" do

@@ -454,7 +454,9 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     with_director_answer(reply: "Ponawiam.", actions: [ { type: "retry_step", id: item.id, step: 2, attempt: failed.id } ]) do
       ManagementRunner.new(stale).perform!
     end
-    assert_match "not blocked", @user.chat_messages.ordered.last.content, "the stale retry is refused and the reason reported"
+    # Spec 047, G2: refused twice, the reply stays and the reason is noted under it.
+    assert_equal "Ponawiam.", @user.chat_messages.ordered.last.content
+    assert_match "not blocked", @user.chat_messages.ordered.last.actions_summary, "the stale retry is refused and the reason reported"
     assert_equal 1, item.runs.where(state: %w[queued running]).count
   end
 
@@ -466,7 +468,8 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     with_director_answer(reply: "Retrying.", actions: [ { type: "retry_step", id: item.id, step: 2, attempt: failed.id } ]) do
       ManagementRunner.new(chat).perform!
     end
-    assert_match "has not asked in their message", @user.chat_messages.ordered.last.content
+    assert_match "Not done: retry_step: ", @user.chat_messages.ordered.last.actions_summary # spec 047, G2: the reply stays
+    assert_match "has not asked in their message", @user.chat_messages.ordered.last.actions_summary
     assert_equal [ "blocked", 1 ], [ item.reload.state, second.runs.count ]
 
     post retry_work_item_path(item)

@@ -143,6 +143,7 @@ class ManagementRunner
 
       # Owner fix ("nie róbmy przerywania"): an answer is never dropped for a newer message; the chat holds the
       # user's messages until the director has finished, and anything that still came meanwhile gets the next answer.
+      data = nil
       begin
         data = parse(outcome.output)
         # Spec 044: a small local model often answers "done" with no action; for it the proposal pass always decides.
@@ -167,6 +168,11 @@ class ManagementRunner
         apply!(data)
         break outcome
       rescue Invalid, JSON::ParserError => e
+        # Spec 047, G2: refused twice — the reply is still posted, the valid actions are made, the refused ones noted.
+        if rejection && @run.purpose == "chat" && data.is_a?(Hash) && (proposing_changes ? @first_reply : data["reply"].to_s.strip).present?
+          apply_chat!(proposing_changes ? data.merge("reply" => @first_reply) : data, lenient: true, proposal: proposing_changes)
+          break outcome
+        end
         if rejection
           TaskRunner.finish!(@run, AgentCall::Outcome.new("failed", outcome.output, "Answer not accepted twice: #{e.message}", nil))
           return fail!("the #{role_name}'s answer was not accepted twice (#{e.message})")
@@ -759,9 +765,9 @@ class ManagementRunner
   def retry_action_rule
     <<~RULE.squish
       {"type": "retry_step", "id": <epic id>, "step": <step number>, "attempt": <the attempt number shown on that failed step>}
-      (only when #{@user.username} asks in their message to retry or run that failed step again; it runs that step
-      once more with the earlier answers and the epic goes on from there. If it is not clear which epic or step
-      they mean, ask and add nothing.)
+      (only when #{@user.username} asks in their message to retry or run that failed step again, or agrees to your offer
+      to run it again; it runs that step once more with the earlier answers and the epic goes on from there. One retry
+      per reply; other changes in the next one. If it is not clear which epic or step they mean, ask and add nothing.)
     RULE
   end
 
@@ -818,27 +824,60 @@ class ManagementRunner
 
   # --- Applying answers (R1: checked data only) ---------------------------------------------------
 
-  def apply_chat!(data)
+  # lenient (spec 047, G2): the second refused answer — each action is checked on its own; the valid ones are made and
+  # the refused ones are noted under the reply ("Not done: …") instead of losing the whole reply.
+  def apply_chat!(data, lenient: false, proposal: false)
     reply = data["reply"].to_s.strip
     raise Invalid, "\"reply\" is missing" if reply.empty?
 
     actions = data["actions"] || []
+    actions = [] if lenient && !actions.is_a?(Array)
     raise Invalid, "\"actions\" must be a list" unless actions.is_a?(Array)
-    raise Invalid, "at most #{MAX_ACTIONS} actions" if actions.size > MAX_ACTIONS
+    raise Invalid, "at most #{MAX_ACTIONS} actions" if actions.size > MAX_ACTIONS && !lenient
 
+    refused = []
     @new_spaces, @to_enqueue = {}, []
     summary = WorkItem.transaction do
-      if actions.any? && user_request&.id != current_user_request&.id
-        raise Invalid, "the user's request changed while this reply was being prepared"
+      if lenient
+        actions = actions.first(MAX_ACTIONS)
+        # B20: other changes are decided only by the proposal pass (with the owner's request); the reply pass may
+        # carry a retry alone.
+        if !proposal && actions.any? { |a| !(a.is_a?(Hash) && a["type"] == "retry_step") }
+          refused << "changes other than a retry: they are decided separately; say them again"
+          actions = actions.select { |a| a.is_a?(Hash) && a["type"] == "retry_step" }
+        end
+        if proposal && retry_proposed?(actions) # a retry is never decided in the proposal pass
+          refused << "retry_step: a retry is decided with the reply, not as a change"
+          actions = actions.reject { |a| a.is_a?(Hash) && a["type"] == "retry_step" }
+        end
+        if retry_proposed?(actions) && !actions.one?
+          refused << "the other changes: a retry goes alone; say them again in your next message"
+          actions = [ actions.find { |a| a.is_a?(Hash) && a["type"] == "retry_step" } ]
+        end
+        if actions.any? && user_request&.id != current_user_request&.id
+          refused << "all changes: your request changed while this reply was being prepared"
+          actions = []
+        end
+        actions.filter_map do |action|
+          check_action(action)
+        rescue Invalid => e
+          refused << e.message
+          nil
+        end.map(&:call)
+      else
+        if actions.any? && user_request&.id != current_user_request&.id
+          raise Invalid, "the user's request changed while this reply was being prepared"
+        end
+        if retry_proposed?(actions)
+          raise Invalid, "retry_step: only one retry and no other changes in a reply" unless actions.one?
+        end
+        actions.map { |action| check_action(action) }.map(&:call)
       end
-      if retry_proposed?(actions)
-        raise Invalid, "retry_step: only one retry and no other changes in a reply" unless actions.one?
-      end
-      actions.map { |action| check_action(action) }.map(&:call)
     end
     @to_enqueue.each { |id| StepChain.hand_over(id) } # spec 021, resilience: after commit
     # Owner fix: the answer was written before the proposal pass decided, so it always says what was really done.
-    applied = summary.compact.join("\n").presence || ("No changes were made to the work list or spaces." if @first_reply && (@first_proposed || !@local))
+    applied = summary.compact.join("\n").presence || ("No changes were made to the work list or spaces." if (@first_reply && (@first_proposed || !@local)) || refused.any?)
+    applied = [ applied, "Not done: #{refused.uniq.join("; ").truncate(1000)}" ].join("\n") if refused.any?
     say("director", reply, actions_summary: applied)
     self.class.verify!(@user, except: @run) if @user.verifier_active? # queued before this run ends, so "writing" never drops in between
     self.class.dispatch_due(user: @user)
@@ -1174,6 +1213,35 @@ class ManagementRunner
   RETRY_REQUEST = /\A(?:please\s+|proszę[, ]+)?(?:retry|re-?run|redo|resume|try(?:\s+it)?\s+again|run(?:\s+it)?\s+again|ponów|ponow|powtórz|powtorz|wznów|wznow|spróbuj\s+jeszcze\s+raz|sprobuj\s+jeszcze\s+raz)(?:\s+(.*?))?[.!]?\z/i
 
   def requested_retry?(item, step)
+    strict_retry_request?(item, step) || agreed_retry?(item, step) # spec 047, G1
+  end
+
+  # Spec 047, G1: the owner's natural words also count — "tak" to the director's offer to run that epic again, or the
+  # epic (its title or its space) named with words that start it ("najpierw Słodziaki"). Never with a negation.
+  AGREEMENT = /\A[\s,.!]*(?:tak|dobra|dobrze|ok(?:ej|ay)?|jasne|zgoda|pewnie|no to|jedziemy|dawaj|zr[óo]b|r[óo]b|pu[śs][ćc]|yes|yeah|sure|go ahead|do it)\b/i
+  GO_WORDS = /(?:\bzacznij|\bnajpierw|\bruszaj|\bruszamy|\bpu[śs][ćc]|\bpu[śs]ci|\bodpal|\bpon[óo]w|\bpowt[óo]rz|\bwzn[óo]w|jeszcze raz|\brobimy|\br[óo]bmy|\bzr[óo]b|\bretry|\bagain|\bfirst|\bstart)/i
+  OFFER_WORDS = /jeszcze raz|pon[óo]wi|pon[óo]w|pu[śs]ci|puszcz|wzn[óo]wi|spr[óo]buj|odpal|retry|again|restart/i
+  NEGATION = /\b(?:nie|don'?t|do not)\s+(?:\S+\s+){0,2}?(?:pon[óo]w|powt[óo]rz|pu[śs][ćc]|pu[śs]zczaj|uruchamiaj|ruszaj|r[óo]b|odpalaj|retry|run|start)/i
+
+  def agreed_retry?(item, step)
+    request = @user.chat_messages.current.where(author: "user", id: (latest_director_answer_id.to_i + 1)..).ordered.map(&:content).join("\n")
+    request = user_request&.content.to_s if request.blank?
+    return false if request.blank? || request.match?(NEGATION)
+
+    offer = @user.chat_messages.current.where(author: "director").where(id: ...(user_request&.id || 0)).order(:id).last&.content.to_s
+    offered = offer.match?(OFFER_WORDS) && names_epic?(offer, item)
+    (request.match?(AGREEMENT) && offered) || (names_epic?(request, item) && request.match?(GO_WORDS))
+  end
+
+  # The epic named by its title or its space's name, also inflected ("Słodziakach" for "Słodziaki").
+  def names_epic?(text, item)
+    words = ->(value) { I18n.transliterate(value.to_s.downcase).scan(/[a-z0-9]+/) }
+    said = words.(text)
+    stems = words.("#{item.title} #{item.space&.name}").select { |w| w.length >= 4 }.map { |w| w[0, [ w.length - 2, 4 ].max] }.uniq
+    stems.any? { |stem| said.any? { |w| w.start_with?(stem) } }
+  end
+
+  def strict_retry_request?(item, step)
     request = user_request&.content.to_s.strip.match(RETRY_REQUEST)
     return false unless request
 
