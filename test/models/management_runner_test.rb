@@ -517,6 +517,67 @@ class StepExcerptsTest < ActiveSupport::TestCase
     end
   end
 
+  # Owner fix (production, 2026-11-22): the director twice said it was stopping a waiting loop, and nothing was
+  # stopped — the proposal pass, which decides changes, did not see the step's processes; and "teraz się tym zajmij"
+  # after the director's offer to stop it did not count as a request.
+  test "owner fix: stop_process works from the chat — the proposal pass sees the processes, and agreement counts" do
+    running = step(1, "Analiza Aut", "running")
+    run = attempt(running, "running")
+    pid = Process.spawn("sleep", "60", pgroup: true)
+    dir = LiveLog.dir_for(run.id)
+    FileUtils.mkdir_p(dir)
+    me = ProcessTracker.snapshot.find { |p| p.pid == pid }
+    ProcessTracker.write(dir, [ { "pid" => pid, "started" => me.started, "command" => "sleep 60", "alive" => true, "since" => Time.current.iso8601 } ])
+    @user.chat_messages.create!(author: "director", content: "Agent czeka na drugą sesję. Jeśli dalej będzie czekał, zatrzymam ten wiszący proces.")
+    @user.chat_messages.create!(author: "user", content: "teraz się tym zajmij")
+    runner = ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat"))
+    proposal = runner.send(:chat_prompt, proposing_changes: true)
+    assert_match "process of run #{run.id}, pid #{pid}: sleep 60", proposal[/^Work list.*?(?=^Earlier conversation)/m], "the proposal pass sees it"
+
+    apply(reply: "Zatrzymuję.", actions: [ { type: "stop_process", run: run.id, pid: pid } ])
+    assert_match "Stopped: sleep 60", @user.chat_messages.last.actions_summary
+    assert_raises(Errno::ESRCH, Errno::ECHILD) { sleep 0.3; Process.waitpid(pid, Process::WNOHANG); Process.kill(0, pid) }
+  ensure
+    Process.kill("KILL", -pid) rescue nil
+    FileUtils.rm_rf(dir) if dir
+  end
+
+  test "owner fix, negative: without an offer to stop, \"zajmij się\" alone does not stop a process" do
+    running = step(1, "Analiza Aut", "running")
+    run = attempt(running, "running")
+    @user.chat_messages.create!(author: "director", content: "Auta idą dobrze.")
+    @user.chat_messages.create!(author: "user", content: "teraz się tym zajmij")
+    error = try_apply(reply: "Zatrzymuję.", actions: [ { type: "stop_process", run: run.id, pid: 12_345 } ])
+    assert_match "has not asked in their message to stop a process", error.message
+    @user.chat_messages.create!(author: "director", content: "Mogę zatrzymać ten proces.")
+    @user.chat_messages.create!(author: "user", content: "nie zatrzymuj go jeszcze, dobra?")
+    error = try_apply(reply: "Zatrzymuję.", actions: [ { type: "stop_process", run: run.id, pid: 12_345 } ])
+    assert_match "has not asked in their message to stop a process", error.message, "a negation never counts"
+  end
+
+  test "owner fix: the owner's go-ahead to the director's offer counts for settings too; a negated command never" do
+    @user.chat_messages.create!(author: "director", content: "Mogę przestawić tempo na Turbo, wtedy jeden agent zrobi to szybko.")
+    @user.chat_messages.create!(author: "user", content: "dawaj")
+    apply(reply: "Przestawiam.", actions: [ { type: "set_tempo", level: 3 } ])
+    assert_equal 3, @user.reload.work_tempo
+    @user.chat_messages.create!(author: "director", content: "Mogę też zmienić styl na Dziecko.")
+    @user.chat_messages.create!(author: "user", content: "nie zmieniaj stylu")
+    error = try_apply(reply: "Zmieniam.", actions: [ { type: "set_style", level: 1 } ])
+    assert_match "has not asked in their message to change how you talk", error.message
+    @user.chat_messages.create!(author: "director", content: "Auta idą dobrze.")
+    @user.chat_messages.create!(author: "user", content: "tak")
+    assert try_apply(reply: "Zmieniam.", actions: [ { type: "set_style", level: 1 } ]), "no offer about the style: a bare yes is not enough"
+  end
+
+  test "owner fix: the proposal pass sees the steps of started epics, so reassign_step can be decided" do
+    step(1, "Find topics", "succeeded")
+    step(2, "Check sources", "failed", agent: @evidence)
+    @epic.update!(state: "blocked")
+    @user.chat_messages.create!(author: "user", content: "przekaż krok 2 innemu")
+    list = ManagementRunner.new(TaskRun.new(user: @user, purpose: "chat")).send(:chat_prompt, proposing_changes: true)
+    assert_match "step 2 \"Check sources\" (Evidence Agent, member id #{@evidence.id}): failed", list
+  end
+
   test "S1: the director and the verifier see what the topic-selection step found while a later step runs" do
     topics = step(1, "Find topics", "succeeded")
     attempt(topics, "succeeded", output: "Topics found: [Topic A], [Topic B]\nSources: two reports.")

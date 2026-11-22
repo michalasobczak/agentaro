@@ -545,4 +545,16 @@
   - Now a cancel stops the running step with all its processes and marks it cancelled. The director's action list says so.
   - Also, from spec 049 G3: Codex's lines about refreshing its model list no longer lead a step's error.
   - Tests: 2 new; the spec 016 G7 test adapted.
+- Owner fix: the director says it does something, and it is done.
+  - The case: twice "zatrzymuję oba jej procesy" (the cars step's waiting loop), and nothing was stopped.
+  - The review of the last 3 days found at least 6 such replies ("Anuluję", "anulowałem i dopisałem od nowa", "Usunięte…").
+  - Fixed causes:
+    - the proposal pass, which decides the changes, now sees the steps of started epics (number, title, member, state, a waiting retry) and the running steps' processes, so `stop_process` and `reassign_step` can be decided. No step results or errors are added;
+    - every action that needs the owner's words now also takes their go-ahead ("tak", "dawaj", "zajmij się tym") right after the director offered the same thing (as spec 047 did for retries): settings, approval, memory, pause, stopping a process. A negated command ("nie zmieniaj…", "nie zatrzymuj…") never counts.
+  - 5 new tests; 1 test adapted (spec 021's proposal prompt may now hold step titles, still no results).
+  - The cars step's waiting loop was not stopped by hand: the stop was refused by the session's permission check. The owner can ask the director again after the restart.
+  - Spec 050 drafted: the verifier checks that a reply announcing an action matches what was done, repairs it once and says so.
+- Owner fix: a review right after a restart failed with `NoMethodError` (work_item_path) and blocked the cars epic ("Wydajność istniejącej gry Auta na iPadzie 7").
+  - Cause: Rails 8 draws routes on the first request. The scheduler starts at boot and its first review built a link before that. The race was there since spec 040.
+  - The routes are now drawn before the scheduler starts. Test `scheduler_boot_test.rb`.
 

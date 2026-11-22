@@ -373,9 +373,10 @@ class DirectorChatTest < ActionDispatch::IntegrationTest
     assert_equal "queued", ordered.runs.where(purpose: "director").sole.state
     assert_equal "succeeded", chat.reload.state
     assert_match "Please add an epic to research backups.", chat.prompt
-    [ "Topics found:", "Find topics", "Step 2 failed", "First answer", "/change" ].each do |text|
+    [ "Topics found:", "Step 2 failed", "First answer", "/change" ].each do |text| # no step results or errors
       assert_no_match text, chat.prompt
     end
+    assert_match "step 1 \"Find topics\"", chat.prompt, "owner fix: step titles and states, for reassign_step and stop_process"
     assert_match "Director: Earlier model reply", chat.prompt, "owner fix: the proposal pass sees the conversation as context"
     get director_path
     assert_select ".bubble", text: /First answer/, count: 1 # owner fix: the answer written with the whole conversation is posted

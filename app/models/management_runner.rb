@@ -509,7 +509,9 @@ class ManagementRunner
                  "#{d.question.to_s.tr("\n", " ").truncate(200)} — answer: #{d.answer.to_s.tr("\n", " ").truncate(200)}"
       end
     end
-    return lines.join("\n") unless progress # spec 033: questions and approvals are seen in the proposal pass too
+    unless progress # spec 033: questions and approvals are seen in the proposal pass too
+      return lines.concat(process_lines(item)).join("\n") # owner fix: stop_process is decided here, so the processes are seen
+    end
 
     lines << "  blocked: #{TaskRun.prompt_text(item.blocked_reason).tr("\n", " ").truncate(300)}" if item.state == "blocked" && item.blocked_reason.present?
     lines.concat(step_lines(item))
@@ -540,6 +542,23 @@ class ManagementRunner
     when "owner" then "by #{@user.username}"
     when nil then ""
     else "by the #{decision.answered_by}"
+    end
+  end
+
+  # Owner fix: what the proposal pass needs to decide stop_process and reassign_step — the steps of started epics
+  # (number, title, member, state, a waiting retry) and the running steps' processes; no excerpts.
+  def process_lines(item)
+    return [] unless item.started_at
+
+    item.active_steps.includes(:agent).order(:position).first(MAX_PROGRESS_STEPS).flat_map do |step|
+      line = "  step #{step.position} \"#{step.title}\" (#{step.agent&.name || "agent removed"}, member id #{step.agent_id || "-"}): #{step.state_label}" \
+             "#{" — #{step.retry_note}" if step.state == "queued" && step.retry_note}"
+      next [ line ] unless step.state == "running"
+
+      run = StepChain.attempt_of(step, columns: %i[id state])
+      next [ line ] unless run&.state == "running"
+
+      [ line ] + ProcessTracker.alive(LiveLog.dir_for(run.id)).first(10).map { |p| "    process of run #{run.id}, pid #{p["pid"]}: #{p["command"].to_s.truncate(120)}" }
     end
   end
 
@@ -1076,13 +1095,13 @@ class ManagementRunner
     when "approve_plan"
       item = own_item(action)
       raise Invalid, "approve_plan: the plan of \"#{item.title}\" is not waiting for approval" unless item.state == "planned" && item.awaiting_approval
-      raise Invalid, "approve_plan: #{@user.username} has not approved the plan in their message" unless user_request.content.to_s.match?(APPROVAL_REQUEST)
+      raise Invalid, "approve_plan: #{@user.username} has not approved the plan in their message" unless owner_asked?(APPROVAL_REQUEST)
 
       -> { item.approve_plan! ? "Plan approved: #{item.title}" : "Not approved: \"#{item.title}\" changed meanwhile" }
     when "set_autonomy"
       level = action["level"].to_s.to_i
       raise Invalid, "set_autonomy: level must be 1, 2 or 3" unless Autonomy.valid?(level)
-      raise Invalid, "set_autonomy: #{@user.username} has not asked in their message to change how often agents ask" unless user_request.content.to_s.match?(AUTONOMY_REQUEST)
+      raise Invalid, "set_autonomy: #{@user.username} has not asked in their message to change how often agents ask" unless owner_asked?(AUTONOMY_REQUEST)
 
       if action["space"].present?
         space = @user.spaces.find_by(id: action["space"].to_s.to_i) or raise Invalid, "set_autonomy: no space with id #{action["space"].inspect}"
@@ -1096,8 +1115,30 @@ class ManagementRunner
   # Spec 040, G4, R3: a process of the owner's own running step, only on the owner's words, only one the step started.
   STOP_REQUEST = /zabij|ubij|kill|zatrzymaj|stop|przerwij|wyłącz|wylacz|zako[ńn]cz|terminate/i
 
+  # Owner fix (as spec 047 for retries): the owner's own words to stop, or their go-ahead ("zajmij się tym", "tak",
+  # "zrób to") right after the director offered to stop a process. Never with a negation.
+  GO_AHEAD = /zajmij|ogarnij|dzia[łl]aj|zr[óo]b to|r[óo]b to|dawaj|jasne|tak\b|dobra|ok\b|okej|zgoda|go ahead|do it|yes/i
+  STOP_OFFER = /zatrzym|ubij|zabij|przerw|stop|kill/i
+  STOP_NEGATION = /\b(?:nie|don'?t|do not)\s+(?:\S+\s+){0,2}?(?:zatrzym|ubij|zabij|przerw|wy[łl][ąa]cz|stop|kill)/i
+
+  def stop_requested? = owner_asked?(STOP_REQUEST, offer: STOP_OFFER, negation: STOP_NEGATION)
+
+  # Owner fix (review after the stop_process case): an action that needs the owner's words also takes their go-ahead
+  # ("tak", "dawaj", "zajmij się tym") right after the director offered it — the offer must name the same thing
+  # (the same words); never with a negated command ("nie zmieniaj…", "nie zatrzymuj…").
+  NEGATED_COMMAND = /\b(?:nie|don'?t|do not)\s+(?:\S+\s+){0,1}?\p{L}+(?:aj|uj|ij|yj|aj się)\b/i
+
+  def owner_asked?(words, offer: words, negation: NEGATED_COMMAND)
+    request = user_request&.content.to_s
+    return false if request.blank? || request.match?(negation) || request.match?(NEGATION)
+    return true if request.match?(words)
+
+    previous = @user.chat_messages.current.where(author: "director").where(id: ...user_request.id).order(:id).last&.content.to_s
+    request.match?(GO_AHEAD) && previous.match?(offer)
+  end
+
   def stop_process_action(action)
-    raise Invalid, "stop_process: #{@user.username} has not asked in their message to stop a process" unless user_request&.content.to_s.match?(STOP_REQUEST)
+    raise Invalid, "stop_process: #{@user.username} has not asked in their message to stop a process" unless stop_requested?
 
     run = TaskRun.find_by(id: action["run"].to_s.to_i, user_id: @user.id, purpose: "epic_step", state: "running")
     raise Invalid, "stop_process: run #{action["run"].inspect} is not a running step of yours" unless run
@@ -1119,7 +1160,7 @@ class ManagementRunner
   def reply_length_action(action)
     level = action["level"].to_s.to_i
     raise Invalid, "set_reply_length: level must be 1, 2 or 3" unless ReplyLength.valid?(level)
-    raise Invalid, "set_reply_length: #{@user.username} has not asked in their message to change how long replies are" unless user_request&.content.to_s.match?(LENGTH_REQUEST)
+    raise Invalid, "set_reply_length: #{@user.username} has not asked in their message to change how long replies are" unless owner_asked?(LENGTH_REQUEST)
 
     -> { @user.update!(reply_length: level); "Reply length: #{ReplyLength.name(level)}" }
   end
@@ -1134,19 +1175,19 @@ class ManagementRunner
     level = action["level"].to_s.to_i
     if type == "set_conversation" # spec 046, G1
       raise Invalid, "set_conversation: level must be 1 or 2" unless ConversationMode.valid?(level)
-      raise Invalid, "set_conversation: #{@user.username} has not asked in their message to change how the conversation goes" unless user_request&.content.to_s.match?(CONVERSATION_REQUEST)
+      raise Invalid, "set_conversation: #{@user.username} has not asked in their message to change how the conversation goes" unless owner_asked?(CONVERSATION_REQUEST)
 
       return -> { @user.update!(conversation_mode: level); "Conversation: #{ConversationMode.name(level)}" }
     end
     if type == "set_style"
       raise Invalid, "set_style: level must be 1, 2 or 3" unless ChatStyle.valid?(level)
-      raise Invalid, "set_style: #{@user.username} has not asked in their message to change how you talk to them" unless user_request&.content.to_s.match?(STYLE_REQUEST)
+      raise Invalid, "set_style: #{@user.username} has not asked in their message to change how you talk to them" unless owner_asked?(STYLE_REQUEST)
 
       return -> { @user.update!(chat_style: level); "Style: #{ChatStyle.name(level)}" }
     end
 
     raise Invalid, "set_tempo: level must be 1, 2 or 3" unless WorkTempo.valid?(level)
-    raise Invalid, "set_tempo: #{@user.username} has not asked in their message to change the tempo of work" unless user_request&.content.to_s.match?(TEMPO_REQUEST)
+    raise Invalid, "set_tempo: #{@user.username} has not asked in their message to change the tempo of work" unless owner_asked?(TEMPO_REQUEST)
 
     if action["space"].present?
       space = @user.spaces.find_by(id: action["space"].to_s.to_i) or raise Invalid, "set_tempo: no space with id #{action["space"].inspect}"
@@ -1161,7 +1202,7 @@ class ManagementRunner
 
   def memory_action(action)
     type = action["type"]
-    unless user_request&.content.to_s.match?(MEMORY_REQUEST)
+    unless owner_asked?(MEMORY_REQUEST)
       raise Invalid, "#{type}: #{@user.username} has not asked in their message to remember, forget, keep or drop anything"
     end
 
@@ -1343,7 +1384,7 @@ class ManagementRunner
   def pause_action(action)
     item = own_item(action)
     type = action["type"]
-    raise Invalid, "#{type}: #{@user.username} has not asked in their message to pause or resume an epic" unless user_request&.content.to_s.match?(PAUSE_REQUEST)
+    raise Invalid, "#{type}: #{@user.username} has not asked in their message to pause or resume an epic" unless owner_asked?(PAUSE_REQUEST)
     raise Invalid, "#{type}: \"#{item.title}\" is #{item.state_label}; only a planned epic can be paused or resumed" unless item.state == "planned"
     raise Invalid, "resume_epic: \"#{item.title}\" is not paused" if type == "resume_epic" && !item.paused?
 

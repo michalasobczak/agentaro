@@ -215,6 +215,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 047 | [Retry by agreement, and replies kept when an action is refused](specs/047-retry-by-agreement-and-kept-replies.md) | implemented |
 | 048 | [Pause an epic](specs/048-pause-an-epic.md) | implemented |
 | 049 | [Codex with a local model](specs/049-codex-with-a-local-model.md) | implemented |
+| 050 | [Does the reply match what was done?](specs/050-reply-versus-actions-check.md) | draft |
 | 100 | [Ratings and sentiment](specs/100-ratings-and-sentiment.md) | closed |
 | 101 | [Reflection and playbooks](specs/101-reflection-and-playbooks.md) | draft (Q1–Q3 open) |
 | 102 | [Model of the owner and when agents ask](specs/102-owner-model-and-questions.md) | draft (Q1–Q4 open) |
