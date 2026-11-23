@@ -216,7 +216,8 @@ class StepChain
 
     agent = step.agent
     outcome = if agent
-      AgentCall.new(@run, agent, self.class.prompt_for(step, agent), **{ timeout: step.time_limit_seconds }.merge(@call_options)).call # spec 040, G2
+      git_note = WorkingGit.prepare(step.work_item.space, step.work_item.user) # spec 053, G4
+      AgentCall.new(@run, agent, self.class.prompt_for(step, agent, git_note: git_note), **{ timeout: step.time_limit_seconds }.merge(@call_options)).call # spec 040, G2
     else
       AgentCall::Outcome.new("skipped", nil, "The step has no agent (it was deleted).", nil)
     end
@@ -250,7 +251,7 @@ class StepChain
   private :claim_run
 
   # G4: the agent's master prompt, then the step, its epic and space, and the earlier steps' answers.
-  def self.prompt_for(step, agent)
+  def self.prompt_for(step, agent, git_note: nil)
     item = step.work_item
     last_position = item.active_steps.maximum(:position)
     # Spec 030, G1: each line is a named part of the prompt.
@@ -260,6 +261,7 @@ class StepChain
     lines << [ "epic", "Epic details: #{item.description}" ] if item.description.present?
     if (dir = item.space.working_dir) # spec 018, G6
       lines << [ "workspace", "\nYou work in the space's folder #{dir} (your current directory). You may read and change files there, run commands and tools (git, docker, package managers, a browser) and use the network. Folders of other projects are not accessible." ]
+      lines << [ "workspace", git_note ] if git_note # spec 053, G4
     end
     earlier = earlier_answers(step)
     lines << [ "earlier_answers", "#{HISTORY_HEADING}#{earlier}" ] if earlier.present?

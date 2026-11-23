@@ -40,9 +40,11 @@ class ProcessTracker
 
   def self.alive(dir) = load(dir).select { |p| p["alive"] }
 
-  def initialize(dir, root_pid)
+  def initialize(dir, root_pid, cwd: nil)
     @dir = Pathname(dir)
     @root = root_pid
+    @cwd = cwd && (File.realpath(cwd) rescue File.expand_path(cwd)) # spec 053, B20: where the step works, to find what it left detached
+    @since = Time.current
     @tracked = {} # key => hash
     @lock = Monitor.new
   end
@@ -93,8 +95,50 @@ class ProcessTracker
   # The step ended: stop every process of it that is still alive. Returns the commands stopped.
   def finish!
     @thread&.kill
-    poll!
+    snapshot = self.class.snapshot
+    poll!(snapshot)
+    adopt_detached(snapshot)
     self.class.stop(@dir, @tracked.values.select { |t| t["alive"] })
+  end
+
+  # Spec 053, B20: a process started in the background between two polls whose parent then exited (for example
+  # "python3 -m http.server &" in a command that ends) has no parent and a group of its own, so poll! cannot link it to
+  # the step. At the end, such orphans of this user, started during the step and working in the step's folder, are the
+  # step's too.
+  def adopt_detached(snapshot)
+    return unless @cwd
+
+    candidates = snapshot.select do |p|
+      p.ppid == 1 && p.uid == Process.uid && !excluded?(p) && !@tracked.key?(self.class.key(p.pid, p.started)) &&
+        (Time.zone.parse(p.started) rescue nil)&.>=(@since - 2)
+    end
+    return if candidates.empty?
+
+    cwds = self.class.cwds(candidates.map(&:pid))
+    @lock.synchronize do
+      candidates.each do |p|
+        dir = cwds[p.pid] or next
+        next unless dir == @cwd || dir.start_with?("#{@cwd}/")
+
+        @tracked[self.class.key(p.pid, p.started)] = { "pid" => p.pid, "started" => p.started, "since" => Time.current.iso8601,
+                                                       "pgid" => p.pgid, "cpu" => p.cpu, "command" => clean(p.command), "alive" => true }
+      end
+      save
+    end
+  end
+
+  # The working directory of each process (lsof), by pid.
+  def self.cwds(pids)
+    out = IO.popen([ "lsof", "-a", "-d", "cwd", "-p", pids.join(","), "-Fpn" ], err: File::NULL, &:read).to_s
+    pid = nil
+    out.lines.each_with_object({}) do |line, found|
+      case line[0]
+      when "p" then pid = line[1..].to_i
+      when "n" then found[pid] = File.expand_path(line[1..].chomp) if pid
+      end
+    end
+  rescue StandardError
+    {}
   end
 
   # R3, R4: stops the given saved entries (and what they started), each only while its id and start time still match.

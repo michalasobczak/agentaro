@@ -63,6 +63,7 @@ class CodexLocalTest < ActiveSupport::TestCase
   end
 
   test "S1, G2: Codex runs the local model, with Codex's sandbox and without web search" do
+    @user.update!(relaxed_sandbox: false) # the strict sandbox as before; spec 053 adds the network (below)
     with_ollama([ "mimo-v2.6:latest", "qwen3:8b" ]) do
       with_codex do
         outcome = call
@@ -74,6 +75,10 @@ class CodexLocalTest < ActiveSupport::TestCase
     assert_match "-m mimo-v2.6", args
     assert_no_match(/--search/, args)
     assert_no_match(/model_reasoning_effort/, args)
+
+    @user.update!(relaxed_sandbox: true) # spec 053, G2: with the relaxed sandbox, network access outside a folder too
+    with_ollama([ "mimo-v2.6:latest" ]) { with_codex { call } }
+    assert_match "--sandbox workspace-write -c sandbox_workspace_write.network_access=true --ephemeral", File.read(File.join(@log, "args"))
   end
 
   test "S3: a model that is not in the local Ollama fails with a plain reason, and Codex is never asked to pull it" do

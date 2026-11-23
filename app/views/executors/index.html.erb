@@ -3,6 +3,18 @@
     <%= link_to new_admin_executor_path, class: "button desktop-only" do %><%= icon(:plus) %> New executor<% end %>
   <% end %>
 <% end %>
+<%# Spec 053, G1, G7: one setting for every command-line run of this account. %>
+<section class="card sandbox-card" aria-labelledby="sandbox-title">
+  <div class="sandbox-head">
+    <h2 id="sandbox-title" class="sandbox-title">Relaxed sandbox <%= current_user.relaxed_sandbox? ? badge("on", "ok") : badge("off") %></h2>
+    <%= button_to (current_user.relaxed_sandbox? ? "Turn off" : "Turn on"), account_relaxed_sandbox_path(on: current_user.relaxed_sandbox? ? 0 : 1),
+                  method: :patch, class: "secondary small" %>
+  </div>
+  <p class="small">Command-line agents (Claude Code, Codex) always work in a sandbox. With this on, every run — steps, the director and the verifier — may also
+    <strong>open any web page</strong>, <strong>open local ports</strong> (to start and check its own server), and use <strong>Git</strong>:
+    before a step in a space's folder without a repository, Agentaro creates one (no hooks).</p>
+  <p class="small muted">Always denied: reading Agentaro's storage (databases, secrets), other spaces' folders and other runs; writing outside the folder and temporary folders. Codex cannot limit reads (accepted, spec 018). With network access an agent can send what it sees to any host.</p>
+</section>
 <% if @executors.empty? %>
   <div class="card"><p class="muted">No executors yet.<% if current_user.admin? %> Add one from a preset: Claude Code, Codex, Gemini, Grok, Ollama or LM Studio.<% end %></p></div>
 <% else %>

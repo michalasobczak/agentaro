@@ -181,7 +181,7 @@ class AgentCall
   # Spec 040, G3: a step's processes are followed from here on.
   def spawned(pid)
     RunControl.started(@run.id, pid)
-    @tracker = ProcessTracker.new(folder, pid).start if @live
+    @tracker = ProcessTracker.new(folder, pid, cwd: @chdir).start if @live
     @run.update!(pid: pid)
   rescue StandardError => e
     Rails.logger.error("[runs] could not save the process of run #{@run.id}: #{e.class}: #{e.message}")
@@ -274,12 +274,12 @@ class AgentCall
 
       answer = folder.join("answer.txt").to_s
       args = [ "exec", "--oss", "--local-provider", "ollama", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
-      args.insert(args.index("--ephemeral"), "-c", "sandbox_workspace_write.network_access=true") if space # as for Codex (spec 018, Q5)
+      args.insert(args.index("--ephemeral"), "-c", "sandbox_workspace_write.network_access=true") if space || relaxed? # as for Codex (spec 018, Q5; spec 053, G2)
       [ args + [ "-m", model, "-" ], prompt.text, answer ]
     when "codex"
       answer = folder.join("answer.txt").to_s
       args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
-      args.insert(5, "-c", "sandbox_workspace_write.network_access=true") if space # spec 018, Q5: network in a working folder (reads not limited: F17)
+      args.insert(5, "-c", "sandbox_workspace_write.network_access=true") if space || relaxed? # spec 018, Q5: network in a working folder (reads not limited: F17); spec 053, G2: everywhere when relaxed
       args += [ "-m", model ] if model
       args += [ "-c", "model_reasoning_effort=#{@effort}" ] if @effort # spec 022, G5
       [ args + [ "-" ], prompt.text, answer ]
@@ -298,9 +298,15 @@ class AgentCall
     return folder_settings(space) if space
 
     storage = Rails.root.join("storage").realpath.to_s
-    { permissions: { deny: [ "Read(/#{storage}/**)", "Edit(/#{storage}/**)" ] },
-      sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { denyRead: [ storage ] } } }.to_json
+    sandbox = { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { denyRead: [ storage ] } }
+    sandbox[:network] = RELAXED_NETWORK if relaxed? # spec 053, G2, G3
+    { permissions: { deny: [ "Read(/#{storage}/**)", "Edit(/#{storage}/**)" ] }, sandbox: sandbox }.to_json
   end
+
+  # Spec 053: any host, and local ports (an agent may start and check its own server). File rules do not change (R1).
+  RELAXED_NETWORK = { allowedDomains: [ "*" ], allowLocalBinding: true }.freeze
+
+  def relaxed? = @run.respond_to?(:user) && @run.user&.relaxed_sandbox? ? true : false
 
   def folder_settings(space)
     denied = space.denied_dirs
@@ -309,7 +315,7 @@ class AgentCall
                      deny: denied.flat_map { |dir| [ "Read(/#{dir}/**)", "Edit(/#{dir}/**)" ] } },
       sandbox: { enabled: true, failIfUnavailable: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
                  filesystem: { denyRead: denied },
-                 network: { allowedDomains: [ "*" ], allowUnixSockets: sockets } } }.to_json
+                 network: { allowedDomains: [ "*" ], allowUnixSockets: sockets, **(relaxed? ? { allowLocalBinding: true } : {}) } } }.to_json
   end
 
   # --- Local APIs without a key: one chat request ---

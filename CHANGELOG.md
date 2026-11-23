@@ -617,3 +617,10 @@
   - "Collapse" and "Expand" fold or open everything. The folds are kept in this browser and survive the 5-second redraw.
   - Test in `work_panel_test.rb`; 634 tests pass. Checked in light, dark and at phone width.
 - Owner change to spec 017 ("poszerz pauzę w głosie do kilku sekund"): voice mode ends an utterance after 3 seconds of quiet instead of about 1, so a breath does not cut it; one utterance may last 55 seconds instead of 30. New scenario "breath" in `voice_mute_test.rb` (failed with the old value); the other voice scenarios use the longer pause.
+- Spec 053 A relaxed sandbox (owner: "chciałbym, żeby CLI działały poza sandboxem… nie mogą wchodzić na strony ani robić git init"; relax, not off; steps, director, verifier and CI; one setting, on by default; Agentaro makes Git before a step). Closed and implemented:
+  - `users.relaxed_sandbox` (default on) and a switch on the Executors page.
+  - With it on, every Claude Code run may reach any host and open local ports; every Codex run has network access.
+  - Before a step in a folder without Git, Agentaro runs `git init` with no template (no hooks); the step's prompt says so. Claude Code's sandbox denies writes in a `.git` made during the run, so the agent cannot do it itself (checked).
+  - The director and the verifier are told the sandbox's state. CI needed no change.
+  - Real runs on this computer: commit in a new repository, own server 200, web 200, storage denied; Codex verifier web 200.
+- B20 after specs 001–053: a server a step started in the background (`&`, its shell gone before the next poll) outlived the step. The step's orphans working in its folder are now stopped at its end. Test `detached_process_test.rb` (fails without the fix). 647 tests pass; Brakeman 0 warnings; bundle-audit clean.

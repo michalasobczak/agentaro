@@ -1083,3 +1083,9 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .work-epic .work-steps { margin-left: 0.85rem; }
 .work-group-box.is-folded:hover, .work-space.is-folded:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
 @media (prefers-reduced-motion: reduce) { .work-fold svg { transition: none; } }
+
+/* Spec 053: the relaxed sandbox setting on the Executors page */
+.sandbox-card { margin-bottom: 1rem; }
+.sandbox-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.sandbox-title { margin: 0; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+.sandbox-card p { margin: 0.5rem 0 0; }

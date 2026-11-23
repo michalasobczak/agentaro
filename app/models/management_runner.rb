@@ -418,7 +418,16 @@ class ManagementRunner
 
   def context_header
     now = Time.current
-    "You work in Agentaro for #{@user.username}. Now: #{now.strftime("%A %-d %B %Y, %H:%M")} (#{Time.zone.name}).\nMode: #{@run.purpose}"
+    "You work in Agentaro for #{@user.username}. Now: #{now.strftime("%A %-d %B %Y, %H:%M")} (#{Time.zone.name}).\nMode: #{@run.purpose}\n#{sandbox_line}"
+  end
+
+  # Spec 053, G7: what command-line agents (you too, when you run as one) may do, so a failure is not blamed on the sandbox.
+  def sandbox_line
+    if @user.relaxed_sandbox?
+      "Sandbox: relaxed (#{@user.username}'s setting on the Executors page). Command-line agents may open any web page, open local ports and use Git; Agentaro creates a Git repository in a space's folder before a step when it has none. They still cannot read Agentaro's storage or other spaces' folders. If a page does not open, the cause is elsewhere: say what the error was."
+    else
+      "Sandbox: strict (#{@user.username} turned \"Relaxed sandbox\" off on the Executors page). Outside a space's folder, commands get no network; no local ports for Claude Code; no new Git repositories. Turning it on there allows them."
+    end
   end
 
   # Owner fix after spec 017: the user's chosen conversation language, or the language of their latest message.

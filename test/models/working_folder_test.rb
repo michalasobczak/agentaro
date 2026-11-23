@@ -77,6 +77,7 @@ class WorkingFolderTest < ActiveSupport::TestCase
   end
 
   test "S3: a space without a folder runs as before — an empty run folder, web tools only" do
+    @user.update!(relaxed_sandbox: false) # spec 053: with the relaxed sandbox on, the network is open here too (relaxed_sandbox_test.rb)
     run = step_run(@user.spaces.create!(name: "Plain", goal: "g"))
     with_claude { StepChain.new(run).perform! }
     assert_match %r{/work\z}, File.read(File.join(@dirs, "cwd")).strip

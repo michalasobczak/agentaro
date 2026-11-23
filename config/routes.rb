@@ -112,6 +112,7 @@ Rails.application.routes.draw do
     resource :chat_style, only: :update # spec 041: how the director talks
     resource :work_tempo, only: :update # spec 041: how finely work is split
     resource :conversation_mode, only: :update # spec 046: how the conversation flows
+    resource :relaxed_sandbox, only: :update # spec 053: web, local ports and Git for command-line agents
   end
 
   namespace :admin do
