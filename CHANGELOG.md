@@ -616,3 +616,4 @@
   - Epics with steps fold too and show "steps finished / steps".
   - "Collapse" and "Expand" fold or open everything. The folds are kept in this browser and survive the 5-second redraw.
   - Test in `work_panel_test.rb`; 634 tests pass. Checked in light, dark and at phone width.
+- Owner change to spec 017 ("poszerz pauzę w głosie do kilku sekund"): voice mode ends an utterance after 3 seconds of quiet instead of about 1, so a breath does not cut it; one utterance may last 55 seconds instead of 30. New scenario "breath" in `voice_mute_test.rb` (failed with the old value); the other voice scenarios use the longer pause.

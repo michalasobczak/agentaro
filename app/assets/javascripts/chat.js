@@ -479,7 +479,7 @@
   // ---------- Spec 017: voice mode ----------
   // States: listening → hearing (speech detected) → transcribing → thinking (director writes) → speaking → listening.
   // Silence detection is energy-based: the noise floor is learnt while quiet; speech is a level well above it;
-  // about a second of quiet after speech ends the utterance. The microphone waits while the director speaks (owner fix,
+  // three seconds of quiet after speech end the utterance (owner change 2026-11-23: room to take a breath). The microphone waits while the director speaks (owner fix,
   // spec 024: no interrupting; it replaced G6).
   function voice(app, chat) {
     const start = app.querySelector("[data-voice-start]");
@@ -505,7 +505,7 @@
     const muteStatus = panel.querySelector("[data-voice-mute-status]");
     const MUTED_NOTE = "Microphone muted — nothing you say is sent.";
     const LABELS = { listening: "Listening…", hearing: "Listening…", transcribing: "Writing down…", thinking: "Thinking…", speaking: "Speaking…", error: "Voice problem" };
-    const SILENCE_MS = 1000, MIN_SPEECH_MS = 600, MAX_SPEECH_MS = 30000, TARGET_RATE = 16000;
+    const SILENCE_MS = 3000, MIN_SPEECH_MS = 600, MAX_SPEECH_MS = 55000, TARGET_RATE = 16000;
 
     let state = "off", ctx = null, mic = null, source = null, processor = null;
     let floor = 0.01, loudMs = 0, quietMs = 0, speechMs = 0, chunks = [], preroll = [], peak = 0, heard = [], heardMs = 0;

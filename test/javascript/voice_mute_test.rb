@@ -34,7 +34,7 @@ class VoiceMuteTest < ActiveSupport::TestCase
     assert source.rstrip.end_with?("return { end };\n  }"), "the cut ends where voice() ends"
   end
 
-  test "S1: while muted nothing is recorded or sent, not by a pause, the 30 s limit or Done" do
+  test "S1: while muted nothing is recorded or sent, not by a pause, the 55 s limit or Done" do
     run_scenario "S1"
   end
 
@@ -48,6 +48,10 @@ class VoiceMuteTest < ActiveSupport::TestCase
 
   test "R9: ending voice mode clears the mute and the buffers" do
     run_scenario "R9"
+  end
+
+  test "owner change: a breath does not end the utterance, three seconds of quiet do" do
+    run_scenario "breath"
   end
 
   test "the toggle does nothing while voice mode is off" do

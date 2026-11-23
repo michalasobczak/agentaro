@@ -37,8 +37,8 @@ scenario("S1", async () => {
   assertEqual("Microphone muted", v.stateLabel.textContent, "state label while muted");
   assertEqual("Microphone muted", v.status.textContent, "announcement for screen readers");
   // The early return in onAudio alone must hold, even if a browser ignored track.enabled and sent real sound.
-  for (let i = 0; i < 24; i++) { v.feed(BEFORE, 1500); v.feed(0, 1100); } // pauses that would send
-  v.feed(BEFORE, 31000);                                                  // past the 30 s limit
+  for (let i = 0; i < 13; i++) { v.feed(BEFORE, 1500); v.feed(0, 3100); } // pauses that would send
+  v.feed(BEFORE, 56000);                                                  // past the 55 s limit
   await v.doneButton.click();
   await settle();
   assertEqual(0, v.transcribes().length, "requests to /director/voice/transcribe while muted");
@@ -56,7 +56,7 @@ scenario("S2", async () => {
   assertMuted(v);
   assertEqual("listening", v.state, "hearing becomes listening on mute");
   v.feed(BEFORE, 2000); // still speaking while muted
-  v.feed(0, 1500);      // the pause that would have sent the utterance
+  v.feed(0, 3500);      // the pause that would have sent the utterance
   await v.doneButton.click();
   await settle();
   assertEqual(0, v.transcribes().length, "the utterance in progress is discarded");
@@ -70,7 +70,7 @@ scenario("S2", async () => {
 
   v.feed(0, 300);
   v.feed(AFTER, 1000);
-  v.feed(0, 1200);
+  v.feed(0, 3200);
   await settle();
   assertEqual(1, v.transcribes().length, "the next utterance is sent once");
   const sent = v.samples(v.transcribes()[0]);
@@ -89,7 +89,7 @@ scenario("S2", async () => {
   await settle();
   assertEqual("listening", v.state, "listening again after the answer");
   v.feed(AFTER, 1000);
-  v.feed(0, 1200);
+  v.feed(0, 3200);
   await settle();
   assertEqual(2, v.transcribes().length, "the conversation goes on");
   assertEqual(1, world.getUserMediaCalls, "no new microphone request");
@@ -101,7 +101,7 @@ scenario("S2", async () => {
 scenario("S5", async () => {
   const v = await started();
   v.feed(AFTER, 1000);
-  v.feed(0, 1200);
+  v.feed(0, 3200);
   await settle();
   const asked = world.received[0].message.id;
   v.chat.emit("message", { id: asked + 1, author: "director", content: "Pierwsze zdanie. Drugie zdanie." });
@@ -119,7 +119,7 @@ scenario("S5", async () => {
   assertEqual("listening", v.state, "back to waiting after the answer");
   assertEqual("Microphone muted", v.stateLabel.textContent, "but still muted");
   v.feed(BEFORE, 1000);
-  v.feed(0, 1200);
+  v.feed(0, 3200);
   await settle();
   assertEqual(1, v.transcribes().length, "nothing more is sent while muted");
 });
@@ -139,10 +139,26 @@ scenario("R9", async () => {
   assertEqual("listening", v.state, "the new session listens");
   v.feed(0, 300);
   v.feed(AFTER, 1000);
-  v.feed(0, 1200);
+  v.feed(0, 3200);
   await settle();
   assertEqual(1, v.transcribes().length, "the new session sends speech");
   assert(!v.samples(v.transcribes()[0]).has(level(BEFORE)), "nothing from the previous session");
+});
+
+// Owner change (2026-11-23): a breath of two seconds does not end the utterance; three seconds of quiet do.
+scenario("breath", async () => {
+  const v = await started();
+  v.feed(BEFORE, 2000);
+  v.feed(0, 2500);   // taking a breath
+  await settle();
+  assertEqual(0, v.transcribes().length, "a 2.5 s pause does not send");
+  assertEqual("hearing", v.state, "still hearing during the breath");
+  v.feed(AFTER, 1500);
+  v.feed(0, 3200);
+  await settle();
+  assertEqual(1, v.transcribes().length, "the pause of 3 s sends one utterance");
+  const sent = v.samples(v.transcribes()[0]);
+  assert(sent.has(level(BEFORE)) && sent.has(level(AFTER)), "both parts are in one recording");
 });
 
 // The toggle does nothing before voice mode starts (state off).

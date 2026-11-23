@@ -4,7 +4,7 @@ async function talked(natural) {
   if (natural) Object.assign(v.app.dataset, { conversation: "natural", acknowledgements: "Już sprawdzam.|Chwilka." });
   await v.start.click();
   await settle();
-  v.feed(0, 300); v.feed(0.5, 1000); v.feed(0, 1200);
+  v.feed(0, 300); v.feed(0.5, 1000); v.feed(0, 3200);
   await settle();
   assertEqual("thinking", v.state, "the owner's words went to the director");
   return v;
