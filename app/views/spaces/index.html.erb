@@ -18,6 +18,7 @@
 <% content_for :scripts do %><%= javascript_include_tag "spaces", defer: true %><% end %>
 <% if @spaces.any? %>
   <div class="space-layout desktop-arrange" data-space-layout data-order-url="<%= order_space_groups_path %>">
+    <p class="flash alert" role="status" data-space-status hidden></p>
     <% @layout.each do |group, spaces| %>
       <% next if group.nil? && spaces.empty? && @layout.size > 1 %>
       <section class="space-section" data-group-id="<%= group&.id %>">

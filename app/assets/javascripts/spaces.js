@@ -12,14 +12,27 @@ window.agentaroOnPage((signal) => {
   layout.querySelectorAll(".space-card").forEach((c) => { c.draggable = true; });
   layout.querySelectorAll("[data-group-handle]").forEach((h) => { h.draggable = true; });
 
+  const status = layout.querySelector("[data-space-status]");
+
   async function send(url, body) {
     try {
       const response = await fetch(url, { method: "PATCH", body, headers: { Accept: "application/json", "X-CSRF-Token": csrf }, credentials: "same-origin" });
-      if (!response.ok) throw new Error(String(response.status));
-    } catch (_) {
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Not saved (${response.status}).`);
+      }
+      if (status) status.hidden = true;
+    } catch (error) {
+      // Owner fix: the reason stays on the page, and the page shows the saved order again.
+      try { sessionStorage.setItem("agentaro.spaces.error", error.message || "Not saved."); } catch (_) { /* private mode */ }
       window.agentaroReload();
     }
   }
+  try {
+    const saved = sessionStorage.getItem("agentaro.spaces.error");
+    if (saved && status) { status.textContent = `Not moved — ${saved}`; status.hidden = false; }
+    sessionStorage.removeItem("agentaro.spaces.error");
+  } catch (_) { /* private mode */ }
 
   // The card in `grid` the pointer is before (by rows, then by columns), or null for the end.
   function cardBefore(grid, x, y) {

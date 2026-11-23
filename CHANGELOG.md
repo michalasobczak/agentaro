@@ -595,4 +595,9 @@
   - It shows "no Git", or the branch, the remote (a login or token in its address is removed), "clean" or "N to commit", and "N to push" or "N behind".
   - Read in the sandbox with fsmonitor and hooks off, cached for 30 seconds.
   - 3 tests on real repositories.
+- Owner fix (spec 051): moving a space into a group did nothing.
+  - Every drag answered 422. The move saves the group's spaces, and "Gra Auta" and "Gra Psi Patrol" point to working folders that no longer exist (`…/platformy/auta`, `…/games/psipatrol`), so their folder check refused the whole move.
+  - The folder is now checked only when it is set or changed.
+  - A move that still fails says why on the Spaces page, instead of quietly putting the card back.
+  - Test in `space_groups_test.rb`.
 

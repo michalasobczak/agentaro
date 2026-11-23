@@ -103,6 +103,8 @@ class SpacesController < ApplicationController
     group = params[:group_id].present? ? current_user.space_groups.find(params[:group_id]) : nil
     @space.place!(group, params[:index].to_i.clamp(1, 1000))
     render json: { ok: true, group_id: group&.id, position: @space.position }
+  rescue ActiveRecord::RecordInvalid => e # owner fix: say why, instead of a bare 422
+    render json: { ok: false, error: "#{e.record.name}: #{e.record.errors.full_messages.to_sentence}" }, status: :unprocessable_content
   end
 
   private

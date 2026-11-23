@@ -53,4 +53,20 @@ class SpaceGroupsIntegrationTest < ActionDispatch::IntegrationTest
     patch order_space_groups_path, params: { ids: [ theirs.id ] }, as: :json
     assert_equal 1, theirs.reload.position
   end
+
+  # Owner fix (production, 2026-11-23): dragging "Gra Auta" into a group answered 422 — the move saves the group's
+  # spaces, and two of them had working folders that no longer exist, so their validation refused the whole move.
+  test "owner fix: a space whose folder is gone can still be moved; the folder is checked when it is set" do
+    gone = Dir.mktmpdir("gone")
+    @auta.update!(working_dir: gone)
+    @home.update!(working_dir: Dir.mktmpdir("home"))
+    FileUtils.rm_rf(gone)
+    gry = @user.space_groups.create!(name: "Gry")
+    patch place_space_path(@home), params: { group_id: gry.id, index: 1 }, as: :json
+    patch place_space_path(@auta), params: { group_id: gry.id, index: 1 }, as: :json
+    assert_response :success
+    assert_equal [ "Gra Auta", "Home" ], gry.spaces.order(:position).pluck(:name)
+    @auta.working_dir = Dir.mktmpdir("x") + "/missing"
+    assert_not @auta.valid?, "a new folder must exist"
+  end
 end

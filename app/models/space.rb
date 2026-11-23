@@ -32,7 +32,9 @@ class Space < ApplicationRecord
   validates :goal, length: { maximum: 2000 }
   validates :description, length: { maximum: 5000 }
   validates :state, inclusion: { in: STATES }
-  validate :working_dir_usable
+  # Owner fix (spec 051): checked when the folder is set — a folder that later disappears must not block moving
+  # the space, or any other space saved with it.
+  validate :working_dir_usable, if: -> { new_record? || will_save_change_to_working_dir? }
   validate :group_of_owner # spec 051, R1
 
   scope :active, -> { where(state: "active") }
