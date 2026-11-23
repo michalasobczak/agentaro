@@ -997,7 +997,13 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .work-group { margin: 0.9rem 0 0.3rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.72rem; } /* spec 051 */
 
 /* Spec 052: CI and server of a space */
+.space-ci { margin-bottom: 1.25rem; } /* owner fix: the board's columns no longer touch it */
 .space-ci .row-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.space-ci .facts.ci-commands { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 0.25rem 1.5rem; margin: 0.25rem 0 0.5rem; }
+.space-ci .ci-commands > div { display: flex; gap: 0.6rem; align-items: baseline; min-width: 0; }
+.space-ci .ci-commands dt { min-width: 3.2rem; color: var(--muted); }
+.space-ci .ci-commands dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.space-ci .actions.spaced { margin: 0.25rem 0 0.25rem; }
 .space-ci-line { margin: 0.3rem 0 0; display: flex; gap: 0.3rem; flex-wrap: wrap; }
 .ci-log pre { max-height: 22rem; overflow: auto; font-size: 0.78rem; }
 .work-ci { display: inline-flex; gap: 0.25rem; margin-left: 0.4rem; }

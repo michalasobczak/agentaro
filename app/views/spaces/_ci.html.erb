@@ -12,8 +12,8 @@
   <% elsif config.nil? %>
     <p class="muted small">No <code><%= Ci::Config::FILE %></code> in the working folder. Add one with <code>build</code>, <code>test</code>, <code>serve</code> and <code>url</code> — or ask an agent to write it.</p>
   <% else %>
-    <dl class="facts small">
-      <% Ci::Config::KEYS.each do |key| %><% if (value = config.public_send(key)) %><dt><%= key %></dt><dd><code><%= value %></code></dd><% end %><% end %>
+    <dl class="facts small ci-commands">
+      <% Ci::Config::KEYS.each do |key| %><% if (value = config.public_send(key)) %><div><dt><%= key %></dt><dd><code><%= value %></code></dd></div><% end %><% end %>
     </dl>
     <div class="actions spaced">
       <% if config.ci? && space.active? %><%= button_to "Build", build_space_path(space), class: "secondary" %><% end %>

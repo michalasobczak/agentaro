@@ -600,4 +600,7 @@
   - The folder is now checked only when it is set or changed.
   - A move that still fails says why on the Spaces page, instead of quietly putting the card back.
   - Test in `space_groups_test.rb`.
+- Owner fix (spec 052): on the space's page the "CI and server" card touched the board's columns (New, Planned, Running, Blocked, Done), so they seemed to run into it.
+  - The card now has space below it, and its commands sit in two columns, so it is lower.
+  - Checked in the browser at 1440 px.
 

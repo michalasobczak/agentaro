@@ -18,7 +18,7 @@ class SpaceCiTest < ActionDispatch::IntegrationTest
 
   test "G2 (a), G5: the page shows the file and the buttons; Build queues one run; no inline style" do
     get space_path(@space)
-    assert_select "#ci dt", text: "build"
+    assert_select "#ci .ci-commands dt", text: "build"
     assert_select "#ci button", text: "Build"
     assert_select "#ci button", text: "Start server"
     assert_select "[style]", 0
