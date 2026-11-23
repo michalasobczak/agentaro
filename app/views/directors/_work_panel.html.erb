@@ -1,35 +1,70 @@
 <%# Spec 027: each active space with its epics in progress and their steps; work_panel.js redraws it from
-    the same data (WorkPanel) every few seconds. What is running blinks. %>
+    the same data (WorkPanel) every few seconds. What is running blinks.
+    Owner change (2026-11-23): groups, spaces and epics fold like the groups on the Spaces page (spec 051); the folds
+    are kept in this browser. Keep this markup in step with draw() in work_panel.js. %>
 <aside class="work-panel" data-work-panel data-url="<%= work_director_path %>" aria-label="Spaces and their work">
-  <h2 class="work-panel-title">Work</h2>
+  <div class="work-panel-head">
+    <h2 class="work-panel-title">Work</h2>
+    <div class="space-fold-all work-fold-all" data-work-fold-all role="group" aria-label="Fold the work" hidden>
+      <button type="button" data-fold-all="collapse" title="Collapse all"><%= icon(:chevron_right, css: "icon tiny") %> Collapse</button>
+      <button type="button" data-fold-all="expand" title="Expand all"><%= icon(:chevron_down, css: "icon tiny") %> Expand</button>
+    </div>
+  </div>
   <div data-work-spaces>
     <% if work[:spaces].empty? %><p class="muted small">No active spaces.</p><% end %>
+    <% many = work[:groups].size > 1 %>
     <% work[:groups].each do |group| %>
-    <%# Spec 051: the owner's groups as headings (none when nothing is grouped). %>
-    <% if group[:name] || work[:groups].size > 1 %><h3 class="work-group small"><%= group[:name] || SpaceGroup::UNGROUPED %></h3><% end %>
-    <% group[:spaces].each do |space| %>
-      <section class="work-space">
-        <%= link_to space[:name], space[:url], class: "work-space-name" %><% if space[:ci] || space[:server] %><span class="work-ci"><% if space[:ci] %><i class="is-<%= space[:ci] %>" title="CI: <%= space[:ci] %>"></i><% end %><% if space[:server] %><i class="is-<%= space[:server] %>" title="Server: <%= space[:server] %>"></i><% end %></span><% end %>
-        <% if space[:epics].empty? %>
-          <p class="work-none small muted">Nothing planned or in progress.</p>
-        <% else %>
-          <ul class="work-epics">
-            <% space[:epics].each do |epic| %>
-              <li class="work-epic is-<%= epic[:state] %>">
-                <div class="work-epic-head"><%= link_to epic[:title], epic[:url], data: { live_epic: epic[:id] }, title: "Show what it is doing" %><span class="work-state small"><%= epic[:paused] || epic[:state] %></span><% if epic[:pause_url] %><button type="button" class="work-pause link small" data-pause-url="<%= epic[:pause_url] %>" title="<%= epic[:paused] ? "Start the epic's work again" : "The current step finishes, then nothing more starts until you resume" %>"><%= epic[:paused] ? "Resume" : "Pause" %></button><% end %></div>
-                <% if epic[:steps].any? %>
-                  <ol class="work-steps">
-                    <% epic[:steps].each do |step| %>
-                      <li class="work-step is-<%= step[:state].tr("_", "-") %>" title="<%= step[:agent] %>" data-live-step="<%= step[:id] %>" tabindex="0" role="button"><span class="work-step-n"><%= step[:position] %></span><span class="work-step-title"><%= step[:title] %></span><span class="work-state small"><%= step[:state].tr("_", " ") %></span></li>
-                    <% end %>
-                  </ol>
-                <% end %>
-              </li>
-            <% end %>
-          </ul>
+      <% box = group[:name] || many %>
+      <% epics = group[:spaces].flat_map { |sp| sp[:epics] } %>
+      <section class="<%= box ? "work-group-box" : "work-group-plain" %>" data-fold-key="g<%= group[:id] || "none" %>">
+        <% if box %>
+          <div class="work-bar work-group-bar">
+            <button type="button" class="work-fold" data-work-fold aria-expanded="true" title="Collapse or expand" hidden><%= icon(:chevron_down, css: "icon tiny") %></button>
+            <h3 class="work-group-name"><%= group[:name] || SpaceGroup::UNGROUPED %></h3>
+            <span class="space-count" title="<%= pluralize(group[:spaces].size, "space") %>"><%= group[:spaces].size %></span>
+            <%= render "directors/work_stats", epics: epics %>
+          </div>
         <% end %>
+        <div class="work-fold-body">
+          <% group[:spaces].each do |space| %>
+            <section class="work-space" data-fold-key="s<%= space[:id] %>">
+              <div class="work-bar work-space-bar">
+                <button type="button" class="work-fold" data-work-fold aria-expanded="true" title="Collapse or expand" hidden><%= icon(:chevron_down, css: "icon tiny") %></button>
+                <%= link_to space[:name], space[:url], class: "work-space-name" %>
+                <% if space[:ci] || space[:server] %><span class="work-ci"><% if space[:ci] %><i class="is-<%= space[:ci] %>" title="CI: <%= space[:ci] %>"></i><% end %><% if space[:server] %><i class="is-<%= space[:server] %>" title="Server: <%= space[:server] %>"></i><% end %></span><% end %>
+                <%= render "directors/work_stats", epics: space[:epics] %>
+                <span class="space-count" title="<%= pluralize(space[:epics].size, "epic") %>"><%= space[:epics].size %></span>
+              </div>
+              <div class="work-fold-body">
+                <% if space[:epics].empty? %>
+                  <p class="work-none small muted">Nothing planned or in progress.</p>
+                <% else %>
+                  <ul class="work-epics">
+                    <% space[:epics].each do |epic| %>
+                      <li class="work-epic is-<%= epic[:state] %>" data-fold-key="e<%= epic[:id] %>">
+                        <div class="work-epic-head">
+                          <% if epic[:steps].any? %><button type="button" class="work-fold" data-work-fold aria-expanded="true" title="Collapse or expand" hidden><%= icon(:chevron_down, css: "icon tiny") %></button><% end %>
+                          <%= link_to epic[:title], epic[:url], data: { live_epic: epic[:id] }, title: "Show what it is doing" %>
+                          <% if epic[:steps].any? %><span class="work-progress small" title="Steps finished"><%= epic[:steps].count { |s| s[:state] == "succeeded" } %>/<%= epic[:steps].size %></span><% end %>
+                          <span class="work-state small"><%= epic[:paused] || epic[:state] %></span>
+                          <% if epic[:pause_url] %><button type="button" class="work-pause link small" data-pause-url="<%= epic[:pause_url] %>" title="<%= epic[:paused] ? "Start the epic's work again" : "The current step finishes, then nothing more starts until you resume" %>"><%= epic[:paused] ? "Resume" : "Pause" %></button><% end %>
+                        </div>
+                        <% if epic[:steps].any? %>
+                          <ol class="work-steps work-fold-body">
+                            <% epic[:steps].each do |step| %>
+                              <li class="work-step is-<%= step[:state].tr("_", "-") %>" title="<%= step[:agent] %>" data-live-step="<%= step[:id] %>" tabindex="0" role="button"><span class="work-step-n"><%= step[:position] %></span><span class="work-step-title"><%= step[:title] %></span><span class="work-state small"><%= step[:note] || step[:state].tr("_", " ") %></span></li>
+                            <% end %>
+                          </ol>
+                        <% end %>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% end %>
+              </div>
+            </section>
+          <% end %>
+        </div>
       </section>
-    <% end %>
     <% end %>
   </div>
 </aside>

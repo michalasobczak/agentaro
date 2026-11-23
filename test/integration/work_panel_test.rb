@@ -68,4 +68,25 @@ class WorkPanelTest < ActionDispatch::IntegrationTest
     assert_no_match(/\.work-panel \{[^}]*(\border:|grid-column: 1)/, css, "nothing moves the panel before the chat")
     assert_no_match(/\.director-layout \{[^}]*(direction: rtl|grid-auto-flow: dense|row-reverse)/, css)
   end
+
+  # Owner change (2026-11-23): groups, spaces and epics fold like the groups on the Spaces page; the script does the folding.
+  test "groups, spaces and epics have fold arrows, counts and a fold-all pair; the JSON names each group" do
+    games = @user.space_groups.create!(name: "Gry", position: 1)
+    @home.update!(space_group: games)
+    get director_path
+    assert_select ".work-panel-head [data-work-fold-all][hidden] button[data-fold-all]", 2
+    assert_select ".work-group-box[data-fold-key='g#{games.id}'] .work-group-name", text: "Gry"
+    assert_select ".work-group-box[data-fold-key='gnone'] .work-group-name", text: SpaceGroup::UNGROUPED
+    assert_select ".work-space[data-fold-key='s#{@home.id}'] > .work-bar [data-work-fold][hidden]"
+    assert_select ".work-space[data-fold-key='s#{@home.id}'] .space-count", text: "2"
+    assert_select ".work-group-box[data-fold-key='g#{games.id}'] .work-stats .s-running", text: "1 running"
+    assert_select ".work-epic[data-fold-key='e#{@running.id}'] > .work-epic-head [data-work-fold]"
+    assert_select ".work-epic[data-fold-key='e#{@running.id}'] .work-progress", text: "1/2"
+    assert_select ".work-epic[data-fold-key='e#{@running.id}'] > ol.work-steps.work-fold-body"
+    assert_select "[style]", 0
+    assert_equal [ games.id, nil ], WorkPanel.for(@user)[:groups].map { |g| g[:id] }
+    js = Rails.root.join("app/assets/javascripts/work_panel.js").read
+    assert_match "agentaro.work.folded", js
+    assert_no_match(/innerHTML|insertAdjacentHTML/, js)
+  end
 end

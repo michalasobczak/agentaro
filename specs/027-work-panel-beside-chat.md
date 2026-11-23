@@ -104,3 +104,15 @@ On the Director page, a panel to the right of the chat stacks every active space
 - **Rendering.** Titles come from the user's data and the director's plans; ERB escapes them, and the script uses `textContent`. Links come from server routes.
 - **Load.** One indexed query per poll, with at most 20 epics per space.
 - **Tools.** Brakeman: 0 warnings. No new gems.
+
+**Owner change (2026-11-23): folding, the look of the Spaces page**
+- The owner's words: "powinno się na czacie, tam w panelu z zadaniami, móc zwijać i rozwijać projekty i ich epiki, no i trzeba poprawić wygląd, podobnie jak na Spaces".
+- The panel looks like the groups on the Spaces page (spec 051):
+  - each group is a panel with a bar: an arrow, the name, the number of spaces in a pill, and "N running" and "N blocked";
+  - each space is a card with a bar: an arrow, the name, the CI and server dots, the same counts, and the number of epics;
+  - each epic with steps has an arrow and shows "steps finished / steps".
+- A group, a space or an epic folds to its bar with its arrow; a click anywhere on a folded bar (not on a link or button) opens it. "Collapse" and "Expand" at the top fold or open everything.
+- The folds are kept in this browser (localStorage `agentaro.work.folded`, a viewer's convenience) and survive the redraw every 5 seconds and a reload. Without the script nothing is folded.
+- The JSON of the panel names each group's id.
+- Security: the script builds the arrow icon with DOM calls and text with `textContent`; no markup, no inline style.
+- Test in `work_panel_test.rb`. Checked in the browser on demo data: fold, open by the bar, collapse and expand all, kept after a reload and after a redraw with new data; light, dark and at 375 px (no sideways scroll).

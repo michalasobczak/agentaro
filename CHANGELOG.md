@@ -611,3 +611,8 @@
   - Checked in light, dark and at phone width.
   - Noted: `parallel_tasks_test.rb` failed once on timing in a full run and passed 5 times alone; it was not touched.
 
+- Owner change to spec 027: the work panel beside the chat folds like the Spaces page.
+  - Groups are panels; spaces are cards; each has a bar with an arrow, counts in pills, and "N running" and "N blocked".
+  - Epics with steps fold too and show "steps finished / steps".
+  - "Collapse" and "Expand" fold or open everything. The folds are kept in this browser and survive the 5-second redraw.
+  - Test in `work_panel_test.rb`; 634 tests pass. Checked in light, dark and at phone width.

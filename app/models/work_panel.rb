@@ -14,7 +14,7 @@ class WorkPanel
     spaces = groups.flat_map(&:last)
     items = @user.work_items.where(space_id: spaces.map(&:id), state: %w[new planned blocked])
                  .includes(:epic_steps, epic_steps: :agent).to_a.group_by(&:space_id)
-    { groups: groups.map { |group, list| { name: group&.name, spaces: list.map { |space| space_h(space, items[space.id] || []) } } },
+    { groups: groups.map { |group, list| { id: group&.id, name: group&.name, spaces: list.map { |space| space_h(space, items[space.id] || []) } } },
       spaces: spaces.map { |space| space_h(space, items[space.id] || []) } }
   end
 

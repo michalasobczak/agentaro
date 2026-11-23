@@ -994,7 +994,6 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .space-group-tools summary, .new-group summary { list-style: none; cursor: pointer; }
 .space-group-tools[open], .new-group[open] { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .new-group { position: relative; }
-.work-group { margin: 0.9rem 0 0.3rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.72rem; } /* spec 051 */
 
 /* Spec 052: CI and server of a space */
 .space-ci { margin-bottom: 1.25rem; } /* owner fix: the board's columns no longer touch it */
@@ -1049,3 +1048,38 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .danger-link { color: var(--bad); }
 .space-section-head { cursor: default; }
 .space-section.is-folded .space-section-head { cursor: pointer; }
+
+/* Owner change to spec 027 (2026-11-23): the work panel folds like the Spaces page — groups as panels, spaces and epics
+   with an arrow; a folded one shows only its bar. */
+.work-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.75rem; }
+.work-panel-head .work-panel-title { margin: 0; }
+.work-fold-all button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+.work-group-box { margin-bottom: 0.6rem; border: 1px solid var(--line); border-radius: var(--radius); background: color-mix(in srgb, var(--surface-2) 35%, transparent); }
+.work-group-box > .work-fold-body { padding: 0 0.55rem 0.55rem; }
+.work-group-plain + .work-group-plain { margin-top: 0.6rem; }
+.work-bar { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.work-group-bar { padding: 0.4rem 0.55rem; min-height: 2.4rem; }
+.work-group-name { margin: 0; font-size: 0.9rem; font-weight: 650; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.work-space { padding: 0.45rem 0.55rem; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); }
+.work-space + .work-space { margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px solid var(--line); }
+.work-space-bar .work-space-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.work-space-bar .space-count { margin-left: auto; }
+.work-space-bar .work-ci { margin-left: 0.1rem; flex: none; }
+.work-stats { display: inline-flex; gap: 0.45rem; flex: none; white-space: nowrap; }
+.work-stats .s-running { color: var(--warn); }
+.work-stats .s-blocked { color: var(--bad); }
+.work-group-bar .work-stats { margin-left: auto; }
+.work-fold { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; min-height: 0; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; border-radius: var(--radius-sm); flex: none; }
+.work-fold:hover { background: var(--surface-2); color: var(--accent); }
+.work-fold svg { transition: transform 0.15s ease; }
+.is-folded > .work-bar .work-fold svg, .is-folded > .work-epic-head .work-fold svg { transform: rotate(-90deg); }
+.is-folded > .work-fold-body { display: none; }
+.is-folded > .work-bar, .is-folded > .work-epic-head { cursor: pointer; }
+.work-space > .work-fold-body { margin: 0.2rem 0 0 0.2rem; }
+.work-epic-head { align-items: center; }
+.work-epic-head .work-fold { width: 1.2rem; height: 1.2rem; margin-left: -0.35rem; }
+.work-epic-head > a { min-width: 0; }
+.work-progress { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.work-epic .work-steps { margin-left: 0.85rem; }
+.work-group-box.is-folded:hover, .work-space.is-folded:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+@media (prefers-reduced-motion: reduce) { .work-fold svg { transition: none; } }

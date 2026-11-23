@@ -1,0 +1,3 @@
+<%# Owner change to spec 027: "N running" and "N blocked" on a bar of the work panel, as on the Spaces page. %>
+<% running = epics.count { |e| e[:state] == "running" } %><% blocked = epics.count { |e| e[:state] == "blocked" } %>
+<span class="work-stats small"><% if running.positive? %><span class="s-running"><strong><%= running %></strong> running</span><% end %><% if blocked.positive? %><span class="s-blocked"><strong><%= blocked %></strong> blocked</span><% end %></span>
