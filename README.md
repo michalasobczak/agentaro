@@ -1,5 +1,9 @@
 # Agentaro
 
+![Agentaro in one minute: spaces, epics, the director chat, calendar, team and the sandbox](docs/agentaro-demo.gif)
+
+**If Agentaro looks useful to you, please ⭐ star the repository — it helps a solo, built-in-public project grow.**
+
 A private agent system that runs on-prem and works across multiple AI providers — including subscription plans (e.g. Claude, ChatGPT), not just pay-per-token APIs. Vendor-agnostic: no single provider is required.
 
 *Agentaro* is Esperanto for "a group of agents".
