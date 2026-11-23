@@ -69,4 +69,17 @@ class SpaceGroupsIntegrationTest < ActionDispatch::IntegrationTest
     @auta.working_dir = Dir.mktmpdir("x") + "/missing"
     assert_not @auta.valid?, "a new folder must exist"
   end
+
+  test "owner change: each group can fold to its label with its count; collapse and expand all are offered" do
+    gry = @user.space_groups.create!(name: "Gry")
+    @auta.place!(gry, 1)
+    get spaces_path
+    assert_select ".space-section[data-group-id='#{gry.id}'] button[data-space-fold][aria-controls='space-grid-#{gry.id}']"
+    assert_select "#space-grid-#{gry.id}.space-grid"
+    assert_select ".space-section[data-group-id='#{gry.id}'] .space-count", text: "(1)"
+    assert_select ".space-section[data-group-id=''] button[data-space-fold][aria-controls='space-grid-none']"
+    assert_select "[data-space-fold-all] button[data-fold-all=collapse]", text: "Collapse all"
+    assert_select "[data-space-fold-all] button[data-fold-all=expand]", text: "Expand all"
+    assert_select "[style]", 0
+  end
 end

@@ -124,4 +124,11 @@ The owner can make named groups of spaces (for example "Gry": Gra Auta, Gra Psi 
   - A space cannot join another user's group (validation).
   - The script writes no markup and uses no inline style (the page test checks for none).
   - Brakeman 0 warnings.
+- **Owner change (2026-11-23):**
+  - The owner's words: "Powinno dać się zwijać projekty z grup, żeby tylko label grupy był widoczny… poza tym przycisk zwiń wszystko i rozwiń wszystko".
+  - Each section, "Bez grupy" too, has a fold button and shows its count, for example "Gry (3)". A folded section shows only its label.
+  - "Collapse all" and "Expand all" sit above the groups.
+  - The folded groups are kept in this browser (localStorage, a viewer's convenience). Folding works on a phone too.
+  - Without the script every group is shown.
+  - Test in `space_groups_test.rb`; checked in the browser (fold, reload, collapse all, expand all).
 

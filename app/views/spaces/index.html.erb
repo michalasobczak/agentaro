@@ -17,13 +17,20 @@
     owner drag a card into a group or within it, and a group's heading to order the groups; each change saves at once. %>
 <% content_for :scripts do %><%= javascript_include_tag "spaces", defer: true %><% end %>
 <% if @spaces.any? %>
+  <%# Owner change to spec 051: groups fold to their label; the choice is kept in this browser. %>
+  <div class="space-fold-all" data-space-fold-all hidden>
+    <button type="button" class="link small" data-fold-all="collapse">Collapse all</button>
+    <button type="button" class="link small" data-fold-all="expand">Expand all</button>
+  </div>
   <div class="space-layout desktop-arrange" data-space-layout data-order-url="<%= order_space_groups_path %>">
     <p class="flash alert" role="status" data-space-status hidden></p>
     <% @layout.each do |group, spaces| %>
       <% next if group.nil? && spaces.empty? && @layout.size > 1 %>
       <section class="space-section" data-group-id="<%= group&.id %>">
         <div class="space-section-head">
+          <button type="button" class="space-fold" data-space-fold aria-expanded="true" aria-controls="space-grid-<%= group&.id || "none" %>" title="Collapse or expand this group" hidden><%= icon(:chevron_down, css: "icon tiny") %></button>
           <h2 class="space-group space-section-name"<% if group %> data-group-handle title="Drag to order the groups"<% end %>><%= group ? group.name : SpaceGroup::UNGROUPED %></h2>
+          <span class="muted small space-count">(<%= spaces.size %>)</span>
           <% if group %>
             <details class="space-group-tools desktop-only">
               <summary class="link small">Edit</summary>
@@ -36,7 +43,7 @@
             </details>
           <% end %>
         </div>
-        <div class="grid grid-2 space-grid" data-space-drop>
+        <div class="grid grid-2 space-grid" data-space-drop id="space-grid-<%= group&.id || "none" %>">
           <% spaces.each do |space| %>
             <%= link_to space_path(space), class: ["card", "space-card", "k-#{space.kind}", ("is-archived" unless space.active?)].compact.join(" "),
                         data: { space_id: space.id, place_url: place_space_path(space) } do %>

@@ -3,6 +3,46 @@
 // is reloaded, so it always shows what the server has. First-party, no libraries, no markup written.
 "use strict";
 
+// Owner change to spec 051: a group folds to its label (on every screen); "Collapse all" and "Expand all". The folded
+// groups are remembered in this browser only (a viewer's convenience).
+const FOLD_KEY = "agentaro.spaces.folded";
+window.agentaroOnPage((signal) => {
+  const layout = document.querySelector("[data-space-layout]");
+  if (!layout) return;
+  const read = () => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || "[]")); } catch (_) { return new Set(); } };
+  const write = (set) => { try { localStorage.setItem(FOLD_KEY, JSON.stringify([ ...set ])); } catch (_) { /* private mode */ } };
+  const key = (section) => section.dataset.groupId || "none";
+  const fold = (section, folded) => {
+    section.classList.toggle("is-folded", folded);
+    section.querySelector("[data-space-fold]")?.setAttribute("aria-expanded", String(!folded));
+  };
+  const folded = read();
+  layout.querySelectorAll(".space-section").forEach((section) => {
+    const button = section.querySelector("[data-space-fold]");
+    if (!button) return;
+    button.hidden = false;
+    fold(section, folded.has(key(section)));
+    button.addEventListener("click", () => {
+      const set = read();
+      const now = !section.classList.contains("is-folded");
+      now ? set.add(key(section)) : set.delete(key(section));
+      write(set);
+      fold(section, now);
+    }, { signal });
+  });
+  const all = document.querySelector("[data-space-fold-all]");
+  if (all) {
+    all.hidden = false;
+    all.addEventListener("click", (event) => {
+      const what = event.target.closest("[data-fold-all]")?.dataset.foldAll;
+      if (!what) return;
+      const sections = [ ...layout.querySelectorAll(".space-section") ];
+      sections.forEach((section) => fold(section, what === "collapse"));
+      write(new Set(what === "collapse" ? sections.map(key) : []));
+    }, { signal });
+  }
+});
+
 window.agentaroOnPage((signal) => {
   const layout = document.querySelector("[data-space-layout]");
   if (!layout || !window.matchMedia("(min-width: 640px)").matches) return; // G4: groups are not changed on a phone

@@ -603,4 +603,5 @@
 - Owner fix (spec 052): on the space's page the "CI and server" card touched the board's columns (New, Planned, Running, Blocked, Done), so they seemed to run into it.
   - The card now has space below it, and its commands sit in two columns, so it is lower.
   - Checked in the browser at 1440 px.
+- Owner change to spec 051: groups on the Spaces page fold to their label and count (for example "Gry (3)"). "Collapse all" and "Expand all" are added. The browser keeps which groups are folded. A test and a browser check.
 

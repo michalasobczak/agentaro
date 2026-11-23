@@ -1012,3 +1012,13 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .work-ci i.is-bad, .work-ci i.is-down { background: var(--bad, #d04848); }
 .work-ci i.is-busy, .work-ci i.is-starting { background: var(--warn, #d9a12b); }
 .space-git { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; overflow-wrap: anywhere; } /* spec 052, owner change: Git state */
+/* Owner change to spec 051: folding groups */
+.space-fold-all { display: flex; gap: 1rem; justify-content: flex-end; margin: -0.5rem 0 0.75rem; }
+.space-fold { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; min-height: 0; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; border-radius: var(--radius-sm); }
+.space-fold:hover { background: var(--surface-2); color: var(--accent); }
+.space-fold svg { transition: transform 0.15s ease; }
+.space-section.is-folded .space-fold svg { transform: rotate(-90deg); }
+.space-section.is-folded .space-grid { display: none; }
+.space-section.is-folded { margin-bottom: 0.4rem; }
+.space-count { margin-left: -0.4rem; }
+
