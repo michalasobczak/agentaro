@@ -22,6 +22,10 @@ window.agentaroOnPage((signal) => {
     if (!button) return;
     button.hidden = false;
     fold(section, folded.has(key(section)));
+    // A click anywhere on a folded group's bar opens it (not on its tools).
+    section.querySelector(".space-section-head").addEventListener("click", (event) => {
+      if (section.classList.contains("is-folded") && !event.target.closest("details, button, a, input")) button.click();
+    }, { signal });
     button.addEventListener("click", () => {
       const set = read();
       const now = !section.classList.contains("is-folded");

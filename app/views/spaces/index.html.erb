@@ -18,28 +18,43 @@
 <% content_for :scripts do %><%= javascript_include_tag "spaces", defer: true %><% end %>
 <% if @spaces.any? %>
   <%# Owner change to spec 051: groups fold to their label; the choice is kept in this browser. %>
-  <div class="space-fold-all" data-space-fold-all hidden>
-    <button type="button" class="link small" data-fold-all="collapse">Collapse all</button>
-    <button type="button" class="link small" data-fold-all="expand">Expand all</button>
+  <div class="space-toolbar">
+    <span class="muted small"><%= pluralize(@spaces.size, "space") %> in <%= pluralize(@layout.count(&:first), "group") %></span>
+    <div class="space-fold-all" data-space-fold-all role="group" aria-label="Fold the groups" hidden>
+      <button type="button" data-fold-all="collapse"><%= icon(:chevron_right, css: "icon tiny") %> Collapse all</button>
+      <button type="button" data-fold-all="expand"><%= icon(:chevron_down, css: "icon tiny") %> Expand all</button>
+    </div>
   </div>
   <div class="space-layout desktop-arrange" data-space-layout data-order-url="<%= order_space_groups_path %>">
     <p class="flash alert" role="status" data-space-status hidden></p>
     <% @layout.each do |group, spaces| %>
       <% next if group.nil? && spaces.empty? && @layout.size > 1 %>
       <section class="space-section" data-group-id="<%= group&.id %>">
+        <% running = spaces.sum { |sp| @counts[[ sp.id, "running" ]].to_i } %>
+        <% blocked = spaces.sum { |sp| @counts[[ sp.id, "blocked" ]].to_i } %>
         <div class="space-section-head">
           <button type="button" class="space-fold" data-space-fold aria-expanded="true" aria-controls="space-grid-<%= group&.id || "none" %>" title="Collapse or expand this group" hidden><%= icon(:chevron_down, css: "icon tiny") %></button>
-          <h2 class="space-group space-section-name"<% if group %> data-group-handle title="Drag to order the groups"<% end %>><%= group ? group.name : SpaceGroup::UNGROUPED %></h2>
-          <span class="muted small space-count">(<%= spaces.size %>)</span>
+          <h2 class="space-section-name"<% if group %> data-group-handle title="Drag to order the groups"<% end %>><%= group ? group.name : SpaceGroup::UNGROUPED %></h2>
+          <span class="space-count" title="<%= pluralize(spaces.size, "space") %>"><%= spaces.size %></span>
+          <span class="space-section-stats small">
+            <% if running.positive? %><span class="count s-running"><strong><%= running %></strong> running</span><% end %>
+            <% if blocked.positive? %><span class="count s-blocked"><strong><%= blocked %></strong> blocked</span><% end %>
+          </span>
+          <span class="space-preview small" aria-hidden="true">
+            <% spaces.first(5).each do |sp| %><span class="space-chip k-<%= sp.kind %>"><%= sp.name %></span><% end %>
+            <% if spaces.size > 5 %><span class="space-chip is-more">+<%= spaces.size - 5 %></span><% end %>
+          </span>
           <% if group %>
             <details class="space-group-tools desktop-only">
-              <summary class="link small">Edit</summary>
-              <%= form_with model: group, url: space_group_path(group), method: :patch, class: "inline-form" do |f| %>
-                <%= f.text_field :name, maxlength: 60, "aria-label": "Name of the group" %>
-                <%= f.submit "Rename", class: "secondary small" %>
-              <% end %>
-              <%= button_to "Delete group", space_group_path(group), method: :delete, class: "link small",
-                            form: { data: { confirm: "Delete the group \"#{group.name}\"? Its spaces move to “#{SpaceGroup::UNGROUPED}”; nothing else changes." } } %>
+              <summary class="space-tool" title="Rename or delete the group" aria-label="Edit the group <%= group.name %>"><%= icon(:pencil, css: "icon tiny") %></summary>
+              <div class="space-group-menu">
+                <%= form_with model: group, url: space_group_path(group), method: :patch, class: "inline-form" do |f| %>
+                  <%= f.text_field :name, maxlength: 60, "aria-label": "Name of the group" %>
+                  <%= f.submit "Rename", class: "secondary small" %>
+                <% end %>
+                <%= button_to "Delete group", space_group_path(group), method: :delete, class: "link small danger-link",
+                              form: { data: { confirm: "Delete the group \"#{group.name}\"? Its spaces move to “#{SpaceGroup::UNGROUPED}”; nothing else changes." } } %>
+              </div>
             </details>
           <% end %>
         </div>

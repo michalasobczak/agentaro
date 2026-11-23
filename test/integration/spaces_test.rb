@@ -173,7 +173,7 @@ class SpacesTest < ActionDispatch::IntegrationTest
     assert_select ".errors", text: /Goal is required for a project space/
     make_space("House")
     get spaces_path
-    assert_select "h2.space-group", text: "Bez grupy", count: 1 # spec 051, G1: groups replace the fixed kind sections
+    assert_select "h2.space-section-name", text: "Bez grupy", count: 1 # spec 051, G1: groups replace the fixed kind sections
     assert_select ".space-card.k-team", text: /Household.*team.*Bills/m
     assert_select ".space-card.k-project", text: /House.*project.*Goal of House/m
     get space_path(@user.spaces.find_by!(name: "Household"))

@@ -76,7 +76,8 @@ class SpaceGroupsIntegrationTest < ActionDispatch::IntegrationTest
     get spaces_path
     assert_select ".space-section[data-group-id='#{gry.id}'] button[data-space-fold][aria-controls='space-grid-#{gry.id}']"
     assert_select "#space-grid-#{gry.id}.space-grid"
-    assert_select ".space-section[data-group-id='#{gry.id}'] .space-count", text: "(1)"
+    assert_select ".space-section[data-group-id='#{gry.id}'] .space-count", text: "1"
+    assert_select ".space-section[data-group-id='#{gry.id}'] .space-preview .space-chip", text: "Gra Auta"
     assert_select ".space-section[data-group-id=''] button[data-space-fold][aria-controls='space-grid-none']"
     assert_select "[data-space-fold-all] button[data-fold-all=collapse]", text: "Collapse all"
     assert_select "[data-space-fold-all] button[data-fold-all=expand]", text: "Expand all"

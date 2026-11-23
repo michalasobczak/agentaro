@@ -18,6 +18,7 @@ module ApplicationHelper
     chevron_left: '<path d="m15 6-6 6 6 6"/>',
     chevron_right: '<path d="m9 6 6 6-6 6"/>',
     chevron_down: '<path d="m6 9 6 6 6-6"/>', # owner change to spec 051: folding groups
+    pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4"/><path d="m13.5 6.5 4 4"/>',
     repeat: '<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
     agent: '<rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5M2 12v3M22 12v3"/>',
     send: '<path d="M4 12 20 4l-4 16-4-7-8-1Z"/><path d="m12 13 8-9"/>',

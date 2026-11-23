@@ -604,4 +604,10 @@
   - The card now has space below it, and its commands sit in two columns, so it is lower.
   - Checked in the browser at 1440 px.
 - Owner change to spec 051: groups on the Spaces page fold to their label and count (for example "Gry (3)"). "Collapse all" and "Expand all" are added. The browser keeps which groups are folded. A test and a browser check.
+- Owner change to spec 051, the look of the groups ("to wygląda słabo").
+  - Groups are panels with an aligned bar: arrow, name, count pill, running and blocked counts, and a pencil for rename and delete.
+  - A folded group shows its spaces as chips and opens on a click.
+  - "Collapse all" and "Expand all" are one compact control.
+  - Checked in light, dark and at phone width.
+  - Noted: `parallel_tasks_test.rb` failed once on timing in a full run and passed 5 times alone; it was not touched.
 

@@ -131,4 +131,10 @@ The owner can make named groups of spaces (for example "Gry": Gra Auta, Gra Psi 
   - The folded groups are kept in this browser (localStorage, a viewer's convenience). Folding works on a phone too.
   - Without the script every group is shown.
   - Test in `space_groups_test.rb`; checked in the browser (fold, reload, collapse all, expand all).
+- **Owner change (2026-11-23), the look of the groups:**
+  - The owner's words: "to wygląda słabo", about the folded groups.
+  - Each group is a panel with an aligned bar: a fold arrow, the name in normal case, the count in a pill, "N running" and "N blocked" when there are any, and a pencil icon for rename and delete in the same place on every bar.
+  - A folded bar shows the spaces' names as small chips (5, then "+N"), and a click anywhere on it opens it.
+  - "Collapse all" and "Expand all" are one small button pair, beside "N spaces in M groups".
+  - Checked in the browser at 1440 px in light and dark, and at 375 px (the chips are hidden on a phone).
 
