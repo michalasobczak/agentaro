@@ -591,4 +591,8 @@
   - Tests: 18 new, on the real sandbox and real processes.
   - A real run on a copy of Gra Słodziaki: CI ok in 10 s (301 tests), the server up and answering.
   - B20: two findings fixed with tests. `git status` could run a planted `core.fsmonitor` outside the sandbox; `url` could name any address. Brakeman 0 warnings.
+- Owner change to spec 052: the Git state of a space's working folder on its card and page.
+  - It shows "no Git", or the branch, the remote (a login or token in its address is removed), "clean" or "N to commit", and "N to push" or "N behind".
+  - Read in the sandbox with fsmonitor and hooks off, cached for 30 seconds.
+  - 3 tests on real repositories.
 

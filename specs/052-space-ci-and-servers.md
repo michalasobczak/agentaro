@@ -157,4 +157,13 @@ A space with a working folder can describe in its repository how to build it, te
   - Logs are shown escaped, with secrets replaced.
   - Archiving or deleting a space stops its server.
   - Brakeman 0 warnings.
+- **Owner change (2026-11-23), G5:**
+  - The owner's words: "dodaj jeszcze na karcie space, czy katalog ma Git i gdzie jest zdalne repo i czy worktree jest czysty, czy wymaga commita".
+  - The space's card and page show, for a working folder:
+    - "no Git", or the branch;
+    - the remote (as host/owner/repo, never a login or token);
+    - "clean", or "N to commit";
+    - "N to push" and "N behind" when there is an upstream.
+  - `Ci::Git` reads `git status --porcelain=v2 --branch` and the remote's address in the space's sandbox, with fsmonitor and hooks off (B20), cached for 30 seconds.
+  - Test `space_git_test.rb` (3) on real repositories, including a planted fsmonitor and a token in the remote.
 

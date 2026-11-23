@@ -276,4 +276,23 @@ module ApplicationHelper
     label, kind = SERVER_LABELS[space.server_state]
     label && badge(label, kind)
   end
+
+  # Owner change to spec 052, G5: the Git state of a space's working folder, in one line of badges and text.
+  def git_line(space)
+    info = Ci::Git.info(space) or return
+    return tag.span(badge("no Git"), class: "space-git") unless info.repo
+    return tag.span(safe_join([ badge("Git ?", "warn"), " ", tag.span(info.error, class: "muted") ]), class: "space-git") if info.error
+
+    parts = [ badge(info.clean? ? "clean" : "#{info.changes} to commit", info.clean? ? "ok" : "warn") ]
+    parts << badge("#{info.ahead} to push", "warn") if info.ahead.positive?
+    parts << badge("#{info.behind} behind", nil) if info.behind.positive?
+    parts << tag.span(info.branch, class: "muted") if info.branch
+    parts << tag.span(info.remote ? remote_label(info.remote) : "no remote", class: "muted", title: info.remote)
+    tag.span(safe_join(parts, " "), class: "space-git")
+  end
+
+  # "github.com/owner/repo" from https or ssh remotes; the address itself otherwise.
+  def remote_label(url)
+    url.sub(%r{\A\w[\w+.-]*://}, "").sub(/\A[^@\/]+@([^:\/]+):/, "\\1/").delete_suffix(".git")
+  end
 end

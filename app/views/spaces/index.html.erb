@@ -42,6 +42,7 @@
               <div class="space-card-head"><strong><%= space.name %></strong> <%= badge(space.project? ? "project" : "team", space.project? ? "accent" : nil) %><% unless space.active? %> <%= badge("archived") %><% end %></div>
               <p class="muted small space-goal"><%= space.purpose %></p>
               <% if space.ci_state || space.server_wanted %><p class="space-ci-line small"><%= ci_badge(space) %> <%= server_badge(space) %></p><% end %>
+              <% if space.working_dir && space.active? %><p class="space-ci-line small"><%= git_line(space) %></p><% end %>
               <div class="space-counts">
                 <% WorkItem::BOARD_STATES.each do |state| %>
                   <% n = @counts[[ space.id, state ]].to_i %>

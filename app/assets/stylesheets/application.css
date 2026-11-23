@@ -1005,4 +1005,4 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .work-ci i.is-ok, .work-ci i.is-up { background: var(--ok, #2e9d5b); }
 .work-ci i.is-bad, .work-ci i.is-down { background: var(--bad, #d04848); }
 .work-ci i.is-busy, .work-ci i.is-starting { background: var(--warn, #d9a12b); }
-
+.space-git { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; overflow-wrap: anywhere; } /* spec 052, owner change: Git state */
