@@ -1,6 +1,6 @@
 # 052 — CI and servers of a space
 
-Status: **closed** 2026-11-23 (owner: "Commit, zamknij 052").
+Status: **closed** 2026-11-23 (owner: "Commit, zamknij 052"); **implemented** 2026-11-23.
 Date: 2026-11-23
 Depends on: [018](018-working-folders.md), [027](027-work-panel-beside-chat.md), [040](040-director-controls-failed-and-hung-steps.md), [045](045-epic-summary-in-chat.md), [051](051-space-groups.md)
 
@@ -133,3 +133,28 @@ A space with a working folder can describe in its repository how to build it, te
 - **External dependencies:** macOS `sandbox-exec` (deprecated by Apple but working, as used by Claude Code's own sandbox), Docker through Colima for projects that need it.
 - **Sources and questions:**
   - Q1. Should a server also be started for a space while none of its epics runs, for example at Agentaro's start, if it was never started by hand? Proposed: no — only servers that were running are started again (G4). Accepted with the spec's closing (2026-11-23).
+- **Implementation (2026-11-23):**
+  - Migration `20261123110000`: the CI and server columns on `spaces`, and `task_runs.space_id`.
+  - `Ci::Config` (safe YAML, four keys), `Ci::Sandbox` (sandbox-exec profile from spec 018's rules), `Ci.queue!` / `Ci.after_step` / `Ci.fingerprint`, `Ci::Runner` (purpose `ci`), `Ci::Server` (start, stop, check every 10 s in its own thread, restarts, recovery at start).
+  - The scheduler runs a CI run only when no step or CI works in the folder, and a step waits while CI runs there.
+  - After a step that changed files, CI is queued before the next step, so it runs between them.
+  - Server logs are in `var/servers/<env>/<space>/server.log`. The sandbox hides `var/servers` except the space's own folder: a server's process must read the file its output goes to (found while testing — under a denied folder the server answered nothing).
+  - Deviation from G3: an automatic CI run reports its result as one line in the chat ("CI of …: build and tests passed."), not inside the epic summary, which is written before the CI run ends.
+  - Tests:
+    - `ci_config_test.rb` (6) and `ci_runner_test.rb` (7), on the real sandbox, real processes and a real `python3 -m http.server`;
+    - `space_ci_test.rb` (5).
+  - Real run on a copy of Gra Słodziaki with `build: node build/build.mjs`, `test: node --test tests/` and `serve: node scripts/serve.mjs --port 8091`:
+    - CI ok in 10 s (301 tests);
+    - the server up, the page answered 200;
+    - Stop stopped it.
+    - The owner's repository was not changed; it has no `agentaro.yml` yet.
+- **Security analysis (B20, after specs 001–052):**
+  - Found and fixed, each with a test:
+    - the folder check ran `git status` outside the sandbox, and a planted `core.fsmonitor` in `.git/config` ran a command (confirmed). Git now runs in the space's sandbox with fsmonitor and hooks off;
+    - `url` could name any address, probed every 10 seconds and shown as a link. It must now be this computer.
+  - Commands run with the minimal environment (no Agentaro secrets).
+  - Every endpoint and action reaches only the owner's own spaces (404 tested).
+  - Logs are shown escaped, with secrets replaced.
+  - Archiving or deleting a space stops its server.
+  - Brakeman 0 warnings.
+

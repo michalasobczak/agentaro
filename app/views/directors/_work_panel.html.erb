@@ -9,7 +9,7 @@
     <% if group[:name] || work[:groups].size > 1 %><h3 class="work-group small"><%= group[:name] || SpaceGroup::UNGROUPED %></h3><% end %>
     <% group[:spaces].each do |space| %>
       <section class="work-space">
-        <%= link_to space[:name], space[:url], class: "work-space-name" %>
+        <%= link_to space[:name], space[:url], class: "work-space-name" %><% if space[:ci] || space[:server] %><span class="work-ci"><% if space[:ci] %><i class="is-<%= space[:ci] %>" title="CI: <%= space[:ci] %>"></i><% end %><% if space[:server] %><i class="is-<%= space[:server] %>" title="Server: <%= space[:server] %>"></i><% end %></span><% end %>
         <% if space[:epics].empty? %>
           <p class="work-none small muted">Nothing planned or in progress.</p>
         <% else %>

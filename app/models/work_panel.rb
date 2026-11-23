@@ -3,6 +3,7 @@
 class WorkPanel
   ORDER = %w[running blocked planned new].freeze # board states, the most urgent first
   MAX_EPICS = 20 # per space
+  CI_DOTS = { "ok" => "ok", "failed_build" => "bad", "failed_test" => "bad", "error" => "bad", "running" => "busy", "queued" => "busy" }.freeze # spec 052
 
   def self.for(user) = new(user).to_h
 
@@ -21,7 +22,8 @@ class WorkPanel
 
   def space_h(space, items)
     sorted = items.sort_by { |i| [ ORDER.index(i.board_state) || 9, i.position.to_i, i.id ] }.first(MAX_EPICS)
-    { id: space.id, name: space.name, url: helpers.space_path(space), epics: sorted.map { |item| epic_h(item) } }
+    { id: space.id, name: space.name, url: helpers.space_path(space), epics: sorted.map { |item| epic_h(item) },
+      ci: CI_DOTS[space.ci_state], server: (space.server_state if space.server_wanted || space.server_state == "down") } # spec 052, G5
   end
 
   def epic_h(item)

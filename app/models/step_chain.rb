@@ -55,6 +55,7 @@ class StepChain
     note = assumed.any? ? "\nAssumed: #{assumed.join("; ")}. You can correct any of them on the epic's page." : ""
     say(item, "system", "Done: \"#{item.title}\" — all #{steps.size} step#{"s" unless steps.size == 1} finished. The results are on the epic's page.#{note}")
     ManagementRunner.summarize!(item) # spec 045: then a short human summary from the director
+    Ci.queue!(item.space, trigger: "epic") if item.space&.working_dir.present? # spec 052, G2 (c)
     nil
   end
 
@@ -85,6 +86,7 @@ class StepChain
       false
     end
     hand_over(review_to_hand.id) if review_to_hand
+    Ci.after_step(item.space) if item.space&.working_dir.present? # spec 052, G2 (b): queued before the next step, so it runs between them
     queue_next(item) if continued
   end
 

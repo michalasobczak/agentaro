@@ -21,6 +21,12 @@
       ...group.spaces.map((space) => {
       const section = el("section", "work-space");
       section.append(link(space.name, space.url, "work-space-name"));
+      if (space.ci || space.server) { // spec 052: CI and server dots
+        const dots = el("span", "work-ci");
+        if (space.ci) { const d = el("i", `is-${space.ci}`); d.title = `CI: ${space.ci}`; dots.append(d); }
+        if (space.server) { const d = el("i", `is-${space.server}`); d.title = `Server: ${space.server}`; dots.append(d); }
+        section.append(dots);
+      }
       if (!space.epics.length) { section.append(el("p", "work-none small muted", "Nothing planned or in progress.")); return section; }
       const list = el("ul", "work-epics");
       space.epics.forEach((epic) => {

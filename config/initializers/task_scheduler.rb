@@ -5,5 +5,6 @@ Rails.application.config.after_initialize do
     # (work_item_path) before that and failed with NoMethodError, blocking the epic. The routes are drawn first.
     Rails.application.reload_routes_unless_loaded
     Agentaro::TaskScheduler.start
+    Ci::Server.watch! # spec 052, G4: the spaces' servers, watched and brought back after a restart
   end
 end

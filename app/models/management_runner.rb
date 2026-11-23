@@ -636,7 +636,7 @@ class ManagementRunner
     lines = groups.flat_map do |group, list|
       next [] if list.empty? && group.nil?
 
-      [ group ? "Group id #{group.id} \"#{group.name}\":" : "Not in a group:", *list.map { |s| "- id #{s.id}: \"#{s.name}\" — #{s.purpose_line.truncate(320)}" },
+      [ group ? "Group id #{group.id} \"#{group.name}\":" : "Not in a group:", *list.map { |s| "- id #{s.id}: \"#{s.name}\" — #{s.purpose_line.truncate(320)}#{ci_text(s)}" },
         ("  (no spaces)" if list.empty?) ].compact
     end
     [ "Spaces (active), in #{@user.username}'s groups:", *lines ].join("\n")
@@ -736,6 +736,7 @@ class ManagementRunner
       {"type": "set_conversation", "level": 1 or 2} (only when #{@user.username} asks for a more natural or a plainer conversation from now on; 1 #{ConversationMode.name(1)}, 2 #{ConversationMode.name(2)}: like talking to a person)
       {"type": "pause_epic", "id": <epic id>} and {"type": "resume_epic", "id": <epic id>} (only when #{@user.username} asks to pause or resume a planned epic; a running step finishes first, then nothing more of it starts until it is resumed; there is no pause for several epics at once)
       {"type": "add_group", "name": "..."}, {"type": "rename_group", "group": <group id or name>, "name": "..."}, {"type": "delete_group", "group": <group id or name>} (its spaces stay, without a group), {"type": "move_space", "space": <space id>, "group": <group id or name, or null for no group>} (only when #{@user.username} asks to arrange spaces in groups; groups only arrange spaces, they change nothing else)
+      {"type": "run_ci", "space": <space id>} and {"type": "server_action", "space": <space id>, "do": "start" or "stop" or "restart"} (only when #{@user.username} asks to build a space or to start, stop or restart its server; the commands come from the space's agentaro.yml)
       {"type": "set_tempo", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks how fast or how carefully work is done; 1 #{WorkTempo.name(1)}: small steps and a check, 2 #{WorkTempo.name(2)}, 3 #{WorkTempo.name(3)}: one step, one agent)
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
@@ -1014,6 +1015,7 @@ class ManagementRunner
     when "reassign_step" then reassign_step_action(action) # spec 043, G7
     when "pause_epic", "resume_epic" then pause_action(action) # spec 048
     when "add_group", "rename_group", "delete_group", "move_space" then group_action(action) # spec 051
+    when "run_ci", "server_action" then ci_action(action) # spec 052
     when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
     when "answer_decision", "approve_plan", "set_autonomy" then autonomy_action(action) # spec 033
     when "set_reply_length" then reply_length_action(action) # spec 039
@@ -1402,6 +1404,44 @@ class ManagementRunner
       -> { item.pause!; "Paused: #{item.title} (#{item.reload.pause_label})" }
     else
       -> { item.resume!; "Resumed: #{item.title}" }
+    end
+  end
+
+  # Spec 052, G5: a space's CI and server, for the director.
+  def ci_text(space)
+    parts = []
+    parts << "CI #{space.ci_state.tr("_", " ")}#{" at #{space.ci_finished_at.in_time_zone.strftime("%H:%M")}" if space.ci_finished_at}" if space.ci_state
+    parts << "server #{space.server_state}#{" (#{space.server_note})" if space.server_note.present?}" if space.server_wanted || space.server_state == "down"
+    parts.any? ? " [#{parts.join("; ")}]" : ""
+  end
+
+  CI_REQUEST = /zbuduj|buduj|build|\bci\b|test|serwer|server|restart|uruchom|odpal|zatrzymaj|wy[łl][ąa]cz|w[łl][ąa]cz|start|stop/i # spec 052
+
+  def ci_action(action)
+    type = action["type"]
+    raise Invalid, "#{type}: #{@user.username} has not asked in their message to build or to run a server" unless owner_asked?(CI_REQUEST)
+
+    space = find_space(action["space"], type)
+    raise Invalid, "#{type}: \"#{space.name}\" has no working folder" if space.working_dir.blank?
+    config = begin
+      Ci.config_for(space)
+    rescue Ci::Config::Invalid => e
+      raise Invalid, "#{type}: #{e.message}"
+    end
+    raise Invalid, "#{type}: \"#{space.name}\" has no #{Ci::Config::FILE}" unless config
+
+    if type == "run_ci"
+      raise Invalid, "run_ci: #{Ci::Config::FILE} of \"#{space.name}\" has no build or test" unless config.ci?
+
+      return -> { Ci.queue!(space, trigger: "manual", user: @user) ? "CI queued: #{space.name}" : "CI of #{space.name} is already waiting" }
+    end
+    what = action["do"].to_s
+    raise Invalid, "server_action: \"do\" must be start, stop or restart" unless %w[start stop restart].include?(what)
+    raise Invalid, "server_action: #{Ci::Config::FILE} of \"#{space.name}\" has no serve" unless config.serve
+
+    lambda do
+      what == "stop" ? Ci::Server.stop!(space) : Ci::Server.start!(space)
+      "Server of #{space.name}: #{what == "stop" ? "stopped" : space.reload.server_state}"
     end
   end
 

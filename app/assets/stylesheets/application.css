@@ -995,3 +995,14 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .space-group-tools[open], .new-group[open] { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .new-group { position: relative; }
 .work-group { margin: 0.9rem 0 0.3rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.72rem; } /* spec 051 */
+
+/* Spec 052: CI and server of a space */
+.space-ci .row-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.space-ci-line { margin: 0.3rem 0 0; display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.ci-log pre { max-height: 22rem; overflow: auto; font-size: 0.78rem; }
+.work-ci { display: inline-flex; gap: 0.25rem; margin-left: 0.4rem; }
+.work-ci i { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--muted); }
+.work-ci i.is-ok, .work-ci i.is-up { background: var(--ok, #2e9d5b); }
+.work-ci i.is-bad, .work-ci i.is-down { background: var(--bad, #d04848); }
+.work-ci i.is-busy, .work-ci i.is-starting { background: var(--warn, #d9a12b); }
+

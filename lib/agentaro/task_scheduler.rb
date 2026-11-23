@@ -153,6 +153,7 @@ module Agentaro
             run.update!(agent_id: claim.agent_id) if run.step? && run.agent_id != claim.agent_id # R2: the task's agent now
             if run.purpose == "epic_step" then StepChain.new(run).perform! # spec 016
             elsif run.purpose == "step_review" then StepReviewer.new(run).perform! # spec 040
+            elsif run.purpose == "ci" then Ci::Runner.new(run).perform! # spec 052
             elsif run.step? then TaskRunner.new(run).perform!
             else ManagementRunner.new(run).perform!
             end
@@ -175,6 +176,7 @@ module Agentaro
           StepChain.after_run(run) # spec 040: the director decides what next
         end
         StepReviewer.interrupted(run) if run.purpose == "step_review"
+        run.space&.update!(ci_state: "error", ci_log: "Interrupted: Agentaro stopped during this CI run.", ci_finished_at: Time.current) if run.purpose == "ci" # spec 052
       end
 
       # R5: the run's process group still exists. Only while the run could still be within its time limit: after that a
@@ -196,6 +198,12 @@ module Agentaro
       def claim_for(run)
         return if StepRetry.waiting?(run) # spec 032: the tick hands it over when due
         return if run.purpose == "epic_step" && run.work_item&.paused? # spec 048, R1: a paused epic starts nothing
+        if run.purpose == "ci" # spec 052, G2: never beside a step (or another CI run) in the same folder
+          folder = working_folder(run)
+          return if folder && folder_busy?(folder)
+
+          return Claim.new(run.id, nil, folder)
+        end
         return Claim.new(run.id, nil, nil) unless run.limited? # chat, planning, verification: their own rules (R1)
 
         agent_id = run.step? ? run.task&.agent_id : run.agent_id # a calendar run reads its task's agent at run time
@@ -218,9 +226,9 @@ module Agentaro
       # folder (spec 018), so only one step at a time works in one folder (resolved, so two spaces on the same folder or
       # a link to it share it). Steps of spaces with different folders run side by side.
       def working_folder(run)
-        return unless run.purpose == "epic_step"
+        return unless %w[epic_step ci].include?(run.purpose)
 
-        dir = run.work_item&.space&.working_dir.presence or return
+        dir = (run.purpose == "ci" ? run.space : run.work_item&.space)&.working_dir.presence or return
         File.realpath(dir)
       rescue SystemCallError
         File.expand_path(dir)
@@ -229,7 +237,7 @@ module Agentaro
       def folder_busy?(folder)
         return true if @active.values.any? { |c| c.folder == folder }
 
-        TaskRun.where(state: "running", purpose: "epic_step").includes(work_item: :space).any? { |r| working_folder(r) == folder }
+        TaskRun.where(state: "running", purpose: %w[epic_step ci]).includes(:space, work_item: :space).any? { |r| working_folder(r) == folder } # spec 052: CI too
       end
 
       def resize

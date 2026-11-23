@@ -81,6 +81,23 @@ class SpacesController < ApplicationController
     head :no_content
   end
 
+  # Spec 052, G2 (a): a CI run on the button.
+  def build
+    run = Ci.queue!(@space, trigger: "manual", user: current_user)
+    notice = run ? "CI queued: it starts when no step works in the folder." : (@space.ci_state == "error" ? @space.ci_log : "CI is already waiting, or the space has no build or test.")
+    redirect_to space_path(@space, anchor: "ci"), notice: notice
+  end
+
+  # Spec 052, G4: start, stop or restart the space's server.
+  def server
+    case params[:do]
+    when "start", "restart" then Ci::Server.start!(@space)
+    when "stop" then Ci::Server.stop!(@space)
+    else return head :unprocessable_content
+    end
+    redirect_to space_path(@space, anchor: "ci"), notice: "Server: #{@space.reload.server_state}#{" — #{@space.server_note}" if @space.server_note}."
+  end
+
   # Spec 051, G3: a space dragged into a group (or out of every group: no group_id) at a 1-based place.
   def place
     group = params[:group_id].present? ? current_user.space_groups.find(params[:group_id]) : nil

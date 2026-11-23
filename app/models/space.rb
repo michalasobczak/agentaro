@@ -8,9 +8,12 @@ class Space < ApplicationRecord
 
   belongs_to :user
   belongs_to :space_group, optional: true # spec 051
+  has_many :ci_runs, -> { where(purpose: "ci") }, class_name: "TaskRun", dependent: :destroy # spec 052
   has_many :work_items, dependent: :restrict_with_error # spec 013, R5: only empty spaces can be deleted
   has_many :recurring_orders, dependent: :destroy # spec 034, R4: deleted with the space
   after_update_commit :pause_recurring_orders, if: -> { saved_change_to_state? && state == "archived" } # spec 034, R4
+  after_update_commit(if: -> { saved_change_to_state? && state == "archived" && server_wanted }) { Ci::Server.stop!(self) } # spec 052, R5
+  before_destroy { Ci::Server.stop_process(self) } # spec 052, R5
   after_destroy_commit { Brain.forget_scope(user_id, "space", id) } # spec 031: its brief and facts go with it
 
   normalizes :name, with: ->(value) { value.to_s.strip.presence }

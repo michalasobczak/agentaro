@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -282,6 +282,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.integer "work_tempo"
     t.integer "space_group_id"
     t.integer "position", default: 0, null: false
+    t.string "ci_state"
+    t.datetime "ci_finished_at"
+    t.string "ci_fingerprint"
+    t.text "ci_log"
+    t.boolean "server_wanted", default: false, null: false
+    t.string "server_state", default: "stopped", null: false
+    t.integer "server_pid"
+    t.string "server_process_started"
+    t.datetime "server_started_at"
+    t.datetime "server_checked_at"
+    t.string "server_note"
+    t.text "server_restarts"
     t.index ["space_group_id"], name: "index_spaces_on_space_group_id"
     t.index ["user_id", "name"], name: "index_spaces_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_spaces_on_user_id"
@@ -373,8 +385,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.datetime "retry_at"
     t.integer "attempt", default: 1, null: false
     t.integer "pid"
+    t.integer "space_id"
     t.index ["agent_id"], name: "index_task_runs_on_agent_id"
     t.index ["epic_step_id"], name: "index_task_runs_on_epic_step_id"
+    t.index ["space_id"], name: "index_task_runs_on_space_id"
     t.index ["state", "created_at"], name: "index_task_runs_on_state_and_created_at"
     t.index ["state", "retry_at"], name: "index_task_runs_on_state_and_retry_at"
     t.index ["task_id", "occurrence_start"], name: "index_task_runs_one_scheduled_per_occurrence", unique: true, where: "\"trigger\" = 'scheduled'"
@@ -521,6 +535,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
   add_foreign_key "task_exceptions", "tasks"
   add_foreign_key "task_runs", "agents"
   add_foreign_key "task_runs", "epic_steps"
+  add_foreign_key "task_runs", "spaces"
   add_foreign_key "task_runs", "tasks"
   add_foreign_key "task_runs", "users"
   add_foreign_key "task_runs", "work_items"

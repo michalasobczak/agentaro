@@ -17,6 +17,7 @@
 <div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
 <% unless @space.active? %><div class="callout"><%= icon(:info) %><div>This space is archived: no new epics, and the director takes up none of its epics.</div></div><% end %>
 <% if @space.working_dir %><p class="small muted space-folder"><%= icon(:chip, css: "icon tiny") %> Working folder: <code><%= @space.working_dir %></code></p><% end %>
+<%= render "spaces/ci", space: @space if @space.working_dir %>
 <% if @space.description.present? %>
   <details class="card space-about"><summary>About this space</summary><p class="pre"><%= @space.description %></p></details>
 <% end %>

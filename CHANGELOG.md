@@ -581,4 +581,14 @@
     - the state is shown on the space's card, in the work panel and to the director;
     - the commands run in the step sandbox.
   - Q1: only servers that were running come back after a restart.
+- Spec 052 CI and servers of a space.
+  - The owner's words: "chcę mieć opcję CI na danym space … build i uruchomienia serwera … info o statusie takiego serwera … uniknąć trzymania N zakładek w terminalu".
+  - `agentaro.yml` (build, test, serve, url) in the working folder, run in a macOS sandbox-exec profile with spec 018's rules.
+  - CI runs on a button, after a step that changed files (between steps), at an epic's end, and on the owner's words (`run_ci`).
+  - Servers are kept by Agentaro: start, stop and restart (`server_action`), a check every 10 s, restarts limited to 3 in 10 minutes, back after Agentaro restarts, and the last 200 log lines.
+  - The state is on the space's card and page, in the work panel and for the director.
+  - Migration `20261123110000`.
+  - Tests: 18 new, on the real sandbox and real processes.
+  - A real run on a copy of Gra Słodziaki: CI ok in 10 s (301 tests), the server up and answering.
+  - B20: two findings fixed with tests. `git status` could run a planted `core.fsmonitor` outside the sandbox; `url` could name any address. Brakeman 0 warnings.
 

@@ -83,6 +83,27 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 - **Chat settings (spec 041)** — the chat header has one settings icon. Its panel holds the language, autonomy, reply length, style, conversation, tempo and chat background, and (spec 043) the director's usage limit; every switch saves at once. In voice mode the bar is one row of icons: mute, speed (tap for the next speed), verifier, Done and Stop. On a phone (spec 042) choosing a page from the menu or a link closes the chat and ends voice mode, so the page is seen; on a computer the chat stays open beside it.
 - **Conversation style (spec 041)** — how the director talks, written and spoken: **Dziecko** (simple words, no jargon), **Dorosły** (default: plain language, terms explained) or **Inżynier** (precise and technical). You can also say it in the chat ("mów do mnie jak do dziecka").
 - **Conversation (spec 046)** — **Naturalna** (default) makes the director talk like a person: short turns, no lists or ids, at most one question. The voice gets livelier intonation and pauses, and reads times, dates and numbers as words while skipping links, paths and ids. If no reply starts within about 2 seconds after you speak, it says a short "Już sprawdzam.". **Zwykła** keeps replies as before. You can also say it in the chat ("rozmawiaj bardziej naturalnie"). System lines are shown but never read aloud.
+- **CI and servers of a space (spec 052)** — a space with a working folder may hold `agentaro.yml`, for example:
+
+  ```yaml
+  build: node build/build.mjs
+  test: node --test tests/
+  serve: node scripts/serve.mjs --port 8080
+  url: http://localhost:8080/
+  ```
+
+  - **CI** (build, then test) runs:
+    - on Build on the space's page;
+    - after a step that changed files;
+    - when an epic ends;
+    - on your words ("zbuduj Słodziaki").
+  - The space shows the result and the end of the log. CI never runs beside a step in the same folder.
+  - **The server** is started, stopped and restarted on the space's page or by words.
+    - Agentaro checks it every 10 s (starting, up, down) and restarts it after a good build.
+    - It starts it again if it ends by itself (at most 3 times in 10 minutes).
+    - It brings it back after Agentaro restarts and keeps its last 200 log lines.
+  - All of it runs in the step sandbox. `url` must be on this computer.
+  - The Spaces page, the work panel (dots) and the director show the state.
 - **Groups of spaces (spec 051)** — the Spaces page shows your groups (for example "Gry"), in your order, then "Bez grupy". On a computer you drag a space's card into a group or within it, and a group's heading to order the groups; each change saves at once. "+ Group" adds one; Edit renames or deletes it (its spaces move to "Bez grupy", nothing else changes). The work panel shows the same groups. The director knows them and arranges spaces on your words ("dodaj Cerbeto do grupy Badania").
 - **Pause an epic (spec 048)** — Pause on the epic's page, in the work panel, or "wstrzymaj miasto" in the chat. A running step finishes, then nothing more of the epic starts (also across restarts) until you resume it the same ways. A paused epic keeps its space, so the epics after it wait. There is no pause for a whole space or everything at once.
 - **Retry by agreement (spec 047)** — the director runs a failed step again when you say "tak" to its offer, or name the epic or its space with words that start it ("najpierw Słodziaki"); never with a "nie". If an action of the director is refused twice, its reply still stays and is spoken: the valid changes are made, and the refused ones are noted under it as "Not done: …".
@@ -218,7 +239,7 @@ Ruby on Rails 8.1 application with SQLite (`storage/`, not committed). No extern
 | 049 | [Codex with a local model](specs/049-codex-with-a-local-model.md) | implemented |
 | 050 | [Does the reply match what was done?](specs/050-reply-versus-actions-check.md) | draft |
 | 051 | [Groups of spaces, arranged with the mouse](specs/051-space-groups.md) | implemented |
-| 052 | [CI and servers of a space](specs/052-space-ci-and-servers.md) | closed |
+| 052 | [CI and servers of a space](specs/052-space-ci-and-servers.md) | implemented |
 | 100 | [Ratings and sentiment](specs/100-ratings-and-sentiment.md) | closed |
 | 101 | [Reflection and playbooks](specs/101-reflection-and-playbooks.md) | draft (Q1–Q3 open) |
 | 102 | [Model of the owner and when agents ask](specs/102-owner-model-and-questions.md) | draft (Q1–Q4 open) |

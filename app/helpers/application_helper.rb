@@ -259,4 +259,21 @@ module ApplicationHelper
       (tag.span("read #{time_ago_in_words(executor.usage_read_at)} ago", class: "muted small") if executor.usage_read_at)
     ].compact, " ")
   end
+
+  # Spec 052, G5: a space's last CI result and its server's state.
+  CI_LABELS = { "queued" => [ "CI queued", nil ], "running" => [ "CI running", "warn" ], "ok" => [ "CI ok", "ok" ], "failed_build" => [ "build failed", "bad" ],
+                "failed_test" => [ "tests failed", "bad" ], "error" => [ "CI error", "bad" ] }.freeze
+  SERVER_LABELS = { "starting" => [ "server starting", "warn" ], "up" => [ "server up", "ok" ], "down" => [ "server down", "bad" ] }.freeze
+
+  def ci_badge(space)
+    label, kind = CI_LABELS[space.ci_state]
+    label && badge(label, kind)
+  end
+
+  def server_badge(space)
+    return unless space.server_wanted || space.server_state == "down"
+
+    label, kind = SERVER_LABELS[space.server_state]
+    label && badge(label, kind)
+  end
 end

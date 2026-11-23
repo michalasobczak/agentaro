@@ -1,0 +1,38 @@
+<%# Spec 052: the space's CI (agentaro.yml: build, test) and its server, kept by Agentaro. %>
+<% config = (Ci.config_for(space) rescue nil) %>
+<% config_error = (begin; Ci.config_for(space); nil; rescue Ci::Config::Invalid => e; e.message; end) %>
+<section class="card space-ci" id="ci">
+  <div class="card-header"><h2>CI and server</h2>
+    <div class="row-actions">
+      <%= ci_badge(space) %> <%= server_badge(space) %>
+    </div>
+  </div>
+  <% if config_error %>
+    <p class="flash alert"><%= config_error %></p>
+  <% elsif config.nil? %>
+    <p class="muted small">No <code><%= Ci::Config::FILE %></code> in the working folder. Add one with <code>build</code>, <code>test</code>, <code>serve</code> and <code>url</code> — or ask an agent to write it.</p>
+  <% else %>
+    <dl class="facts small">
+      <% Ci::Config::KEYS.each do |key| %><% if (value = config.public_send(key)) %><dt><%= key %></dt><dd><code><%= value %></code></dd><% end %><% end %>
+    </dl>
+    <div class="actions spaced">
+      <% if config.ci? && space.active? %><%= button_to "Build", build_space_path(space), class: "secondary" %><% end %>
+      <% if config.serve && space.active? %>
+        <% if space.server_wanted %>
+          <%= button_to "Restart server", server_space_path(space, do: "restart"), class: "secondary" %>
+          <%= button_to "Stop server", server_space_path(space, do: "stop"), class: "link" %>
+        <% else %>
+          <%= button_to "Start server", server_space_path(space, do: "start"), class: "secondary" %>
+        <% end %>
+      <% end %>
+      <% if config.url && space.server_state == "up" %><%= link_to config.url, config.url, target: "_blank", rel: "noopener" %><% end %>
+    </div>
+    <% if space.server_note.present? %><p class="small muted"><%= space.server_note %></p><% end %>
+    <% if space.ci_log.present? %>
+      <details class="ci-log"<%= " open" if space.ci_state.to_s.start_with?("failed") || space.ci_state == "error" %>><summary class="small">Last CI log (<%= space.ci_state.to_s.tr("_", " ") %><%= ", #{l(space.ci_finished_at, format: :short)}" if space.ci_finished_at %>)</summary><pre><%= space.ci_log %></pre></details>
+    <% end %>
+    <% if config.serve && (tail = Ci::Server.log_tail(space)).present? %>
+      <details class="ci-log"><summary class="small">Server log (last <%= Ci::Server::LOG_LINES %> lines)</summary><pre><%= tail %></pre></details>
+    <% end %>
+  <% end %>
+</section>
