@@ -4,7 +4,10 @@
   <h2 class="work-panel-title">Work</h2>
   <div data-work-spaces>
     <% if work[:spaces].empty? %><p class="muted small">No active spaces.</p><% end %>
-    <% work[:spaces].each do |space| %>
+    <% work[:groups].each do |group| %>
+    <%# Spec 051: the owner's groups as headings (none when nothing is grouped). %>
+    <% if group[:name] || work[:groups].size > 1 %><h3 class="work-group small"><%= group[:name] || SpaceGroup::UNGROUPED %></h3><% end %>
+    <% group[:spaces].each do |space| %>
       <section class="work-space">
         <%= link_to space[:name], space[:url], class: "work-space-name" %>
         <% if space[:epics].empty? %>
@@ -26,6 +29,7 @@
           </ul>
         <% end %>
       </section>
+    <% end %>
     <% end %>
   </div>
 </aside>

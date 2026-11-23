@@ -631,7 +631,15 @@ class ManagementRunner
     spaces = @user.spaces.active.ordered.to_a
     return "Spaces: (none yet; a new item goes to \"#{Space::DEFAULT_NAME}\")" if spaces.empty?
 
-    [ "Spaces (active):", *spaces.map { |s| "- id #{s.id}: \"#{s.name}\" — #{s.purpose_line.truncate(320)}" } ].join("\n")
+    # Spec 051, G5: the owner's groups, in their order; each space under its group.
+    groups = SpaceGroup.layout(@user, spaces)
+    lines = groups.flat_map do |group, list|
+      next [] if list.empty? && group.nil?
+
+      [ group ? "Group id #{group.id} \"#{group.name}\":" : "Not in a group:", *list.map { |s| "- id #{s.id}: \"#{s.name}\" — #{s.purpose_line.truncate(320)}" },
+        ("  (no spaces)" if list.empty?) ].compact
+    end
+    [ "Spaces (active), in #{@user.username}'s groups:", *lines ].join("\n")
   end
 
   # Spec 013, G3: everything about one epic comes from its own space only.
@@ -727,6 +735,7 @@ class ManagementRunner
       {"type": "reassign_step", "id": <epic id>, "step": <step number>, "agent": <member id>} (only when #{@user.username} asks to hand a step to another member, for example because its agent is at a usage limit; only a step waiting for a usage-limit retry or a failed step; it starts at once with the new member)
       {"type": "set_conversation", "level": 1 or 2} (only when #{@user.username} asks for a more natural or a plainer conversation from now on; 1 #{ConversationMode.name(1)}, 2 #{ConversationMode.name(2)}: like talking to a person)
       {"type": "pause_epic", "id": <epic id>} and {"type": "resume_epic", "id": <epic id>} (only when #{@user.username} asks to pause or resume a planned epic; a running step finishes first, then nothing more of it starts until it is resumed; there is no pause for several epics at once)
+      {"type": "add_group", "name": "..."}, {"type": "rename_group", "group": <group id or name>, "name": "..."}, {"type": "delete_group", "group": <group id or name>} (its spaces stay, without a group), {"type": "move_space", "space": <space id>, "group": <group id or name, or null for no group>} (only when #{@user.username} asks to arrange spaces in groups; groups only arrange spaces, they change nothing else)
       {"type": "set_tempo", "space": <space id, or null for #{@user.username}'s default>, "level": 1, 2 or 3} (only when #{@user.username} asks how fast or how carefully work is done; 1 #{WorkTempo.name(1)}: small steps and a check, 2 #{WorkTempo.name(2)}, 3 #{WorkTempo.name(3)}: one step, one agent)
       #{retry_action_rule unless proposing_changes}
       You plan each new item at once as steps for your team members. An item starts at its starts_at, or at once when it has none; then its steps run one after another without waiting. Times are in #{Time.zone.name}.
@@ -1004,6 +1013,7 @@ class ManagementRunner
       end
     when "reassign_step" then reassign_step_action(action) # spec 043, G7
     when "pause_epic", "resume_epic" then pause_action(action) # spec 048
+    when "add_group", "rename_group", "delete_group", "move_space" then group_action(action) # spec 051
     when "remember", "forget", "approve_facts", "reject_facts" then memory_action(action) # spec 031, G8
     when "answer_decision", "approve_plan", "set_autonomy" then autonomy_action(action) # spec 033
     when "set_reply_length" then reply_length_action(action) # spec 039
@@ -1392,6 +1402,40 @@ class ManagementRunner
       -> { item.pause!; "Paused: #{item.title} (#{item.reload.pause_label})" }
     else
       -> { item.resume!; "Resumed: #{item.title}" }
+    end
+  end
+
+  # Spec 051, G5: the owner's groups of spaces, only on their words (or agreement to the director's offer).
+  GROUP_REQUEST = /grup|group|przenie[śs]|przenosz|przesu[ńn]|wrzu[ćc]|do (?:grupy|sekcji)|odgrup|folder|sekcj/i
+
+  def group_action(action)
+    type = action["type"]
+    raise Invalid, "#{type}: #{@user.username} has not asked in their message to arrange spaces in groups" unless owner_asked?(GROUP_REQUEST)
+
+    group = ->(key = "group") { @user.space_groups.find_by(id: action[key].to_s.to_i) || @user.space_groups.find_by("LOWER(name) = ?", action[key].to_s.strip.downcase) }
+    case type
+    when "add_group"
+      new_group = @user.space_groups.new(name: action["name"])
+      raise Invalid, "add_group: #{new_group.errors.full_messages.to_sentence}" unless new_group.valid?
+
+      (@new_groups ||= {})[new_group.name.downcase] = new_group # a move in the same reply may name it
+
+      -> { new_group.save!; "New group: #{new_group.name}" }
+    when "rename_group"
+      target = group.() or raise Invalid, "rename_group: no group #{action["group"].inspect}"
+      old_name = target.name
+      target.name = action["name"]
+      raise Invalid, "rename_group: #{target.errors.full_messages.to_sentence}" unless target.valid?
+
+      -> { target.save!; "Group renamed: #{old_name} → #{target.name}" }
+    when "delete_group"
+      target = group.() or raise Invalid, "delete_group: no group #{action["group"].inspect}"
+      -> { target.destroy!; "Group deleted: #{target.name} (its spaces are now without a group)" }
+    when "move_space"
+      space = find_space(action["space"], "move_space")
+      raise Invalid, "move_space: \"space\" is required" unless space
+      target = action["group"].present? ? (group.() || @new_groups&.dig(action["group"].to_s.downcase) || raise(Invalid, "move_space: no group #{action["group"].inspect}; add it first with add_group")) : nil
+      -> { space.place!(target, 1_000); "#{space.name} → #{target ? target.name : SpaceGroup::UNGROUPED}" }
     end
   end
 

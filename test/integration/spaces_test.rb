@@ -162,7 +162,7 @@ class SpacesTest < ActionDispatch::IntegrationTest
     assert_select ".month-day .epic.chip", 3
   end
 
-  test "spec 014: the form offers both kinds; the list groups spaces by kind" do
+  test "spec 014: the form offers both kinds; the list shows each space's kind (spec 051: in the owner's groups)" do
     get new_space_path(kind: "team")
     assert_select "input[type=radio][name='space[kind]'][value=team][checked]"
     assert_select ".goal-field textarea[required]", 0, "the goal is checked by the server, per kind"
@@ -173,7 +173,7 @@ class SpacesTest < ActionDispatch::IntegrationTest
     assert_select ".errors", text: /Goal is required for a project space/
     make_space("House")
     get spaces_path
-    assert_select "h2.space-group", [ "Project spaces", "Team spaces" ].size
+    assert_select "h2.space-group", text: "Bez grupy", count: 1 # spec 051, G1: groups replace the fixed kind sections
     assert_select ".space-card.k-team", text: /Household.*team.*Bills/m
     assert_select ".space-card.k-project", text: /House.*project.*Goal of House/m
     get space_path(@user.spaces.find_by!(name: "Household"))

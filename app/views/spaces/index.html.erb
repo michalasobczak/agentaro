@@ -1,27 +1,57 @@
 <%= page_header "Spaces", "Your work, kept apart. Project spaces work towards a goal; team spaces take care of ongoing work. Agents working on an epic see only its space." do %>
   <%= link_to new_space_path(kind: "project"), class: "button" do %><%= icon(:plus) %> Project space<% end %>
   <%= link_to new_space_path(kind: "team"), class: "button secondary" do %><%= icon(:plus) %> Team space<% end %>
+  <details class="new-group desktop-only">
+    <summary class="button secondary"><%= icon(:plus) %> Group</summary>
+    <%= form_with model: SpaceGroup.new, url: space_groups_path, class: "inline-form new-group-form" do |f| %>
+      <%= f.text_field :name, maxlength: 60, placeholder: "e.g. Gry", "aria-label": "Name of the new group", required: true %>
+      <%= f.submit "Add group", class: "small" %>
+    <% end %>
+  </details>
 <% end %>
 <div hidden data-refresh-url="<%= stamp_director_path %>" data-refresh-stamp="<%= ChangeStamp.management(current_user) %>"></div>
 <% if @spaces.empty? %>
   <div class="card"><p class="muted">No spaces yet. Create one, or tell the director what you are working on — it can set up spaces too.</p></div>
 <% end %>
-<% { "project" => "Project spaces", "team" => "Team spaces" }.each do |kind, heading| %>
-  <% spaces = @spaces.select { |s| s.kind == kind } %>
-  <% next if spaces.empty? %>
-  <h2 class="space-group"><%= heading %></h2>
-  <div class="grid grid-2 space-grid">
-    <% spaces.each do |space| %>
-      <%= link_to space_path(space), class: ["card", "space-card", "k-#{space.kind}", ("is-archived" unless space.active?)].compact.join(" ") do %>
-        <div class="space-card-head"><strong><%= space.name %></strong> <%= badge(space.project? ? "project" : "team", space.project? ? "accent" : nil) %><% unless space.active? %> <%= badge("archived") %><% end %></div>
-        <p class="muted small space-goal"><%= space.purpose %></p>
-        <div class="space-counts">
-          <% WorkItem::BOARD_STATES.each do |state| %>
-            <% n = @counts[[ space.id, state ]].to_i %>
-            <span class="count <%= "is-zero" if n.zero? %> s-<%= state %>"><strong><%= n %></strong> <%= state %></span>
+<%# Spec 051: the owner's groups in their order, then the spaces without a group. On a computer spaces.js lets the
+    owner drag a card into a group or within it, and a group's heading to order the groups; each change saves at once. %>
+<% content_for :scripts do %><%= javascript_include_tag "spaces", defer: true %><% end %>
+<% if @spaces.any? %>
+  <div class="space-layout desktop-arrange" data-space-layout data-order-url="<%= order_space_groups_path %>">
+    <% @layout.each do |group, spaces| %>
+      <% next if group.nil? && spaces.empty? && @layout.size > 1 %>
+      <section class="space-section" data-group-id="<%= group&.id %>">
+        <div class="space-section-head">
+          <h2 class="space-group space-section-name"<% if group %> data-group-handle title="Drag to order the groups"<% end %>><%= group ? group.name : SpaceGroup::UNGROUPED %></h2>
+          <% if group %>
+            <details class="space-group-tools desktop-only">
+              <summary class="link small">Edit</summary>
+              <%= form_with model: group, url: space_group_path(group), method: :patch, class: "inline-form" do |f| %>
+                <%= f.text_field :name, maxlength: 60, "aria-label": "Name of the group" %>
+                <%= f.submit "Rename", class: "secondary small" %>
+              <% end %>
+              <%= button_to "Delete group", space_group_path(group), method: :delete, class: "link small",
+                            form: { data: { confirm: "Delete the group \"#{group.name}\"? Its spaces move to “#{SpaceGroup::UNGROUPED}”; nothing else changes." } } %>
+            </details>
           <% end %>
         </div>
-      <% end %>
+        <div class="grid grid-2 space-grid" data-space-drop>
+          <% spaces.each do |space| %>
+            <%= link_to space_path(space), class: ["card", "space-card", "k-#{space.kind}", ("is-archived" unless space.active?)].compact.join(" "),
+                        data: { space_id: space.id, place_url: place_space_path(space) } do %>
+              <div class="space-card-head"><strong><%= space.name %></strong> <%= badge(space.project? ? "project" : "team", space.project? ? "accent" : nil) %><% unless space.active? %> <%= badge("archived") %><% end %></div>
+              <p class="muted small space-goal"><%= space.purpose %></p>
+              <div class="space-counts">
+                <% WorkItem::BOARD_STATES.each do |state| %>
+                  <% n = @counts[[ space.id, state ]].to_i %>
+                  <span class="count <%= "is-zero" if n.zero? %> s-<%= state %>"><strong><%= n %></strong> <%= state %></span>
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+          <% if spaces.empty? %><p class="muted small space-drop-hint">Drag a space here.</p><% end %>
+        </div>
+      </section>
     <% end %>
   </div>
 <% end %>

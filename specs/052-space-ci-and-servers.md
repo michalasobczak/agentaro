@@ -1,0 +1,135 @@
+# 052 — CI and servers of a space
+
+Status: **closed** 2026-11-23 (owner: "Commit, zamknij 052").
+Date: 2026-11-23
+Depends on: [018](018-working-folders.md), [027](027-work-panel-beside-chat.md), [040](040-director-controls-failed-and-hung-steps.md), [045](045-epic-summary-in-chat.md), [051](051-space-groups.md)
+
+## 1. TL;DR
+
+A space with a working folder can describe in its repository how to build it, test it and run its server, in a file `agentaro.yml`. Agentaro runs those commands in the step sandbox: on a button, after a step that changed files, when an epic ends, or on the owner's words. It keeps the server running and shows its state, so the owner no longer needs a terminal tab per project. Tests and a real project (Gra Słodziaki) confirm it.
+
+## 2. Abstract
+
+- **Current state:**
+  - Agents build and test inside their steps, and nothing stays running after a step: spec 040 stops whatever a step left behind.
+  - To try a game the owner starts its server in a terminal tab, one tab per project.
+- **Gap or problem:**
+  - The owner's words: "chcę mieć opcję CI na danym space, głównie po to, żeby projekt mógł definiować swój krok build i uruchomienia serwera, jeśli takowy udostępnia … interesuje mnie też info o statusie takiego serwera … chcę uniknąć trzymania N zakładek w terminalu".
+- **Decision history:** the owner chose (2026-11-23):
+  - the commands live in a file in the repository;
+  - CI runs on a button, after a step that changed files, when an epic ends, and on the owner's words;
+  - Agentaro keeps the server alive;
+  - the state is seen on the space's card, in the work panel and by the director;
+  - the commands run in the same sandbox as steps.
+
+## 3. Objective
+
+**Goals**
+- G1. **The file.** `agentaro.yml` in the space's working folder, for example:
+  ```yaml
+  build: npm run build          # optional
+  test: npm test                # optional
+  serve: npx http-server dist -p 8080   # optional: a command that keeps running
+  url: http://localhost:8080    # optional: where the server answers
+  ```
+  - Every key is optional; without the file the space has no CI.
+  - Agents may create and change it like any other file.
+  - Agentaro reads it again before each run. A broken file shows its error and runs nothing.
+- G2. **CI runs** (build, then test) start:
+  - (a) on the Build button on the space's page and card;
+  - (b) after a step of an epic in that space whose run changed files in the folder;
+  - (c) when an epic of that space ends;
+  - (d) on the owner's words in the chat (`run_ci`).
+  - One CI run per space at a time. A new trigger while one runs queues at most one more.
+  - A CI run never runs while a step of that space is running, so they do not change the same files at once.
+- G3. **Results.**
+  - Each CI run is a run of Agentaro (state, time, the end of its log).
+  - The space keeps the last result: OK, failed at build or failed at test, with the time.
+  - A failed run's log end (last 50 lines) is shown on the space's page.
+  - The epic summary (spec 045) mentions the result of (c).
+- G4. **The server.**
+  - `serve` runs as a process kept by Agentaro: start, stop and restart on the space's page, and by words (`server_action`).
+  - After a successful build the server is restarted.
+  - Every 10 seconds its `url` is checked. The state is starting, up, down (the process ended or the address does not answer for 30 s) or stopped.
+  - A server that ended by itself is started again at most 3 times in 10 minutes, then left down with its log.
+  - The last 200 lines of its log are kept and shown.
+  - After Agentaro restarts, servers that were running are started again.
+- G5. **Seen everywhere:**
+  - the space's card on the Spaces page and the space's page: the last CI result and the server's state with its link;
+  - the work panel: a small dot per space for the server and the last CI;
+  - the director: each space's CI and server state; the actions `run_ci` and `server_action` (start, stop, restart) on the owner's words (spec 047 agreement included).
+- G6. **The sandbox.**
+  - Build, test and serve run as macOS `sandbox-exec` with the rules of a step in a working folder (spec 018): writes only in the folder and temporary folders, no reads of Agentaro's storage or other spaces' folders, network and the Docker socket allowed.
+  - The time limit for build and test is 15 minutes each.
+
+**Out of scope**
+- A page listing all servers (the owner did not choose it).
+- CI for spaces without a working folder.
+- Remote CI services, deployments, secrets in the file.
+
+**Success criteria**
+- S1. With `agentaro.yml` holding only `build` and `serve`, the Build button builds, and the server starts and shows "up" with its link.
+- S2. A step that changes a file triggers one CI run after it; a step that changes nothing triggers none.
+- S3. A command in the file that writes outside the folder, or reads Agentaro's storage, is refused by the sandbox, and the CI run shows the error.
+- S4. A server that crashes is started again, at most 3 times in 10 minutes, and then shown down with its log.
+- S5. After an Agentaro restart, a server that was up is up again.
+- S6. "zrestartuj serwer Słodziaków" in the chat restarts it.
+
+## 4. Artefact Inventory
+
+| Area | Element | State |
+|---|---|---|
+| Data | `space_services` or columns on spaces: last CI result, server state, desired state | to create |
+| System | `agentaro.yml` reader (YAML safe load, four keys, length limits) | to create |
+| System | CI runner (purpose `ci`); sandbox-exec profile from spec 018's rules | to create |
+| System | server keeper: start, watch, restart, log tail, recovery after restart | to create |
+| System | triggers: after a step that changed files, epic end, button, chat | to create |
+| System | space card and page, work panel, director's list and actions | to change |
+
+## 5. Functional Domain Changes
+
+- **State:** builds and servers by hand in terminal tabs → described in the repository and kept by Agentaro.
+- **Rules:**
+  - R1. The file is data. Only its four keys are read; a value is one command line, at most 1000 characters. The command runs through `/bin/sh -c` inside the sandbox; nothing in it is trusted more than an agent's command.
+  - R2. "Changed files" means the folder's state differs after the step: `git status`, or a content hash of tracked files when it is not a git repository.
+  - R3. Only the owner's own spaces; the buttons and actions check it.
+  - R4. A server's port is the project's business. Two servers on one port: the second shows down with the port error from its log.
+  - R5. Stopping or archiving a space stops its server. Deleting the space stops it first (spec 025).
+- **Resilience:**
+  - A server that will not start never blocks steps or the chat.
+  - CI failures are results, not errors of Agentaro.
+- **Data:** a migration for the CI and server state. Back up production first.
+
+## 6. Critical Path
+
+1. The file reader and the sandbox profile, with tests (S3).
+2. The CI runner and the button (S1, build part).
+3. The server keeper with its watch, restarts and recovery (S1, S4, S5).
+4. The triggers (S2) and the epic summary line.
+5. The views, the work panel, the director (S6).
+6. A real run on Gra Słodziaki, B20, CHANGELOG, README.
+
+## 7. Control Gates
+
+| Gate | Pass condition | Verification | Blocks | Negative gate |
+|---|---|---|---|---|
+| Unit | file reading, the trigger rule, restart limits | model tests | commit | an unknown key or an overlong value runs nothing |
+| Integration | buttons, actions, views; sandbox refusals (S3) | request tests and a real sandbox-exec run | commit | another user's space cannot be built or served |
+| E2E | S1, S4, S5 on a small test project; then Gra Słodziaki | real runs on this computer | release | — |
+
+## 8. Expected Outcome
+
+- **Direct effect:** one place shows whether each project builds and whether its server is up, with no terminal tabs.
+- **Side effects:**
+  - more processes on the computer (one server per space that has one);
+  - CI after every step that changes files costs time.
+- **Rollback:** revert the code; servers are stopped on the way out.
+
+## 9. Additional Information
+
+- **Rejected alternatives:**
+  - commands typed on the space's form: the owner wants the project to describe itself;
+  - running without a sandbox: an agent could put anything in the file.
+- **External dependencies:** macOS `sandbox-exec` (deprecated by Apple but working, as used by Claude Code's own sandbox), Docker through Colima for projects that need it.
+- **Sources and questions:**
+  - Q1. Should a server also be started for a space while none of its epics runs, for example at Agentaro's start, if it was never started by hand? Proposed: no — only servers that were running are started again (G4). Accepted with the spec's closing (2026-11-23).

@@ -14,6 +14,7 @@ class SpacesController < ApplicationController
 
   def index
     @spaces = current_user.spaces.ordered
+    @layout = SpaceGroup.layout(current_user, @spaces.to_a) # spec 051
     @counts = current_user.work_items.select(:space_id, :state, :started_at).each_with_object(Hash.new(0)) { |i, h| h[[ i.space_id, i.board_state ]] += 1 }
   end
 
@@ -78,6 +79,13 @@ class SpacesController < ApplicationController
 
     WorkItem.transaction { ids.each_with_index { |id, i| items[id].update!(position: i + 1) if items[id].position != i + 1 } }
     head :no_content
+  end
+
+  # Spec 051, G3: a space dragged into a group (or out of every group: no group_id) at a 1-based place.
+  def place
+    group = params[:group_id].present? ? current_user.space_groups.find(params[:group_id]) : nil
+    @space.place!(group, params[:index].to_i.clamp(1, 1000))
+    render json: { ok: true, group_id: group&.id, position: @space.position }
   end
 
   private

@@ -558,3 +558,27 @@
   - Cause: Rails 8 draws routes on the first request. The scheduler starts at boot and its first review built a link before that. The race was there since spec 040.
   - The routes are now drawn before the scheduler starts. Test `scheduler_boot_test.rb`.
 
+## 2026-11-23
+
+- Spec 051 Groups of spaces, arranged with the mouse.
+  - The owner's words: "potrzebuję funkcji grupowanie projektów i zespołów, chcę to zrobić myszką drag and drop".
+  - The owner chose:
+    - groups arrange the spaces, and the director knows them;
+    - projects and teams may be mixed;
+    - dragging works for a space into a group, the order of spaces and the order of groups;
+    - on the computer only.
+  - Groups replace the fixed "Project spaces / Team spaces" sections; "Bez grupy" holds the rest. The work panel shows the groups.
+  - Chat actions `add_group`, `rename_group`, `delete_group`, `move_space`.
+  - Migration `20261123090000`.
+  - 10 new tests; 1 adapted.
+  - Checked in the browser with the page's drag events (the browser tool's mouse does not carry HTML dragging).
+  - B20: no findings; Brakeman 0 warnings.
+- Spec 052 CI and servers of a space written and closed by the owner.
+  - The owner chose:
+    - `agentaro.yml` in the repository;
+    - runs on a button, after a step that changed files, at an epic's end and on the owner's words;
+    - Agentaro keeps the server alive;
+    - the state is shown on the space's card, in the work panel and to the director;
+    - the commands run in the step sandbox.
+  - Q1: only servers that were running come back after a restart.
+

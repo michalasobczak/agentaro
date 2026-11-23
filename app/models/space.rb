@@ -7,6 +7,7 @@ class Space < ApplicationRecord
   DEFAULT_DESCRIPTION = "Everything that does not belong to another space."
 
   belongs_to :user
+  belongs_to :space_group, optional: true # spec 051
   has_many :work_items, dependent: :restrict_with_error # spec 013, R5: only empty spaces can be deleted
   has_many :recurring_orders, dependent: :destroy # spec 034, R4: deleted with the space
   after_update_commit :pause_recurring_orders, if: -> { saved_change_to_state? && state == "archived" } # spec 034, R4
@@ -18,6 +19,7 @@ class Space < ApplicationRecord
   normalizes :working_dir, with: ->(value) { value.to_s.strip.presence }
 
   before_validation { self.goal = nil if team? } # spec 014, R1: a team space has no goal
+  before_create { self.position = (user.spaces.where(space_group_id: space_group_id).maximum(:position) || 0) + 1 unless position.to_i.positive? } # spec 051: a new space goes last
 
   validates :name, presence: true, length: { maximum: 60 }, uniqueness: { scope: :user_id, case_sensitive: false }
   validates :kind, inclusion: { in: KINDS }
@@ -28,9 +30,24 @@ class Space < ApplicationRecord
   validates :description, length: { maximum: 5000 }
   validates :state, inclusion: { in: STATES }
   validate :working_dir_usable
+  validate :group_of_owner # spec 051, R1
 
   scope :active, -> { where(state: "active") }
   scope :ordered, -> { order(Arel.sql("CASE state WHEN 'active' THEN 0 ELSE 1 END"), Arel.sql("LOWER(name)")) }
+
+  # Spec 051, G3, R2: into a group (nil: out of every group) at a 1-based place; both groups are renumbered densely.
+  def place!(group, index)
+    Space.transaction do
+      group&.lock!
+      reload # the saved place, not a stale copy (a stale position would not be written)
+      old_group_id = space_group_id
+      siblings = user.spaces.where(space_group_id: group&.id).where.not(id: id).order(:position, :id).to_a
+      siblings.insert((index.to_i - 1).clamp(0, siblings.size), self)
+      self.space_group = group
+      siblings.each_with_index { |space, i| space.position = i + 1; space.save! if space.changed? }
+      user.spaces.where(space_group_id: old_group_id).order(:position, :id).each_with_index { |s, i| s.update!(position: i + 1) unless s.position == i + 1 } if old_group_id != group&.id
+    end
+  end
 
   # Spec 018: folders agents of a space with a working folder may never read — Agentaro's storage, the runs of
   # other steps — and the working folders of all other spaces (of every user), except folders that contain this one.
@@ -109,6 +126,11 @@ class Space < ApplicationRecord
   end
 
   private
+
+  def group_of_owner
+    errors.add(:space_group, "is not one of your groups") if space_group && space_group.user_id != user_id
+  end
+
 
   # R5: only <runs dir>/<run id>, a number, inside Agentaro's runs folder.
   def remove_run_folders(run_ids)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -259,6 +259,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_180000) do
     t.index ["username"], name: "index_sign_in_throttles_on_username", unique: true
   end
 
+  create_table "space_groups", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "name", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_space_groups_on_user_id"
+  end
+
   create_table "spaces", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -271,6 +280,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_180000) do
     t.string "working_dir"
     t.integer "autonomy_level"
     t.integer "work_tempo"
+    t.integer "space_group_id"
+    t.integer "position", default: 0, null: false
+    t.index ["space_group_id"], name: "index_spaces_on_space_group_id"
     t.index ["user_id", "name"], name: "index_spaces_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_spaces_on_user_id"
   end
@@ -494,6 +506,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_180000) do
   add_foreign_key "recurring_orders", "spaces"
   add_foreign_key "recurring_orders", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "space_groups", "users"
+  add_foreign_key "spaces", "space_groups", on_delete: :nullify
   add_foreign_key "spaces", "users"
   add_foreign_key "step_decisions", "epic_steps"
   add_foreign_key "step_decisions", "task_runs"

@@ -982,3 +982,16 @@ body:has(.chat-dock.is-voice) .content > .chat-app, body:has(.chat-dock.is-voice
 .recurring-epics { margin: 0.4rem 0 0; padding-left: 1.1rem; }
 .recurring-order .actions { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .recurring-order .actions form { margin: 0; }
+
+/* Spec 051: groups of spaces, arranged with the mouse */
+.space-section { margin-bottom: 1.5rem; }
+.space-section-head { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.space-section-name[draggable="true"] { cursor: grab; }
+.space-section.is-dragging, .space-card.is-dragging { opacity: 0.5; }
+.space-card[draggable="true"] { cursor: grab; }
+.space-grid[data-space-drop] { min-height: 4rem; }
+.space-drop-hint { padding: 1rem; border: 1px dashed var(--border); border-radius: var(--radius-sm); text-align: center; }
+.space-group-tools summary, .new-group summary { list-style: none; cursor: pointer; }
+.space-group-tools[open], .new-group[open] { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.new-group { position: relative; }
+.work-group { margin: 0.9rem 0 0.3rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.72rem; } /* spec 051 */

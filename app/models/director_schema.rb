@@ -6,7 +6,7 @@ module DirectorSchema
   ACTION_TYPES = %w[add_item update_item add_space update_space cancel_item remember forget approve_facts reject_facts
                     reprioritize add_recurring update_recurring pause_recurring resume_recurring cancel_recurring
                     answer_decision approve_plan set_autonomy stop_process set_reply_length set_style set_conversation
-                    set_tempo reassign_step retry_step pause_epic resume_epic].freeze
+                    set_tempo reassign_step retry_step pause_epic resume_epic add_group rename_group delete_group move_space].freeze
   TEXT = { type: [ "string", "null" ] }.freeze
   NUMBER = { type: [ "integer", "null" ] }.freeze
   ACTION = { type: "object", properties: {
@@ -16,7 +16,7 @@ module DirectorSchema
     level: NUMBER, step: NUMBER, agent: NUMBER, attempt: NUMBER, run: NUMBER, pid: NUMBER, answer: TEXT,
     schedule: { type: [ "object", "null" ], properties: { kind: TEXT, time: TEXT, weekdays: { type: "array", items: { type: "integer" } },
                                                           day: NUMBER, every_hours: NUMBER } },
-    starts_on: TEXT, ends_on: TEXT, report: TEXT
+    starts_on: TEXT, ends_on: TEXT, report: TEXT, group: { type: [ "integer", "string", "null" ] }
   }, required: [ "type" ] }.freeze
 
   CHAT = { type: "object", properties: { reply: { type: "string" }, actions: { type: "array", items: ACTION } },

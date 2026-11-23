@@ -14,7 +14,11 @@
   const label = (state) => state.replace(/_/g, " ");
 
   function draw(holder, data) {
-    const nodes = data.spaces.length ? data.spaces.map((space) => {
+    const groups = data.groups || [ { name: null, spaces: data.spaces } ];
+    const many = groups.length > 1;
+    const nodes = data.spaces.length ? groups.flatMap((group) => [
+      ...(group.name || many ? [ el("h3", "work-group small", group.name || "Bez grupy") ] : []), // spec 051
+      ...group.spaces.map((space) => {
       const section = el("section", "work-space");
       section.append(link(space.name, space.url, "work-space-name"));
       if (!space.epics.length) { section.append(el("p", "work-none small muted", "Nothing planned or in progress.")); return section; }
@@ -51,7 +55,7 @@
       });
       section.append(list);
       return section;
-    }) : [ el("p", "muted small", "No active spaces.") ];
+    }) ]) : [ el("p", "muted small", "No active spaces.") ];
     holder.replaceChildren(...nodes);
   }
 

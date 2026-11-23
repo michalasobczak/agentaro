@@ -9,10 +9,12 @@ class WorkPanel
   def initialize(user) = @user = user
 
   def to_h
-    spaces = @user.spaces.active.order(Arel.sql("LOWER(name)")).to_a
+    groups = SpaceGroup.layout(@user, @user.spaces.active.to_a).reject { |_, spaces| spaces.empty? } # spec 051: the owner's groups and order
+    spaces = groups.flat_map(&:last)
     items = @user.work_items.where(space_id: spaces.map(&:id), state: %w[new planned blocked])
                  .includes(:epic_steps, epic_steps: :agent).to_a.group_by(&:space_id)
-    { spaces: spaces.map { |space| space_h(space, items[space.id] || []) } }
+    { groups: groups.map { |group, list| { name: group&.name, spaces: list.map { |space| space_h(space, items[space.id] || []) } } },
+      spaces: spaces.map { |space| space_h(space, items[space.id] || []) } }
   end
 
   private

@@ -29,6 +29,7 @@ class User < ApplicationRecord
 
   def director_role = team_roles.directors.includes(agent: :executor).first
   def verifier_role = team_roles.verifiers.includes(agent: :executor).first # spec 019
+  has_many :space_groups, dependent: :destroy # spec 051
   def deputy_role = team_roles.deputies.includes(agent: :executor).first # spec 043
 
   # Owner fix after spec 017: the language of the chat with the director.

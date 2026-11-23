@@ -66,7 +66,11 @@ Rails.application.routes.draw do
       patch :archive
       patch :activate
       patch :order
+      patch :place # spec 051: into a group, at a place
     end
+  end
+  resources :space_groups, only: %i[create update destroy] do # spec 051
+    patch :order, on: :collection
   end
   # Spec 031: the brain
   resource :brain, only: :show do
