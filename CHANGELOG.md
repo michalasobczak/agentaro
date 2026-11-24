@@ -633,3 +633,4 @@
   - Agentaro remembers every server process it started for a space (`spaces.server_processes`, migration `20261124090000`) and stops all of them that still match their pid and start time (R7).
   - Two tests in `ci_runner_test.rb`, both failing before the fix. 649 tests pass.
   - B20 after specs 001–053 and this change: no new findings; Brakeman 0 warnings; bundle-audit clean.
+- README shortened (owner: "skróć README, tam za dużo informacji jest, speci to tylko tabela powinna być"): from 267 to about 120 lines. The per-spec feature descriptions and the dated history are gone (they live in the specs and in this CHANGELOG); a short domain picture, getting started, architecture, state and the spec table with one-line statuses remain.
