@@ -914,7 +914,7 @@ class ManagementRunner
           refused << "the other changes: a retry goes alone; say them again in your next message"
           actions = [ actions.find { |a| a.is_a?(Hash) && a["type"] == "retry_step" } ]
         end
-        if actions.any? && user_request&.id != current_user_request&.id
+        if actions.any? && request_changed?
           refused << "all changes: your request changed while this reply was being prepared"
           actions = []
         end
@@ -925,7 +925,7 @@ class ManagementRunner
           nil
         end.map(&:call)
       else
-        if actions.any? && user_request&.id != current_user_request&.id
+        if actions.any? && request_changed?
           raise Invalid, "the user's request changed while this reply was being prepared"
         end
         if retry_proposed?(actions)
@@ -1276,6 +1276,14 @@ class ManagementRunner
     return @user_request if defined?(@user_request)
 
     @user_request = current_user_request
+  end
+
+  # The owner wrote again after the message this run answers. Only the owner's messages count: a director message
+  # from another run (a plan, an epic summary) posted meanwhile is not a new request (fix 2026-11-24).
+  def request_changed?
+    return current_user_request.present? unless user_request
+
+    @user.chat_messages.current.where(author: "user").where("id > ?", user_request.id).exists?
   end
 
   def current_user_request

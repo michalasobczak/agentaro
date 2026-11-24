@@ -118,6 +118,25 @@ class ManagementRunnerTest < ActiveSupport::TestCase
     assert_equal 0, @user.chat_messages.where("content LIKE ?", "No answer from the director%").count
   end
 
+  # Fix 2026-11-24: "Zlecam usunięcie…" ended with "Not done: all changes: your request changed while this reply was
+  # being prepared", though the owner wrote nothing new — another run (a plan, an epic summary) had posted a director
+  # message meanwhile. Five such replies in production, all of this kind.
+  test "a director message from another run while a reply is prepared does not count as a changed request" do
+    request = @user.chat_messages.create!(author: "user", content: "usuń sekcję use cases")
+    runner = ManagementRunner.new(TaskRun.create!(user: @user, agent: @director, purpose: "chat", trigger: "manual", occurrence_start: Time.current))
+    assert_equal request, runner.send(:user_request)
+    @user.chat_messages.create!(author: "director", content: "Plan w 1 kroku: …") # a planning run of another epic posts
+    answer = { "reply" => "Zlecam.", "actions" => [ { "type" => "add_item", "title" => "Usunięcie use cases" } ] }
+    runner.send(:apply_chat!, answer.deep_dup)
+    runner.send(:apply_chat!, answer.deep_dup, lenient: true, proposal: true)
+    assert_equal [ "Usunięcie use cases" ] * 2, @user.work_items.pluck(:title)
+
+    @user.chat_messages.create!(author: "user", content: "jednak nie") # a real new request still stops the changes
+    assert_raises(ManagementRunner::Invalid) { runner.send(:apply_chat!, answer.deep_dup) }
+    runner.send(:apply_chat!, answer.deep_dup, lenient: true, proposal: true)
+    assert_equal 2, @user.work_items.count
+  end
+
   test "spec 016, G2: new epics are planned at once, whatever their start time" do
     later = @user.work_items.create!(title: "Later", starts_at: 2.days.from_now)
     now = @user.work_items.create!(title: "Now")

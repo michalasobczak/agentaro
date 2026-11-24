@@ -634,3 +634,5 @@
   - Two tests in `ci_runner_test.rb`, both failing before the fix. 649 tests pass.
   - B20 after specs 001–053 and this change: no new findings; Brakeman 0 warnings; bundle-audit clean.
 - README shortened (owner: "skróć README, tam za dużo informacji jest, speci to tylko tabela powinna być"): from 267 to about 120 lines. The per-spec feature descriptions and the dated history are gone (they live in the specs and in this CHANGELOG); a short domain picture, getting started, architecture, state and the spec table with one-line statuses remain.
+- Fix: the director answered "Zlecam usunięcie… sekcji use cases" but nothing was ordered ("Not done: all changes: your request changed while this reply was being prepared"), though the owner had written nothing new. A director message posted meanwhile by another run (the plan of another epic, an epic summary) was taken as a new request. Five such replies in production (2026-11-23 and 24), all of this kind. Now only a newer message from the owner stops the changes. Test in `management_runner_test.rb` (failed before the fix); noted in spec 050 among the causes. 650 tests pass.
+

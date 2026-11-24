@@ -21,6 +21,7 @@ When the director's reply says it does something ("zatrzymuję", "anulowałem", 
   - "Usunięte, nie zapamiętam tego".
   - The owner then waits for something that never happens.
   - The causes found so far (fixed on 2026-11-22): the proposal pass did not see processes or steps; the owner's "tak" or "zajmij się tym" did not count as a request. More causes will come, so the gap needs a check, not only fixes.
+  - Fixed on 2026-11-24: a director message from another run (a plan or an epic summary) posted while a reply was prepared counted as a changed request, so every change was refused ("Not done: all changes: your request changed…"). Five production replies, all of this kind; now only a newer message of the owner counts.
 - **Decision history:** the owner chose (2026-11-22):
   - the verifier checks; with no verifier, the director's own model;
   - only replies that announce an action, or where actions were refused;
