@@ -13,7 +13,7 @@ class CodexStream
 
   def initialize(on_event: nil)
     @on_event = on_event
-    @buffer = +""
+    @buffer = String.new(encoding: Encoding::BINARY)
     @events = []
     @usage = {}
     @started = {}
@@ -27,13 +27,16 @@ class CodexStream
     args.dup.insert(i + 1, "--json")
   end
 
+  # Fix 2026-11-24: lines are cut from the bytes ("\n" never falls inside a character) and decoded whole, so a chunk
+  # that ends inside a letter waits for its other half instead of raising "invalid byte sequence".
   def feed(chunk)
-    @buffer << chunk.dup.force_encoding(Encoding::UTF_8)
-    while (line = @buffer.slice!(/\A[^\n]*\n/))
+    @buffer << chunk.b
+    while (newline = @buffer.index("\n"))
+      line = @buffer.slice!(0..newline).force_encoding(Encoding::UTF_8).scrub("")
       event = parse(line) or next
       read(event)
     end
-    @buffer = +"" if @buffer.bytesize > MAX_LINE
+    @buffer = String.new(encoding: Encoding::BINARY) if @buffer.bytesize > MAX_LINE
   end
 
   # Used only when Codex wrote no last-message file: its last message from the stream.

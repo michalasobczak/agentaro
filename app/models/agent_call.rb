@@ -163,11 +163,11 @@ class AgentCall
 
   # Spec 038, G7: the text a command-line tool prints, as it prints it (terminal codes removed).
   def live_stdout
-    text = +""
+    text = String.new(encoding: Encoding::BINARY) # bytes; a letter cut between chunks is shown once whole (fix 2026-11-24)
     lambda do |chunk|
-      text << chunk.dup.force_encoding(Encoding::UTF_8)
-      text = text.byteslice(-LiveLog::MAX_TEXT * 2, LiveLog::MAX_TEXT * 2).scrub("") if text.bytesize > LiveLog::MAX_TEXT * 2
-      @live.text(text.gsub(/\e\[[0-9;?]*[A-Za-z]/, ""))
+      text << chunk.b
+      text = text.byteslice(-LiveLog::MAX_TEXT * 2, LiveLog::MAX_TEXT * 2) if text.bytesize > LiveLog::MAX_TEXT * 2
+      @live.text(text.dup.force_encoding(Encoding::UTF_8).scrub("").gsub(/\e\[[0-9;?]*[A-Za-z]/, ""))
     end
   end
 
