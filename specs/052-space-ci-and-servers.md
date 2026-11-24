@@ -167,3 +167,18 @@ A space with a working folder can describe in its repository how to build it, te
   - `Ci::Git` reads `git status --porcelain=v2 --branch` and the remote's address in the space's sandbox, with fsmonitor and hooks off (B20), cached for 30 seconds.
   - Test `space_git_test.rb` (3) on real repositories, including a planted fsmonitor and a token in the remote.
 
+- **Owner change (2026-11-24), G4 — a server Agentaro lost:**
+  - What happened: a step's final check stalled for 45 minutes. Its port was held by a server of the space that Agentaro had started itself the evening before but no longer tracked; every later start failed with "address in use" and was counted as a server that ended by itself (208 starts in the log).
+  - Cause: two starts of one space in the same second. The restart after a good build and the 10-second check each read the space, each saw no live server and each spawned one; the record kept only the second pid, so the first was never stopped.
+  - The owner's words: "Yes, fix it".
+  - Rules:
+    - R6. Starting, stopping and checking one space's server happen one at a time, on the space as it is saved now, not as a caller read it earlier.
+    - R7. Agentaro remembers every server process it started for a space (its pid and start time) until it has seen that process end. Stopping or starting stops all of them, each only while its pid and start time still match (pids are reused). A server lost in any other way can no longer hold the port after the next start.
+  - Data: a migration adds `spaces.server_processes` (the list of R7). Back up production first.
+  - Rejected: a lock file in the space's log folder (the server's own sandbox may read that folder and could hold the lock); finding strays by folder or command (it could stop an agent's own test server in the same folder).
+  - Gates: a test reproduces the double start with a stale copy of the space (fails before the fix: the first server outlives a stop); a test shows that a server process missing from the record is still stopped by the next start.
+  - Implementation (2026-11-24):
+    - `Ci::Server.locked` serializes `start!`, `stop!`, `check!` and `recover!` per space (a re-entrant `Monitor`) and reloads the space inside the lock.
+    - `start!` appends each spawned process to `server_processes`; `stop_process` stops every listed process still matching its pid and start time (with its group), then clears the list.
+    - Tests in `ci_runner_test.rb` (2); both failed before the fix (the second server replaced the first; the lost one survived the next start). 649 tests pass.
+  - Security analysis (B20, after specs 001–053 and this change): the list lives in the database, which no sandbox can read or write, so a server cannot add a pid for Agentaro to stop; only processes whose pid and start time both match are signalled; no lock is shared with a sandboxed process. Brakeman 0 warnings; bundle-audit clean. No new findings.

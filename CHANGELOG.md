@@ -625,3 +625,11 @@
   - Real runs on this computer: commit in a new repository, own server 200, web 200, storage denied; Codex verifier web 200.
 - B20 after specs 001–053: a server a step started in the background (`&`, its shell gone before the next poll) outlived the step. The step's orphans working in its folder are now stopped at its end. Test `detached_process_test.rb` (fails without the fix). 647 tests pass; Brakeman 0 warnings; bundle-audit clean.
 - README: a one-minute demo GIF at the top (`docs/agentaro-demo.gif`, 63 s, 5.4 MB) and a request to star the repository. Recorded on throwaway demo data with invented names (no real projects), deleted afterwards. It shows the title and claims, five sections (spaces and groups, epics, the director chat with the work panel, calendar and team, the sandbox and dark mode) and a comparison with Hermes Agent and Paperclip. Every cell of the comparison comes from those projects' official READMEs and docs (November 2026), and a line says where they lead.
+
+## 2026-11-24
+
+- Fix, owner change to spec 052 ("Yes, fix it"): a step's final check stalled for 45 minutes because the port of a space's server was held by a server Agentaro had started the evening before and then lost. A restart after a good build and the 10-second check started the server in the same second; the record kept only the second, so the first was never stopped and every later start failed with "address in use".
+  - Start, stop and check of one space's server now run one at a time, on the space as saved (R6).
+  - Agentaro remembers every server process it started for a space (`spaces.server_processes`, migration `20261124090000`) and stops all of them that still match their pid and start time (R7).
+  - Two tests in `ci_runner_test.rb`, both failing before the fix. 649 tests pass.
+  - B20 after specs 001–053 and this change: no new findings; Brakeman 0 warnings; bundle-audit clean.

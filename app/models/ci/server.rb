@@ -3,6 +3,8 @@ require "net/http"
 # Spec 052, G4: the server of a space, kept by Agentaro. It runs `serve` from agentaro.yml in the sandbox, detached in
 # its own process group, its output in a log file. Every 10 seconds its process and its `url` are checked; a server
 # that ended by itself is started again at most 3 times in 10 minutes. A wanted server comes back after a restart.
+# Owner change 2026-11-24: start, stop and check of one space run one at a time on the saved record (R6), and every
+# process started is remembered until it is seen gone, so a lost one is still stopped (R7).
 module Ci
   module Server
     CHECK_EVERY = 10 # seconds
@@ -15,9 +17,27 @@ module Ci
 
     module_function
 
+    LOCKS = Hash.new { |hash, id| hash[id] = Monitor.new }
+    LOCKS_GUARD = Mutex.new
+
+    # R6: one space's server is started, stopped and checked by one thread at a time (re-entrant: a check may start),
+    # always on the record as saved now. Puma runs one process, so an in-process lock is enough; a lock file would sit
+    # where the server's own sandbox can read it and hold it.
+    def locked(space)
+      lock = LOCKS_GUARD.synchronize { LOCKS[space.id] }
+      lock.synchronize do
+        space.reload if space.persisted?
+        yield
+      end
+    end
+
     def log_path(space) = Pathname(Sandbox.logs_dir).join(space.id.to_s, "server.log") # readable by its own sandbox only
 
     def start!(space, wanted: true)
+      locked(space) { start_locked(space, wanted) }
+    end
+
+    def start_locked(space, wanted)
       config = Ci.config_for(space)
       raise Config::Invalid, "#{Config::FILE} has no serve command" unless config&.serve
       raise Config::Invalid, "sandbox-exec is not on this computer" unless Sandbox.available?
@@ -34,6 +54,7 @@ module Ci
       log.close
       Process.detach(pid)
       started = ProcessTracker.snapshot.find { |p| p.pid == pid }&.started
+      space.update!(server_processes: (processes(space) + [ { "pid" => pid, "started" => started } ]).to_json) # R7
       space.update!(server_wanted: wanted, server_state: "starting", server_pid: pid, server_process_started: started,
                     server_started_at: Time.current, server_checked_at: Time.current, server_note: nil)
       pid
@@ -43,8 +64,10 @@ module Ci
     end
 
     def stop!(space)
-      stop_process(space)
-      space.update!(server_wanted: false, server_state: "stopped", server_pid: nil, server_process_started: nil, server_note: nil)
+      locked(space) do
+        stop_process(space)
+        space.update!(server_wanted: false, server_state: "stopped", server_pid: nil, server_process_started: nil, server_note: nil)
+      end
     end
 
     def restart!(space)
@@ -59,20 +82,42 @@ module Ci
       info.present? && (space.server_process_started.blank? || info.started == space.server_process_started)
     end
 
-    def stop_process(space)
-      return unless alive?(space)
+    # R7: the server processes Agentaro started for the space and has not seen end, [{ "pid", "started" }].
+    def processes(space)
+      list = JSON.parse(space.server_processes.presence || "[]")
+      list.is_a?(Array) ? list.select { |e| e.is_a?(Hash) && e["pid"].is_a?(Integer) && e["pid"] > 1 } : []
+    rescue JSON::ParserError
+      []
+    end
 
-      pid = space.server_pid
-      Process.kill("TERM", -pid)
+    # Stops every server process of the space still running as Agentaro started it (pid and start time match), with
+    # its process group; then forgets them. The current one is included even when an old record has no list yet.
+    def stop_process(space)
+      targets = processes(space)
+      targets << { "pid" => space.server_pid, "started" => space.server_process_started } if space.server_pid && targets.none? { |e| e["pid"] == space.server_pid }
+      running = ->(entry) { ProcessTracker.snapshot.any? { |p| p.pid == entry["pid"] && (entry["started"].blank? || p.started == entry["started"]) } }
+      live = targets.select(&running)
+      signal_groups("TERM", live)
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 3
-      sleep 0.1 while alive?(space) && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
-      Process.kill("KILL", -pid) if alive?(space)
-    rescue Errno::ESRCH, Errno::EPERM
-      nil
+      sleep 0.1 while (live = live.select(&running)).any? && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+      signal_groups("KILL", live)
+      space.update!(server_processes: nil) if space.persisted? && !space.destroyed? && space.server_processes.present?
+    end
+
+    def signal_groups(signal, entries)
+      entries.each do |entry|
+        Process.kill(signal, -entry["pid"])
+      rescue Errno::ESRCH, Errno::EPERM
+        nil
+      end
     end
 
     # G4: one look at a wanted server.
     def check!(space, now: Time.current)
+      locked(space) { check_locked(space, now) }
+    end
+
+    def check_locked(space, now)
       return unless space.server_wanted
 
       if alive?(space)
@@ -92,7 +137,7 @@ module Ci
                              server_note: "It ended by itself #{RESTARTS} times in #{RESTART_WINDOW.in_minutes.to_i} minutes; see its log.")
       end
       space.update!(server_restarts: (restarts + [ now ]).map(&:iso8601).to_json)
-      start!(space)
+      start_locked(space, true)
       space.update!(server_note: "It had ended by itself; started again.") if space.server_state == "starting"
     end
 
@@ -111,7 +156,7 @@ module Ci
 
     # G4, Q1: after Agentaro starts, wanted servers that are not running are started (not counted as restarts).
     def recover!
-      Space.where(server_wanted: true, state: "active").find_each { |space| start!(space) unless alive?(space) }
+      Space.where(server_wanted: true, state: "active").find_each { |space| locked(space) { start_locked(space, true) unless alive?(space) } }
     end
 
     def watch!

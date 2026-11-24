@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_090000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -294,6 +294,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_150000) do
     t.datetime "server_checked_at"
     t.string "server_note"
     t.text "server_restarts"
+    t.text "server_processes"
     t.index ["space_group_id"], name: "index_spaces_on_space_group_id"
     t.index ["user_id", "name"], name: "index_spaces_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_spaces_on_user_id"

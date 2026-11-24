@@ -95,4 +95,33 @@ class CiRunnerTest < ActiveSupport::TestCase
     assert_equal [ "stopped", false ], [ @space.reload.server_state, @space.server_wanted ]
     assert_not Ci::Server.alive?(@space)
   end
+  def server_alive?(pid) = Process.kill(0, pid).positive? rescue false
+
+  test "owner change 2026-11-24, R6: a check on a stale copy of the space does not start a second server that is then lost" do
+    port = free_port
+    config("serve: python3 -m http.server #{port} --bind 127.0.0.1\nurl: http://127.0.0.1:#{port}/\n")
+    @space.update!(server_wanted: true, server_state: "down")
+    stale = Space.find(@space.id) # read before the start, like the 10-second check that runs beside a restart
+    first = Ci::Server.start!(@space)
+    Ci::Server.check!(stale)
+    assert_equal first, @space.reload.server_pid, "the running server is kept, not replaced"
+    Ci::Server.stop!(@space)
+    sleep 0.3
+    assert_not server_alive?(first), "no server of the space outlives a stop"
+  end
+
+  test "owner change 2026-11-24, R7: a server process missing from the record is still stopped by the next start" do
+    port = free_port
+    config("serve: python3 -m http.server #{port} --bind 127.0.0.1\nurl: http://127.0.0.1:#{port}/\n")
+    lost = Ci::Server.start!(@space)
+    @space.reload.update!(server_pid: nil, server_process_started: nil) # the record forgot it, as in the double start
+    second = Ci::Server.start!(@space)
+    sleep 0.3
+    assert_not server_alive?(lost), "the lost server was stopped before the new one"
+    assert server_alive?(second)
+    Ci::Server.stop!(@space)
+    sleep 0.3
+    assert_not server_alive?(second)
+    assert_equal [], JSON.parse(@space.reload.server_processes.presence || "[]")
+  end
 end
