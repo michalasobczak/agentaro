@@ -30,8 +30,26 @@ class ExecutorCheck
 
   # Finds a preset's program on PATH or in the usual install folders. Only plain names from PRESETS.
   def self.locate(program, path: ENV["PATH"])
+    return opencode(path: path) if program == "opencode" # spec 055, G2
+
+    find_on(program, path)
+  end
+
+  def self.find_on(program, path)
     dirs = path.to_s.split(File::PATH_SEPARATOR) + SEARCH_DIRS.map { |dir| File.expand_path(dir) }
-    dirs.uniq.lazy.map { |dir| File.join(dir, program) }.find { |file| File.file?(file) && File.executable?(file) }
+    dirs.uniq.lazy.map { |dir| File.join(dir, program) }.find { |file| executable?(file) }
+  end
+
+  def self.executable?(file) = File.file?(file) && File.executable?(file)
+
+  # Spec 055, G2: AGENTARO_OPENCODE_BIN, then `opencode` on the path, then the newest CLI of opencode's desktop app.
+  OPENCODE_APP_CLI = "~/Library/Application Support/ai.opencode.desktop/cli/*/opencode-cli"
+
+  def self.opencode(path: ENV["PATH"], env: ENV["AGENTARO_OPENCODE_BIN"], app: OPENCODE_APP_CLI)
+    return (executable?(env) ? env : nil) if env.present?
+
+    find_on("opencode", path) || Dir.glob(File.expand_path(app)).select { |file| executable?(file) }
+                                     .max_by { |file| Gem::Version.new(File.basename(File.dirname(file))[/\A\d+(\.\d+)*/] || "0") }
   end
 
   # Removes escape codes and control characters (keeps line breaks and tabs); no length limit.

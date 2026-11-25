@@ -654,3 +654,11 @@
   - Real runs on this computer (demo data, deleted afterwards): the missing epic was added after "Zlecam…", and nothing was made for an unasked "zapamiętam".
   - B20 after specs 001–054 and 050: no new findings (see the spec). Brakeman 0 warnings.
 - Fix (owner's screenshot): in the work panel, a long step state such as "retrying at 13:30 (attempt 2 of 5) — passing error" took the whole row and squeezed the step's title to one letter per line, over the note. A step row now wraps, so a long state goes to its own line. Test in `work_panel_test.rb` (fails without the fix); checked in the browser.
+- Spec 055 opencode as an executor (owner: "potrzebuję dodać opencode CLI do agentaro … chcę użyć free modeli deepseek v4 flash"; closed with "Zamknij i buduj", Q1–Q3 as proposed).
+  - A new preset "opencode". Its default model is `opencode/deepseek-v4.1-flash-free`, and every role may use it: steps, the verifier, the director and the deputy.
+  - Agentaro finds the CLI through `AGENTARO_OPENCODE_BIN`, then on the path, then in opencode's desktop app. Models come from `opencode models`.
+  - Runs use `opencode run --standalone --archived --auto --format json` with the prompt on standard input. The new `OpencodeStream` gives the answer, the live view's tool calls and the trace's tokens.
+  - opencode runs without a sandbox (the owner's choice). The Executors page, the form and the director's list of members say so.
+  - Tests: `opencode_executor_test.rb` (8) and one in `executors_test.rb`; the list of preset programs in `executor_test.rb` now includes opencode. 685 tests pass.
+  - Real runs on this computer (demo data, deleted afterwards) with the free DeepSeek: "Check" found opencode v2.4.1 in the desktop app and "Refresh models" listed 12 models. A step fixed a file in a space's folder and tested it, and the director added an epic from the chat.
+  - B20 after specs 001–055: no new findings to fix; the accepted risk is written in the spec (R1). Brakeman 0 warnings; bundle-audit clean.

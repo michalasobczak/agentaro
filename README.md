@@ -14,7 +14,7 @@ For **personal, family or small-business use**, in a secured local network — n
 
 ## Domain picture
 
-- **Agents** do the work. Each runs on an **executor**: a command-line tool you are logged in to (Claude Code, Codex, Gemini CLI, …) or a local model (Ollama, LM Studio). No keys are stored.
+- **Agents** do the work. Each runs on an **executor**: a command-line tool you are logged in to (Claude Code, Codex, opencode, Gemini CLI, …) or a local model (Ollama, LM Studio). No keys are stored.
 - **Spaces** (projects and teams) hold **epics**; an epic is planned into **steps**, each done by an agent, optionally in the space's working folder, with CI and a dev server kept by Agentaro.
 - The **director** (you talk to it by text or local voice) keeps the work list, plans, retries and reports; a **verifier** on another executor checks its answers.
 - A **calendar** with one-time and recurring work, a **brain** of remembered facts, run traces, an HTTP audit log and a data changelog — all on this computer.
@@ -106,6 +106,7 @@ All specs marked implemented below work in the code; the history is in [`CHANGEL
 | 052 | [CI and servers of a space](specs/052-space-ci-and-servers.md) | implemented |
 | 053 | [A relaxed sandbox: web, local ports and Git](specs/053-relaxed-sandbox.md) | implemented |
 | 054 | [A space without a sandbox](specs/054-space-without-sandbox.md) | implemented |
+| 055 | [opencode as an executor](specs/055-opencode-executor.md) | implemented |
 | 100 | [Ratings and sentiment](specs/100-ratings-and-sentiment.md) | closed |
 | 101 | [Reflection and playbooks](specs/101-reflection-and-playbooks.md) | draft (Q1–Q3 open) |
 | 102 | [Model of the owner and when agents ask](specs/102-owner-model-and-questions.md) | draft (Q1–Q4 open) |

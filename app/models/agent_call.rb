@@ -113,6 +113,7 @@ class AgentCall
     stream = @stream = case preset.key
                        when "claude_code" then ClaudeStream.new(@on_text, on_event: on_event)
                        when "codex", "codex_local" then CodexStream.new(on_event: on_event) # spec 049: the same stream
+                       when "opencode" then OpencodeStream.new(on_text: @on_text, on_event: on_event) # spec 055, G4
                        end
     args = stream.arguments(args) if stream
     on_stdout = stream ? stream.method(:feed) : (live_stdout if @live) # spec 038, G7: Ollama and LM Studio print their text
@@ -126,12 +127,15 @@ class AgentCall
     answer = answer_file && File.exist?(answer_file) ? File.read(answer_file) : (stream ? stream.answer(result.stdout) : result.stdout)
     if result.timed_out
       Outcome.new("timed_out", ExecutorCheck.clean_text(answer), "Stopped after #{@timeout.to_i / 60} minutes.", nil)
+    elsif result.success? && preset.key == "opencode" && ExecutorCheck.clean_text(answer).empty? # spec 055: an empty answer is a failure
+      Outcome.new("failed", nil, [ *@stream.errors, "opencode gave no answer." ].join("\n"), 0)
     elsif result.success?
       Outcome.new("succeeded", ExecutorCheck.clean_text(answer), nil, 0) # standard error holds progress logs only
     else
       log = ExecutorCheck.clean_text(result.stderr)
       log = log.lines.reject { |l| l.include?("codex_models_manager") }.join.strip if preset.key == "codex_local" # spec 049, G3: not the step's error
       log = log.presence
+      log = [ *@stream.errors, log ].compact.join("\n").presence if preset.key == "opencode" # spec 055: its error event says why
       error = limit_error(preset, executor, answer, log) || [ log, "#{preset.program} ended: #{result.ending}." ].compact.join("\n\n")
       Outcome.new("failed", ExecutorCheck.clean_text(answer).presence, error, result.exit_status)
     end
@@ -287,6 +291,8 @@ class AgentCall
       args += [ "-m", model ] if model
       args += [ "-c", "model_reasoning_effort=#{@effort}" ] if @effort # spec 022, G5
       [ args + [ "-" ], prompt.text, answer ]
+    when "opencode" # spec 055, G4, R2: one archived session on a private server; every tool approved; no sandbox (G5)
+      model ? [ [ "run", "--standalone", "--archived", "--auto", "--format", "json", "-m", model ], prompt.text, nil ] : nil
     when "ollama_cli"
       model ? [ [ "run", model ], prompt.text, nil ] : nil
     when "lm_studio_cli"

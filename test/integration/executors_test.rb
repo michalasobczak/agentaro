@@ -119,4 +119,20 @@ class ExecutorsTest < ActionDispatch::IntegrationTest
       assert_select "script:not([src])", 0, path
     end
   end
+
+  # Spec 055, G1, G5: opencode is offered; once added, the Executors page says plainly that it has no sandbox.
+  test "spec 055: an admin adds opencode; the page warns that it runs without a sandbox" do
+    sign_in(@admin)
+    get executors_path
+    assert_select ".opencode-note", 0
+    get new_admin_executor_path
+    assert_select "option[value=opencode]", text: "opencode"
+    assert_select ".hint", text: /opencode runs without a sandbox/
+    post admin_executors_path, params: { executor: { name: "Darmowy DeepSeek", preset: "opencode", enabled: "1" } }
+    assert_equal "opencode/deepseek-v4.1-flash-free", Executor.find_by!(name: "Darmowy DeepSeek").default_model
+    get executors_path
+    assert_select ".opencode-note", text: /opencode runs without a sandbox.*Agentaro's databases and secrets.*opencode's servers/m
+    assert_select "[style]", 0
+  end
 end
+

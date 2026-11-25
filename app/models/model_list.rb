@@ -7,6 +7,7 @@
 class ModelList
   Result = Data.define(:ok, :models, :note)
   TIMEOUT = 10
+  OPENCODE_TIMEOUT = 30 # spec 055: opencode reads its providers' lists first
   MAX_MODELS = 200
   MAX_FILE = 5.megabytes
   MAX_OUTPUT = 512.kilobytes
@@ -23,6 +24,7 @@ class ModelList
     when "claude_code" then Result.new(true, [], "Claude Code lists no models; its aliases are always offered. Add full names below.")
     when "codex" then codex
     when "codex_local" then named(LocalModels.names) # spec 049: the local Ollama's models
+    when "opencode" then cli("opencode", [ "models" ]) { |out| out.lines.map(&:strip).reject(&:empty?) } # spec 055, G3
     when "ollama_cli" then cli("ollama", [ "list" ]) { |out| out.lines.drop(1).filter_map { |line| line.split.first } }
     when "lm_studio_cli" then cli("lms", [ "ls", "--llm", "--json" ]) { |out| Array(JSON.parse(out)).filter_map { |m| m["modelKey"] if m.is_a?(Hash) } }
     else
@@ -59,7 +61,7 @@ class ModelList
     path = ExecutorCheck.locate(program)
     return Result.new(false, [], "#{program} was not found on this computer.") unless path
 
-    result = HostProcess.run(path, args, timeout: @timeout, max_output: MAX_OUTPUT)
+    result = HostProcess.run(path, args, timeout: (program == "opencode" ? [ @timeout, OPENCODE_TIMEOUT ].max : @timeout), max_output: MAX_OUTPUT)
     return Result.new(false, [], "No answer within #{@timeout} seconds; stopped.") if result.timed_out
     return Result.new(false, [], "#{program} ended: #{result.ending}. #{ExecutorCheck.clean(result.stderr)}".strip) unless result.success?
 

@@ -16,6 +16,7 @@ class Executor < ApplicationRecord
     Preset.new("claude_code", "Claude Code", "cli", "claude", [ "--version" ], nil, nil),
     Preset.new("codex", "Codex", "cli", "codex", [ "--version" ], nil, nil),
     Preset.new("codex_local", "Codex (local model)", "cli", "codex", [ "--version" ], nil, nil), # spec 049: Codex's tools, a local Ollama model
+    Preset.new("opencode", "opencode", "cli", "opencode", [ "--version" ], nil, nil), # spec 055: opencode's models, free ones too; no sandbox
     Preset.new("gemini_cli", "Gemini CLI", "cli", "gemini", [ "--version" ], nil, nil),
     Preset.new("grok_cli", "Grok CLI", "cli", "grok", [ "--version" ], nil, nil),
     Preset.new("ollama_cli", "Ollama (CLI)", "cli", "ollama", [ "--version" ], nil, nil),
@@ -61,6 +62,9 @@ class Executor < ApplicationRecord
   def api? = kind == "api"
   def label = preset_definition&.label || preset
 
+  # Spec 055, G5: opencode has no sandbox of its own; Agentaro runs it with the account's full rights.
+  def unsandboxed? = preset == "opencode"
+
   def check!
     result = ExecutorCheck.new(self).run
     update!(last_checked_at: Time.current, last_check_ok: result.ok, last_check_output: result.output)
@@ -103,7 +107,11 @@ class Executor < ApplicationRecord
     errors.add(:effort, "is not one this tool takes") if effort && !efforts.include?(effort)
   end
 
+  # Spec 055, G1: opencode's free DeepSeek, unless the admin chose another.
+  OPENCODE_DEFAULT_MODEL = "opencode/deepseek-v4.1-flash-free"
+
   def apply_preset_defaults
+    self.default_model = OPENCODE_DEFAULT_MODEL if preset == "opencode" && default_model.blank?
     if api?
       self.base_url ||= preset_definition.default_url
     else

@@ -5,7 +5,7 @@ class ExecutorTest < ActiveSupport::TestCase
   def executor(**attrs) = Executor.new({ name: "Claude", preset: "claude_code" }.merge(attrs))
 
   test "presets define what runs; the record holds no program or arguments" do
-    assert_equal %w[claude codex codex gemini grok ollama lms], Executor::PRESETS.values.select(&:cli?).map(&:program) # spec 049: codex_local runs codex too
+    assert_equal %w[claude codex codex opencode gemini grok ollama lms], Executor::PRESETS.values.select(&:cli?).map(&:program) # spec 049: codex_local runs codex too; spec 055: opencode
     assert_equal %w[ollama_api lm_studio_api openai_compatible_api], Executor::PRESETS.values.select(&:api?).map(&:key)
     assert_not_includes Executor.column_names, "program"
     assert_not_includes Executor.column_names, "arguments"

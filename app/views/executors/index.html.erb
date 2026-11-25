@@ -57,4 +57,8 @@
     </div>
   </div>
 <% end %>
+<% if @executors.any?(&:unsandboxed?) %>
+  <%# Spec 055, G5, R1: said plainly wherever opencode can be chosen. %>
+  <div class="callout warn opencode-note"><%= icon(:info) %><div><strong>opencode runs without a sandbox.</strong> Agents on it can read and change everything this Mac account can — Agentaro's databases and secrets, SSH keys, other projects. Free models run on opencode's servers, so what such an agent reads (its prompt, files, outputs) leaves this computer under opencode's terms.</div></div>
+<% end %>
 <p class="muted small">Subscriptions are used by logging in on this computer (for example <code>claude login</code>, <code>codex login</code>); Agentaro stores no keys or tokens.</p>

@@ -287,6 +287,9 @@ input.code { font-family: var(--mono); font-size: 1.4rem; letter-spacing: 0.35em
 .steps { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); align-items: start; }
 .callout { display: flex; gap: 0.8rem; padding: 1rem 1.2rem; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--fg); }
 .callout svg.icon { color: var(--accent); margin-top: 0.15rem; }
+.callout.warn { background: var(--warn-soft); } /* spec 055: opencode without a sandbox */
+.callout.warn svg.icon { color: var(--warn); }
+.opencode-note { margin: 1rem 0; }
 .change-row { padding: 0.15rem 0; }
 .change-row strong { font-weight: 600; }
 .arrow { color: var(--muted); padding: 0 0.3rem; }

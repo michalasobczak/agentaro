@@ -6,7 +6,7 @@
           Executor::PRESETS.values.group_by { |p| p.cli? ? "Command line on this computer" : "Local API, no key" }
                                   .transform_values { |list| list.map { |p| [ p.label, p.key ] } },
           executor.preset) %>
-    <span class="hint">The program and its arguments come from the preset and cannot be changed here.</span>
+    <span class="hint">The program and its arguments come from the preset and cannot be changed here. opencode runs without a sandbox, with the full rights of this Mac account (spec 055); its free models run on opencode's servers.</span>
   </div>
   <div class="field">
     <%= f.label :name %>
