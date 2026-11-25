@@ -662,3 +662,4 @@
   - Tests: `opencode_executor_test.rb` (8) and one in `executors_test.rb`; the list of preset programs in `executor_test.rb` now includes opencode. 685 tests pass.
   - Real runs on this computer (demo data, deleted afterwards) with the free DeepSeek: "Check" found opencode v2.4.1 in the desktop app and "Refresh models" listed 12 models. A step fixed a file in a space's folder and tested it, and the director added an epic from the chat.
   - B20 after specs 001–055: no new findings to fix; the accepted risk is written in the spec (R1). Brakeman 0 warnings; bundle-audit clean.
+- Fix: the commit of spec 055 also took in unfinished lines of spec 056 (planning one step by default) from `management_runner.rb`, which call code not yet committed. They are taken out of the repository again; spec 056 comes in its own commit.

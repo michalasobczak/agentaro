@@ -6,7 +6,6 @@
 # for its members, spec 012 G2; spec 016: at once, as an ordered list of steps without times). "manager" and "review" exist only in runs from before spec 012.
 class ManagementRunner
   MAX_STEPS = 10
-  SPLIT_REASON_CHARS = 300 # spec 056: a short, concrete reason for an exceptional split
   MAX_PROGRESS_STEPS = 20 # legacy epics may still contain more than one plan
   MAX_ACTIONS = 20
   LEGACY = %w[manager review].freeze
@@ -961,18 +960,9 @@ class ManagementRunner
   end
 
   # Spec 016, G2: an ordered list of steps without times; they run one after another from the epic's start.
-  # Spec 056: by default one step for one member in one session (diagnosis, the work and the check); a split only
-  # for an exceptionally complex epic, into the fewest steps and with a short reason.
   def plan_prompt
     members = team_members.map { |m| member_line(m) }
     start = @item.starts_at ? "at #{@item.starts_at.in_time_zone.strftime("%A %-d %B %Y, %H:%M")}" : "at once"
-    step_rule = turbo? ? "exactly 1 step" : "1 step by default; only an exceptionally complex epic gets more — at most #{MAX_STEPS}, as few as the work needs, with \"split_reason\""
-    session_rule = if WorkTempo.normal?(@item.space, @user)
-      "By default the plan is one member's one session: it diagnoses the problem, does the work and checks the result before it answers. " \
-        "Its description says briefly what to diagnose, do and check. Do not split a normal task into research, work and checking steps: one step covers all three."
-    else
-      ""
-    end
     <<~PROMPT
       You are the director. Break the work item into steps for your team members. Agentaro runs your plan as it is; nobody reviews it, so make it right.
       The item starts #{start}. Its steps run one after another, each as soon as the previous one has finished, and each step receives the answers of the earlier steps. So order them so that each step builds on the ones before.
@@ -984,11 +974,11 @@ class ManagementRunner
       Your team members (use only these ids):
       #{members.presence&.join("\n") || "(none)"}
 
-      Rules: #{step_rule}, in the order they should run; each step for one member. #{session_rule} A member can run several tasks at once, up to its limit; when the right skills allow a choice, prefer a member with free slots, since a step for a busy member (at its limit) waits until one of its tasks ends. Write the summary, titles and descriptions in the language of the work item.
+      Rules: #{turbo? ? "exactly 1 step" : "1 to #{MAX_STEPS} steps, in the order they should run"}; each step for one member. A member can run several tasks at once, up to its limit; when the right skills allow a choice, prefer a member with free slots, since a step for a busy member (at its limit) waits until one of its tasks ends. Write the summary, titles and descriptions in the language of the work item.
       #{WorkTempo.plan_rule(WorkTempo.level_for(@item.space, @user))}
       #{autonomy_plan_rule}
       Reply with ONLY one JSON object, no other text:
-      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>, "minutes": <the step's time limit, 5 to 240: your estimate of how long it needs, with a margin; 30 if unsure>}], "split_reason": "when the plan has more than 1 step: the concrete reason for the split, one short sentence; otherwise null", "assumptions": ["what you assumed yourself, one short sentence each (may be empty)"]}
+      {"summary": "the plan in one or two sentences, for #{@user.username}", "steps": [{"title": "...", "description": "what to do and what to deliver", "agent": <member id>, "minutes": <the step's time limit, 5 to 240: your estimate of how long it needs, with a margin; 30 if unsure>}], "assumptions": ["what you assumed yourself, one short sentence each (may be empty)"]}
       or, if you cannot plan it or need #{@user.username}'s decision: {"blocked": "your question to #{@user.username}"}
     PROMPT
   end
@@ -1649,16 +1639,10 @@ class ManagementRunner
     raise Invalid, "\"steps\" must be a list of 1 to #{MAX_STEPS} steps" unless steps.is_a?(Array) && steps.size.between?(1, MAX_STEPS)
     raise Invalid, "tempo #{WorkTempo.name(WorkTempo::TURBO)}: the plan must have exactly 1 step" if turbo? && steps.size != 1 # spec 041, R5
 
-    split_reason = data["split_reason"].to_s.strip
-    if WorkTempo.normal?(@item.space, @user) && steps.size > 1 # spec 056, R2
-      raise Invalid, "\"split_reason\" is required when the plan has more than 1 step: say in one short sentence why this epic is exceptionally complex" if split_reason.empty?
-      raise Invalid, "\"split_reason\" must be one short sentence (at most #{SPLIT_REASON_CHARS} characters)" if split_reason.length > SPLIT_REASON_CHARS
-    end
-
     members = team_members.to_h { |m| [ m.agent_id, m.agent ] }
     checked = steps.each_with_index.map { |step, i| check_step(step, i + 1, members) } # all checked before any is saved
     assumptions = Array(data["assumptions"]).map { |a| a.to_s.strip.truncate(300) }.reject(&:empty?).uniq.first(10) # spec 033, G5
-    schedule!(checked, data["summary"].to_s.strip.truncate(2000).presence, assumptions, split_reason: split_reason.presence)
+    schedule!(checked, data["summary"].to_s.strip.truncate(2000).presence, assumptions)
   end
 
   def check_step(step, number, members)
@@ -1679,8 +1663,7 @@ class ManagementRunner
   end
 
   # Spec 016, G2: a checked plan becomes the epic's ordered steps; the epic is planned and starts at its time.
-  # Spec 056: the reason for an exceptional split is shown under the plan (and stays in the chat's record).
-  def schedule!(steps, summary, assumptions = [], split_reason: nil)
+  def schedule!(steps, summary, assumptions = [])
     approval = Autonomy.level_for(@item.space, @user) == 1 # spec 033, G1: Pytaj — the plan waits for Approve
     EpicStep.transaction do
       @item.reload
@@ -1701,8 +1684,7 @@ class ManagementRunner
     # in the user's language and only they are spoken.
     start = "waiting for your approval (Approve on the epic's page, or tell me)" if approval
     assumed = assumptions.any? ? " Assumed: #{assumptions.join("; ")}." : ""
-    split = split_reason && steps.size > 1 ? " Split: #{split_reason.sub(/[.!?]\z/, "")}." : ""
-    say("director", summary || @item.title, actions_summary: "Planned \"#{@item.title}\": #{steps.size} step#{"s" unless steps.size == 1}, #{start}; they run one after another.#{assumed}#{split}")
+    say("director", summary || @item.title, actions_summary: "Planned \"#{@item.title}\": #{steps.size} step#{"s" unless steps.size == 1}, #{start}; they run one after another.#{assumed}")
     StepChain.start_due(user: @user)
   end
 
