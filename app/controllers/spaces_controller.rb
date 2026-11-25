@@ -98,6 +98,16 @@ class SpacesController < ApplicationController
     redirect_to space_path(@space, anchor: "ci"), notice: "Server: #{@space.reload.server_state}#{" — #{@space.server_note}" if @space.server_note}."
   end
 
+  # Spec 054, G1, G4: the space's sandbox off (on=1) or back on (on=0); only the owner's own spaces (set_space).
+  def sandbox
+    return head :unprocessable_content if @space.working_dir.blank?
+
+    on = params[:on].to_s == "1"
+    @space.set_no_sandbox!(on)
+    notice = on ? "No sandbox: steps, CI and the server of this space now run with the full rights of the computer's account." : "Sandbox on again for this space."
+    redirect_to space_path(@space, anchor: "sandbox"), notice: notice
+  end
+
   # Spec 051, G3: a space dragged into a group (or out of every group: no group_id) at a 1-based place.
   def place
     group = params[:group_id].present? ? current_user.space_groups.find(params[:group_id]) : nil

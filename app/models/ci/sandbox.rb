@@ -29,6 +29,13 @@ module Ci
     # The arguments for one shell command in the sandbox.
     def self.command(space, line) = [ "-p", profile(space), "/bin/sh", "-c", line ]
 
+    # Spec 054, G3: [program, arguments] for a CI command or the server — in the sandbox, or, in a space without one,
+    # a plain shell with the same environment and working folder.
+    def self.wrap(space, line) = space.no_sandbox? ? [ "/bin/sh", [ "-c", line ] ] : [ PROGRAM, command(space, line) ]
+
+    # Whether the space's commands can run: sandbox-exec is needed only for a sandboxed space.
+    def self.ready?(space) = space.no_sandbox? || available?
+
     def self.real(dir)
       File.realpath(dir)
     rescue SystemCallError

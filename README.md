@@ -105,6 +105,7 @@ All specs marked implemented below work in the code; the history is in [`CHANGEL
 | 051 | [Groups of spaces, arranged with the mouse](specs/051-space-groups.md) | implemented |
 | 052 | [CI and servers of a space](specs/052-space-ci-and-servers.md) | implemented |
 | 053 | [A relaxed sandbox: web, local ports and Git](specs/053-relaxed-sandbox.md) | implemented |
+| 054 | [A space without a sandbox](specs/054-space-without-sandbox.md) | implemented |
 | 100 | [Ratings and sentiment](specs/100-ratings-and-sentiment.md) | closed |
 | 101 | [Reflection and playbooks](specs/101-reflection-and-playbooks.md) | draft (Q1–Q3 open) |
 | 102 | [Model of the owner and when agents ask](specs/102-owner-model-and-questions.md) | draft (Q1–Q4 open) |

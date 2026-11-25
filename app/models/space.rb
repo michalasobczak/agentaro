@@ -108,6 +108,13 @@ class Space < ApplicationRecord
     TaskRun.where(work_item_id: items).or(TaskRun.where(task_id: Task.where(work_item_id: items).select(:id)))
   end
 
+  # Spec 054, G1, G4: the owner turns the space's sandbox off or on; a wanted server starts again under the new rules
+  # (a running step keeps its rules until it ends, R3).
+  def set_no_sandbox!(on)
+    update!(no_sandbox: on)
+    Ci::Server.restart!(self) if server_wanted && active? && working_dir.present?
+  end
+
   def active? = state == "active"
   def project? = kind == "project"
   def team? = kind == "team"

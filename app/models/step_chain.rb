@@ -260,7 +260,11 @@ class StepChain
     lines << [ "epic", "\nThis is step #{step.position} of #{last_position} of the epic \"#{item.title}\", planned by your director, in the space \"#{item.space.name}\" (#{item.space.purpose_line})." ]
     lines << [ "epic", "Epic details: #{item.description}" ] if item.description.present?
     if (dir = item.space.working_dir) # spec 018, G6
-      lines << [ "workspace", "\nYou work in the space's folder #{dir} (your current directory). You may read and change files there, run commands and tools (git, docker, package managers, a browser) and use the network. Folders of other projects are not accessible." ]
+      lines << if item.space.no_sandbox? # spec 054, G5
+        [ "workspace", "\nYou work in the space's folder #{dir} (your current directory). This space has no sandbox (#{item.user.username}'s switch on the space's page): you run with the full rights of the computer's account, so you may start, stop and restart its programs and servers yourself, write in your home folder and run other tools such as codex or claude. Work only on this space's project: leave other projects, Agentaro's own files and the account's keys alone, and do not ask #{item.user.username} to run something in a terminal for you." ]
+      else
+        [ "workspace", "\nYou work in the space's folder #{dir} (your current directory). You may read and change files there, run commands and tools (git, docker, package managers, a browser) and use the network. Folders of other projects are not accessible." ]
+      end
       lines << [ "workspace", git_note ] if git_note # spec 053, G4
     end
     earlier = earlier_answers(step)

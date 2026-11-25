@@ -264,8 +264,12 @@ class AgentCall
     when "claude_code"
       # Web search and fetch are allowed (owner fix: "Claude said, that it couldnt use web search"); in print
       # mode every tool that is not allowed up front is refused.
-      args = [ "-p", "--output-format", "text", "--no-session-persistence", "--permission-mode", "acceptEdits",
-               "--allowedTools", (space ? "Bash #{WEB_TOOLS}" : WEB_TOOLS), "--settings", claude_settings(space) ]
+      args = if unsandboxed?(space) # spec 054, G2: every tool, no sandbox
+        [ "-p", "--output-format", "text", "--no-session-persistence", "--permission-mode", "bypassPermissions", "--settings", NO_SANDBOX_SETTINGS ]
+      else
+        [ "-p", "--output-format", "text", "--no-session-persistence", "--permission-mode", "acceptEdits",
+          "--allowedTools", (space ? "Bash #{WEB_TOOLS}" : WEB_TOOLS), "--settings", claude_settings(space) ]
+      end
       args += [ "--model", model ] if model
       args += [ "--effort", @effort ] if @effort # spec 022, G5
       [ args, prompt.text, nil ]
@@ -273,13 +277,13 @@ class AgentCall
       return nil unless model
 
       answer = folder.join("answer.txt").to_s
-      args = [ "exec", "--oss", "--local-provider", "ollama", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
-      args.insert(args.index("--ephemeral"), "-c", "sandbox_workspace_write.network_access=true") if space || relaxed? # as for Codex (spec 018, Q5; spec 053, G2)
+      args = [ "exec", "--oss", "--local-provider", "ollama", "--skip-git-repo-check", "--sandbox", codex_sandbox(space), "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
+      args.insert(args.index("--ephemeral"), "-c", "sandbox_workspace_write.network_access=true") if (space || relaxed?) && !unsandboxed?(space) # as for Codex (spec 018, Q5; spec 053, G2)
       [ args + [ "-m", model, "-" ], prompt.text, answer ]
     when "codex"
       answer = folder.join("answer.txt").to_s
-      args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
-      args.insert(5, "-c", "sandbox_workspace_write.network_access=true") if space || relaxed? # spec 018, Q5: network in a working folder (reads not limited: F17); spec 053, G2: everywhere when relaxed
+      args = [ "--search", "exec", "--skip-git-repo-check", "--sandbox", codex_sandbox(space), "--ephemeral", "--color", "never", "-C", @chdir, "-o", answer ]
+      args.insert(5, "-c", "sandbox_workspace_write.network_access=true") if (space || relaxed?) && !unsandboxed?(space) # spec 018, Q5: network in a working folder (reads not limited: F17); spec 053, G2: everywhere when relaxed
       args += [ "-m", model ] if model
       args += [ "-c", "model_reasoning_effort=#{@effort}" ] if @effort # spec 022, G5
       [ args + [ "-" ], prompt.text, answer ]
@@ -307,6 +311,14 @@ class AgentCall
   RELAXED_NETWORK = { allowedDomains: [ "*" ], allowLocalBinding: true }.freeze
 
   def relaxed? = @run.respond_to?(:user) && @run.user&.relaxed_sandbox? ? true : false
+
+  # Spec 054, G2: a step in a space whose owner turned its sandbox off runs with the account's full rights (R1).
+  # Only steps get a space here (working_space), so the director and the verifier keep their sandbox (Q1).
+  def unsandboxed?(space) = space&.no_sandbox? ? true : false
+
+  def codex_sandbox(space) = unsandboxed?(space) ? "danger-full-access" : "workspace-write"
+
+  NO_SANDBOX_SETTINGS = { sandbox: { enabled: false } }.to_json.freeze
 
   def folder_settings(space)
     denied = space.denied_dirs

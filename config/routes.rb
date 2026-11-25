@@ -69,6 +69,7 @@ Rails.application.routes.draw do
       patch :place # spec 051: into a group, at a place
       post :build # spec 052
       post :server # spec 052: start, stop, restart
+      patch :sandbox # spec 054: the space without a sandbox, or with it again
     end
   end
   resources :space_groups, only: %i[create update destroy] do # spec 051

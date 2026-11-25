@@ -7,7 +7,7 @@ module Ci
     def perform!
       space = @run.space or return finish("skipped", "The space is gone.")
       @run.update!(state: "running", started_at: Time.current)
-      return finish_space(space, "error", "sandbox-exec is not on this computer.") unless Sandbox.available?
+      return finish_space(space, "error", "sandbox-exec is not on this computer.") unless Sandbox.ready?(space)
 
       config = begin
         Ci.config_for(space)
@@ -23,7 +23,8 @@ module Ci
         next unless line
 
         log << "$ #{name}: #{line}\n"
-        result = HostProcess.run(Sandbox::PROGRAM, Sandbox.command(space, line), chdir: space.working_dir, timeout: STEP_TIMEOUT,
+        program, args = Sandbox.wrap(space, line) # spec 054, G3
+        result = HostProcess.run(program, args, chdir: space.working_dir, timeout: STEP_TIMEOUT,
                                  max_output: MAX_OUTPUT, on_spawn: ->(pid) { RunControl.started(@run.id, pid) })
         RunControl.finished(@run.id)
         log << result.stdout.to_s << result.stderr.to_s

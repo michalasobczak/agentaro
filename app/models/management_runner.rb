@@ -1427,6 +1427,7 @@ class ManagementRunner
   # Spec 052, G5: a space's CI and server, for the director.
   def ci_text(space)
     parts = []
+    parts << "no sandbox: its steps, CI and server run with the account's full rights, so its agents restart its server themselves" if space.no_sandbox? # spec 054, G5
     parts << "CI #{space.ci_state.tr("_", " ")}#{" at #{space.ci_finished_at.in_time_zone.strftime("%H:%M")}" if space.ci_finished_at}" if space.ci_state
     parts << "server #{space.server_state}#{" (#{space.server_note})" if space.server_note.present?}" if space.server_wanted || space.server_state == "down"
     parts.any? ? " [#{parts.join("; ")}]" : ""

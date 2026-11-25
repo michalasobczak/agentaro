@@ -1,0 +1,18 @@
+<%# Spec 054: the space without a sandbox — steps, CI and the server with the account's full rights (R1). Admin-type setting: desktop only. %>
+<section class="card sandbox-card desktop-only" id="sandbox" aria-labelledby="space-sandbox-title">
+  <div class="sandbox-head">
+    <h2 id="space-sandbox-title" class="sandbox-title">No sandbox <%= space.no_sandbox? ? badge("on", "warn") : badge("off") %></h2>
+    <% if space.no_sandbox? %>
+      <%= button_to "Turn the sandbox back on", sandbox_space_path(space, on: 0), method: :patch, class: "secondary small" %>
+    <% else %>
+      <%= button_to "Run without a sandbox", sandbox_space_path(space, on: 1), method: :patch, class: "danger small",
+                    form: { data: { confirm: "Run #{space.name} without a sandbox? Its agents, CI and server will be able to read and change everything your Mac account can — Agentaro's databases and secrets, SSH keys, other projects — and send it anywhere. A wrong or tricked step can do anything you could do." } } %>
+    <% end %>
+  </div>
+  <% if space.no_sandbox? %>
+    <p class="small">Steps of this space (Claude Code, Codex), its CI and its server run with the <strong>full rights of this computer's account</strong>. Agents can start and restart the server themselves and run tools such as codex or claude inside it.</p>
+  <% else %>
+    <p class="small">Steps, CI and the server of this space run in a sandbox: they write only in the working folder and cannot read Agentaro's storage or other projects. Some tools (for example codex started by the space's server) do not work in it.</p>
+  <% end %>
+  <p class="small muted">The director and the verifier keep their sandbox. Turning the switch restarts a running server under the new rules; a step that is running keeps its rules until it ends.</p>
+</section>

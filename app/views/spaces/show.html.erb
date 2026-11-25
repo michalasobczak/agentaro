@@ -18,6 +18,7 @@
 <% unless @space.active? %><div class="callout"><%= icon(:info) %><div>This space is archived: no new epics, and the director takes up none of its epics.</div></div><% end %>
 <% if @space.working_dir %><p class="small muted space-folder"><%= icon(:chip, css: "icon tiny") %> Working folder: <code><%= @space.working_dir %></code> <%= git_line(@space) %></p><% end %>
 <%= render "spaces/ci", space: @space if @space.working_dir %>
+<%= render "spaces/sandbox", space: @space if @space.working_dir %>
 <% if @space.description.present? %>
   <details class="card space-about"><summary>About this space</summary><p class="pre"><%= @space.description %></p></details>
 <% end %>

@@ -40,7 +40,7 @@ module Ci
     def start_locked(space, wanted)
       config = Ci.config_for(space)
       raise Config::Invalid, "#{Config::FILE} has no serve command" unless config&.serve
-      raise Config::Invalid, "sandbox-exec is not on this computer" unless Sandbox.available?
+      raise Config::Invalid, "sandbox-exec is not on this computer" unless Sandbox.ready?(space)
 
       stop_process(space)
       path = log_path(space)
@@ -49,7 +49,9 @@ module Ci
       log = File.open(path, "a")
       log.puts("--- #{Time.current.iso8601} start: #{config.serve}")
       env = ENV.to_h.slice(*HostProcess::ENV_KEPT)
-      pid = Process.spawn(env, Sandbox::PROGRAM, *Sandbox.command(space, config.serve), unsetenv_others: true, chdir: space.working_dir,
+      program, args = Sandbox.wrap(space, config.serve) # spec 054, G3: without sandbox-exec in a space without a sandbox
+      log.puts("--- no sandbox (spec 054)") if space.no_sandbox?
+      pid = Process.spawn(env, program, *args, unsetenv_others: true, chdir: space.working_dir,
                           pgroup: true, in: File::NULL, out: log, err: log, close_others: true)
       log.close
       Process.detach(pid)
