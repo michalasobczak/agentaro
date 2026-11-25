@@ -36,5 +36,9 @@ module DirectorSchema
     recommended: { type: "string" }
   }, required: %w[decision reason] }.freeze
 
+  # Spec 050, G4: the check of a reply against what was done.
+  CONSISTENCY = { type: "object", properties: { consistent: { type: "boolean" }, missing: { type: "array", items: ACTION }, note: { type: "string" } },
+                  required: %w[consistent missing note] }.freeze
+
   SUMMARY = { type: "object", properties: { summary: { type: "string" } }, required: [ "summary" ] }.freeze # spec 045
 end

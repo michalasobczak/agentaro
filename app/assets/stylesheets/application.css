@@ -634,9 +634,10 @@ body:has(.chat-dock.is-open.is-max) .notice-stack { top: auto; bottom: 6rem; rig
 .work-epic.is-running > .work-epic-head .work-state { color: var(--warn); }
 .work-epic.is-blocked > .work-epic-head .work-state { color: var(--bad); }
 .work-steps { list-style: none; margin: 0.3rem 0 0; padding: 0; }
-.work-step { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr) auto; gap: 0.4rem; align-items: baseline; padding: 0.08rem 0; font-size: 0.85rem; color: var(--muted); }
-.work-step-n { font-variant-numeric: tabular-nums; }
-.work-step-title { overflow-wrap: anywhere; }
+.work-step { display: flex; flex-wrap: wrap; column-gap: 0.4rem; align-items: baseline; padding: 0.08rem 0; font-size: 0.85rem; color: var(--muted); }
+.work-step-n { flex: 0 0 1.3rem; font-variant-numeric: tabular-nums; }
+.work-step-title { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.work-step > .work-state { flex: 0 1 auto; margin-left: auto; min-width: 0; overflow-wrap: anywhere; text-align: right; } /* owner fix: a long retry note goes to its own line instead of squeezing the title to one letter per line */
 .work-step.is-succeeded .work-state { color: var(--ok); }
 .work-step.is-failed .work-state, .work-step.is-timed-out .work-state { color: var(--bad); }
 .work-step.is-running { color: var(--fg); font-weight: 600; }

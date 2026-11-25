@@ -136,6 +136,7 @@ module ApplicationHelper
     case run.purpose
     when "chat" then "chat"
     when "memory" then "the brain read a message" # spec 031
+    when "consistency" then "check: does the reply match what was done" # spec 050
     when "epic_step" then run.epic_step ? "step #{run.epic_step.position}: #{run.epic_step.title}" : "step" # spec 016
     when "director" then run.work_item&.runs&.exists?(purpose: "manager") ? "director chose a manager" : "director planned"
     when "manager" then "manager planned (before spec 012)"

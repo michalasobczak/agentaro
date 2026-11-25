@@ -1,6 +1,6 @@
 # 050 — Does the reply match what was done?
 
-Status: **draft**
+Status: **closed** 2026-11-25 (owner: "Zamknij 050 i buduj"); **implemented** 2026-11-25
 Date: 2026-11-22
 Depends on: [011](011-list-and-management.md), [019](019-verifier.md), [040](040-director-controls-failed-and-hung-steps.md), [047](047-retry-by-agreement-and-kept-replies.md)
 
@@ -21,6 +21,7 @@ When the director's reply says it does something ("zatrzymuję", "anulowałem", 
   - "Usunięte, nie zapamiętam tego".
   - The owner then waits for something that never happens.
   - The causes found so far (fixed on 2026-11-22): the proposal pass did not see processes or steps; the owner's "tak" or "zajmij się tym" did not count as a request. More causes will come, so the gap needs a check, not only fixes.
+  - 2026-11-25 (run 1564): the reply pass wrote "Zlecam więc małą poprawkę" with an `add_item`; the proposal pass took "no to chyba przepisy też wypadałoby kategoryzować" for a suggestion and added nothing. The reply stayed, with "No changes were made" under it.
   - Fixed on 2026-11-24: a director message from another run (a plan or an epic summary) posted while a reply was prepared counted as a changed request, so every change was refused ("Not done: all changes: your request changed…"). Five production replies, all of this kind; now only a newer message of the owner counts.
 - **Decision history:** the owner chose (2026-11-22):
   - the verifier checks; with no verifier, the director's own model;
@@ -117,3 +118,23 @@ When the director's reply says it does something ("zatrzymuję", "anulowałem", 
   - checking every reply: it doubles the calls;
   - forbidding the director to announce actions: it would still slip, and the owner wants natural replies (spec 046).
 - **Sources and questions:** none open.
+- **Implementation (2026-11-25):**
+  - Migration `20261125110000`: `task_runs.checked_message_id`; run purpose `consistency`.
+  - `ManagementRunner.announces?`: a fixed list of Polish first-person verbs and participles (zatrzymuję, anulowałem, zlecam, zapamiętam, usunięte…), matched as whole words, and English "I'll / I've / I … stop, cancel, add, …" forms.
+  - The trigger in `apply_chat!` (chat runs only, with a request of the owner): some changes refused, or nothing applied while the reply announces an action. "Less than the reply names" cannot be counted without a model: a reply with at least one applied change is not checked (S2).
+  - `consistency!`:
+    - It runs the verifier, or the director's agent without one, and is skipped at a usage limit (R3) or when the owner has written again, before and after the call (S4).
+    - Its prompt is the proposal pass's prompt (work list with steps, processes and questions; the owner's latest message), plus the reply and what Agentaro did, quoted as data (R2), and the check's own answer format (`DirectorSchema::CONSISTENCY`).
+    - At most 3 missing actions go through `check_action` in one transaction. `retry_step` is refused (a retry is decided with the reply). One message from the checker ("verifier", or "director" without one) carries the note and what was applied or refused. A consistent answer posts nothing.
+  - Tests: `reply_consistency_test.rb` (9). They replay 973/975 (the process is stopped), run 1564 (the epic is added) and the announcement rule, and cover S2, S3, S4, a consistent answer, the director without a verifier and the refused retry.
+  - Real runs on this computer (demo data, deleted afterwards; Claude Code as the verifier):
+    - "Zlecam więc małą poprawkę…" after "no to chyba przepisy też wypadałoby kategoryzować": the epic was added. The verifier wrote that it had been promised and was ordered now.
+    - "…zapamiętam, żeby potem sprawdzić przepisy" after "a co robi teraz inżynier?": nothing was made. The note said it was not asked for and the owner can ask.
+- **Security analysis (B20, after specs 001–054 and this one):**
+  - R1 holds: every repaired action passes `check_action` with the owner's message that the reply answered, including the owner's-words rules (stop a process, CI, settings). The check cannot retry a step, and it cannot make more than 3 actions.
+  - The checked message is found only among the owner's own messages. The run carries only its id.
+  - Prompt injection: the reply and what was done are quoted as data. Step outputs reach the checker only through the work list, as they reach the proposal pass.
+  - Cost: at most one check per chat reply, and only for replies with a gap. A check never triggers another check.
+  - Race: the owner's newer message is looked for before and after the call. The window between the last look and the commit is the same as the proposal pass has.
+  - Brakeman 0 warnings; bundle-audit clean.
+

@@ -89,4 +89,15 @@ class WorkPanelTest < ActionDispatch::IntegrationTest
     assert_match "agentaro.work.folded", js
     assert_no_match(/innerHTML|insertAdjacentHTML/, js)
   end
+
+  # Owner fix 2026-11-25 (screenshot): a long state such as "retrying at 13:30 (attempt 2 of 5) — passing error" took the
+  # whole row of a step and squeezed its title to one letter per line. The row now wraps: the note goes to its own line.
+  test "owner fix: a long step state wraps under the title instead of squeezing it" do
+    css = Rails.root.join("app/assets/stylesheets/application.css").read
+    row = css[/^\.work-step \{[^}]*\}/]
+    assert_match(/display: flex; flex-wrap: wrap/, row)
+    assert_no_match(/grid-template-columns/, row, "no auto column that grows with the note")
+    assert_match(/^\.work-step-title \{ flex: 1 1 10rem; min-width: 0;/, css, "the title keeps room of its own")
+    assert_match(/^\.work-step > \.work-state \{ flex: 0 1 auto; margin-left: auto; min-width: 0; overflow-wrap: anywhere;/, css)
+  end
 end

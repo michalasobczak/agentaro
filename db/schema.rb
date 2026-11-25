@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_25_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_25_110000) do
   create_table "agents", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "kind", default: "private", null: false
@@ -388,6 +388,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_090000) do
     t.integer "attempt", default: 1, null: false
     t.integer "pid"
     t.integer "space_id"
+    t.integer "checked_message_id"
     t.index ["agent_id"], name: "index_task_runs_on_agent_id"
     t.index ["epic_step_id"], name: "index_task_runs_on_epic_step_id"
     t.index ["space_id"], name: "index_task_runs_on_space_id"

@@ -101,7 +101,7 @@ All specs marked implemented below work in the code; the history is in [`CHANGEL
 | 047 | [Retry by agreement, and replies kept when an action is refused](specs/047-retry-by-agreement-and-kept-replies.md) | implemented |
 | 048 | [Pause an epic](specs/048-pause-an-epic.md) | implemented |
 | 049 | [Codex with a local model](specs/049-codex-with-a-local-model.md) | implemented |
-| 050 | [Does the reply match what was done?](specs/050-reply-versus-actions-check.md) | draft |
+| 050 | [Does the reply match what was done?](specs/050-reply-versus-actions-check.md) | implemented |
 | 051 | [Groups of spaces, arranged with the mouse](specs/051-space-groups.md) | implemented |
 | 052 | [CI and servers of a space](specs/052-space-ci-and-servers.md) | implemented |
 | 053 | [A relaxed sandbox: web, local ports and Git](specs/053-relaxed-sandbox.md) | implemented |
